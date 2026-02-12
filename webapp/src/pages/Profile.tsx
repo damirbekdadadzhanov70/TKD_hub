@@ -7,7 +7,7 @@ import { mockCoachAthletes, mockCoachEntries, mockMe } from '../api/mock';
 import type { AthleteUpdate, CoachAthlete, CoachEntry, MeResponse } from '../types';
 
 export default function Profile() {
-  const { data: me, loading } = useApi<MeResponse>(getMe, mockMe, []);
+  const { data: me, loading, refetch } = useApi<MeResponse>(getMe, mockMe, []);
   const [editing, setEditing] = useState(false);
 
   if (loading || !me) return <LoadingSpinner />;
