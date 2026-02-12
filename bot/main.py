@@ -39,8 +39,8 @@ async def main():
     dp.include_router(tournaments_view.router)
     dp.include_router(entries.router)
 
-    async def on_startup(bot_instance: Bot) -> None:
-        asyncio.create_task(scheduler_loop(bot_instance))
+    async def on_startup(bot: Bot) -> None:
+        asyncio.create_task(scheduler_loop(bot))
         logger.info("Scheduler started")
 
     dp.startup.register(on_startup)
