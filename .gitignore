@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.idea/
+*.egg-info/
+dist/
+build/
+webapp/node_modules/
+webapp/dist/
+*.db
