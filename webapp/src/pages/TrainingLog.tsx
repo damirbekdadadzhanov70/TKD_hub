@@ -10,6 +10,34 @@ import type { TrainingLog as TrainingLogType, TrainingLogCreate } from '../types
 const TRAINING_TYPES = ['sparring', 'technique', 'cardio', 'strength', 'flexibility', 'poomsae'];
 const INTENSITIES = ['low', 'medium', 'high'];
 
+/* ---- SVG icons for training types (Lucide-style, 16x16) ---- */
+
+function TrainingTypeIcon({ type }: { type: string }) {
+  const props = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (type) {
+    case 'sparring': // shield
+      return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
+    case 'technique': // target
+      return <svg {...props}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>;
+    case 'cardio': // activity pulse
+      return <svg {...props}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>;
+    case 'strength': // zap
+      return <svg {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>;
+    case 'flexibility': // wind
+      return <svg {...props}><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" /><path d="M9.6 4.6A2 2 0 1 1 11 8H2" /><path d="M12.6 19.4A2 2 0 1 0 14 16H2" /></svg>;
+    case 'poomsae': // grid
+      return <svg {...props}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>;
+    default: // file-text
+      return <svg {...props}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>;
+  }
+}
+
+const INTENSITY_STYLES: Record<string, string> = {
+  high: 'bg-rose-50/60 text-rose-700',
+  medium: 'bg-amber-50/60 text-amber-700',
+  low: 'bg-slate-50 text-slate-500',
+};
+
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month, 0).getDate();
 }
@@ -60,7 +88,6 @@ export default function TrainingLogPage() {
     const totalSessions = logs.length;
     const totalMinutes = logs.reduce((s, l) => s + l.duration_minutes, 0);
     const totalHours = (totalMinutes / 60).toFixed(1);
-    // Average intensity: low=1, medium=2, high=3
     const intensityMap: Record<string, number> = { low: 1, medium: 2, high: 3 };
     const avgIntensityNum = logs.reduce((s, l) => s + (intensityMap[l.intensity] || 2), 0) / totalSessions;
     let avgIntensity = 'Medium';
@@ -123,7 +150,7 @@ export default function TrainingLogPage() {
                   {hasLog && (
                     <div
                       className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
-                        isToday ? 'bg-white' : 'bg-green-500'
+                        isToday ? 'bg-white' : 'bg-accent'
                       }`}
                     />
                   )}
@@ -163,23 +190,14 @@ export default function TrainingLogPage() {
         {loading ? (
           <LoadingSpinner />
         ) : !logs || logs.length === 0 ? (
-          <EmptyState icon="🥋" title="No training logs" description="Tap + to add your first entry" />
+          <EmptyState title="No training logs" description="Tap + to add your first entry" />
         ) : (
           logs.map((log) => (
             <Card key={log.id}>
               <div className="flex justify-between items-start">
                 <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0 ${
-                    log.intensity === 'high' ? 'bg-red-50 text-red-500' :
-                    log.intensity === 'medium' ? 'bg-amber-50 text-amber-500' :
-                    'bg-green-50 text-green-500'
-                  }`}>
-                    {log.type === 'sparring' ? '🥊' :
-                     log.type === 'technique' ? '🥋' :
-                     log.type === 'cardio' ? '🏃' :
-                     log.type === 'strength' ? '💪' :
-                     log.type === 'flexibility' ? '🧘' :
-                     log.type === 'poomsae' ? '🎯' : '📝'}
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
+                    <TrainingTypeIcon type={log.type} />
                   </div>
                   <div>
                     <p className="font-semibold text-sm capitalize text-text">
@@ -253,20 +271,20 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-      <div className="w-full rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto bg-white">
-        <div className="flex justify-between items-center mb-4">
+      <div className="w-full rounded-t-2xl max-h-[85vh] flex flex-col overflow-hidden bg-white">
+        <div className="flex justify-between items-center p-4 pb-2 shrink-0">
           <h2 className="text-lg font-bold text-text">Add Training</h2>
           <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
           <label className="block">
             <span className="text-xs mb-1 block text-text-secondary">Date</span>
             <input
               type="date"
               value={form.date}
               onChange={(e) => update('date', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -275,7 +293,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <select
               value={form.type}
               onChange={(e) => update('type', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             >
               {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -287,7 +305,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               type="number"
               value={form.duration_minutes}
               onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -296,7 +314,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <select
               value={form.intensity}
               onChange={(e) => update('intensity', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             >
               {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
             </select>
@@ -309,7 +327,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               step="0.1"
               value={form.weight ?? ''}
               onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
               placeholder="Optional"
             />
           </label>
@@ -319,12 +337,14 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <textarea
               value={form.notes ?? ''}
               onChange={(e) => update('notes', e.target.value || null)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
               rows={3}
               placeholder="Optional"
             />
           </label>
+        </div>
 
+        <div className="p-4 pt-2 shrink-0">
           <button
             onClick={handleSubmit}
             disabled={saving}

@@ -122,5 +122,34 @@
   "you_entered_tournament": "📢 Your coach entered you in tournament <b>{tournament}</b>!",
   "no_entries": "You have no tournament entries.",
   "your_entries": "📋 Your tournament entries:",
-  "athletes_word": "athletes"
+  "athletes_word": "athletes",
+
+  "admin_menu": "⚙️ Admin panel:",
+  "admin_pending_coaches": "👥 Pending coaches",
+  "admin_add_tournament": "➕ Add tournament",
+  "admin_edit_tournament": "✏️ Edit tournament",
+  "admin_delete_tournament": "🗑 Delete tournament",
+  "admin_use_command": "Use command {command}",
+
+  "enter_decline_reason": "Enter the reason for declining:",
+  "coach_declined_with_reason": "❌ Coach declined with reason.",
+  "your_coach_declined_reason": "Unfortunately, your coach request has been declined.\n\n📝 Reason: {reason}",
+
+  "page_prev": "⬅️ Prev",
+  "page_next": "➡️ Next",
+
+  "interested_btn": "⭐ I'm interested",
+  "not_interested_btn": "💔 Not interested",
+  "interest_added": "⭐ You marked interest in this tournament!",
+  "interest_removed": "💔 You removed your interest mark.",
+  "view_interested": "👀 Interested athletes",
+  "interested_athletes_list": "👀 Interested athletes:",
+  "no_interested_athletes": "No one has marked interest in this tournament yet.",
+
+  "withdraw_athlete": "❌ Withdraw athlete",
+  "athlete_withdrawn": "✅ Athlete withdrawn from tournament.",
+  "you_withdrawn_from_tournament": "📢 Your coach has withdrawn you from tournament <b>{tournament}</b>.",
+  "cannot_withdraw_deadline": "⏰ Registration deadline has passed, withdrawal is not possible.",
+
+  "deadline_reminder": "⏰ Reminder: the registration deadline for <b>{tournament}</b> ({deadline}) is in 3 days!\n\nYou have {count} unregistered athletes."
 }

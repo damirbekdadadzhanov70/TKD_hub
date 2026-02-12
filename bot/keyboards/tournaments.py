@@ -5,23 +5,49 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from bot.utils.helpers import t
 
 
+PAGE_SIZE = 5
+
+
 def tournaments_list_keyboard(
-    tournaments: list[tuple[UUID, str, str]], lang: str
+    tournaments: list[tuple[UUID, str, str]], lang: str, *, page: int = 0
 ) -> InlineKeyboardMarkup:
     """Each tuple: (tournament_id, name, start_date_str)."""
+    total = len(tournaments)
+    start = page * PAGE_SIZE
+    end = start + PAGE_SIZE
+    page_items = tournaments[start:end]
+
     buttons = []
-    for tid, name, date_str in tournaments:
+    for tid, name, date_str in page_items:
         buttons.append(
             [InlineKeyboardButton(
                 text=f"{name} ({date_str})",
                 callback_data=f"tournament_detail:{tid}",
             )]
         )
+
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton(
+            text=t("page_prev", lang), callback_data=f"tournaments_page:{page - 1}"
+        ))
+    if end < total:
+        nav_row.append(InlineKeyboardButton(
+            text=t("page_next", lang), callback_data=f"tournaments_page:{page + 1}"
+        ))
+    if nav_row:
+        buttons.append(nav_row)
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def tournament_detail_keyboard(
-    tournament_id: UUID, lang: str, *, is_coach: bool = False
+    tournament_id: UUID,
+    lang: str,
+    *,
+    is_coach: bool = False,
+    is_athlete: bool = False,
+    is_interested: bool = False,
 ) -> InlineKeyboardMarkup:
     buttons = []
     if is_coach:
@@ -31,6 +57,27 @@ def tournament_detail_keyboard(
                 callback_data=f"tournament_enter:{tournament_id}",
             )]
         )
+        buttons.append(
+            [InlineKeyboardButton(
+                text=t("view_interested", lang),
+                callback_data=f"t_int_list:{tournament_id}",
+            )]
+        )
+    if is_athlete:
+        if is_interested:
+            buttons.append(
+                [InlineKeyboardButton(
+                    text=t("not_interested_btn", lang),
+                    callback_data=f"t_interest:{tournament_id}",
+                )]
+            )
+        else:
+            buttons.append(
+                [InlineKeyboardButton(
+                    text=t("interested_btn", lang),
+                    callback_data=f"t_interest:{tournament_id}",
+                )]
+            )
     buttons.append(
         [InlineKeyboardButton(
             text=t("back", lang), callback_data="back_to_tournaments"

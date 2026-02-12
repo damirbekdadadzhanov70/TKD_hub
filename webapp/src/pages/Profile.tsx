@@ -284,19 +284,19 @@ function EditProfileForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-      <div className="w-full rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto bg-white">
-        <div className="flex justify-between items-center mb-4">
+      <div className="w-full rounded-t-2xl max-h-[85vh] flex flex-col overflow-hidden bg-white">
+        <div className="flex justify-between items-center p-4 pb-2 shrink-0">
           <h2 className="text-lg font-bold text-text">Edit Profile</h2>
           <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
           <label className="block">
             <span className="text-xs mb-1 block text-text-secondary">Full Name</span>
             <input
               value={form.full_name || ''}
               onChange={(e) => update('full_name', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -305,7 +305,7 @@ function EditProfileForm({
             <input
               value={form.weight_category || ''}
               onChange={(e) => update('weight_category', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -316,7 +316,7 @@ function EditProfileForm({
               step="0.1"
               value={form.current_weight ?? ''}
               onChange={(e) => update('current_weight', parseFloat(e.target.value) || 0)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -325,7 +325,7 @@ function EditProfileForm({
             <input
               value={form.belt || ''}
               onChange={(e) => update('belt', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -334,7 +334,7 @@ function EditProfileForm({
             <input
               value={form.city || ''}
               onChange={(e) => update('city', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
 
@@ -343,10 +343,12 @@ function EditProfileForm({
             <input
               value={form.club || ''}
               onChange={(e) => update('club', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 bg-white text-text outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
             />
           </label>
+        </div>
 
+        <div className="p-4 pt-2 shrink-0">
           <button
             onClick={handleSubmit}
             disabled={saving}

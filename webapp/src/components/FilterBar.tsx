@@ -23,7 +23,7 @@ export default function FilterBar({ filters }: FilterBarProps) {
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
               filter.value === ''
                 ? 'bg-accent text-white border-accent'
-                : 'bg-white text-text-secondary border-gray-200 hover:border-gray-300'
+                : 'bg-white text-text-secondary border-border hover:border-muted'
             }`}
           >
             All {filter.label}
@@ -35,7 +35,7 @@ export default function FilterBar({ filters }: FilterBarProps) {
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                 filter.value === opt.value
                   ? 'bg-accent text-white border-accent'
-                  : 'bg-white text-text-secondary border-gray-200 hover:border-gray-300'
+                  : 'bg-white text-text-secondary border-border hover:border-muted'
               }`}
             >
               {opt.label}

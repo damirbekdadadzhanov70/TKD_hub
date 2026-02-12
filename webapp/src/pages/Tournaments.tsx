@@ -11,9 +11,9 @@ import type { TournamentListItem } from '../types';
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
-    upcoming: 'bg-green-50 text-green-600',
-    ongoing: 'bg-red-50 text-red-500',
-    completed: 'bg-gray-100 text-gray-500',
+    upcoming: 'bg-accent-light text-accent',
+    ongoing: 'bg-amber-50/70 text-amber-700',
+    completed: 'bg-bg-secondary text-muted',
   };
   const labels: Record<string, string> = {
     upcoming: 'Upcoming',
@@ -21,14 +21,23 @@ function statusBadge(status: string) {
     completed: 'Completed',
   };
   return (
-    <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${styles[status] || 'bg-gray-100 text-gray-500'}`}>
+    <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap ${styles[status] || 'bg-bg-secondary text-muted'}`}>
       {labels[status] || status}
     </span>
   );
 }
 
-function importanceStars(level: number) {
-  return '★'.repeat(level) + '☆'.repeat(Math.max(0, 3 - level));
+function ImportanceDots({ level }: { level: number }) {
+  return (
+    <span className="flex gap-0.5 items-center">
+      {[1, 2, 3].map((i) => (
+        <span
+          key={i}
+          className={`w-1.5 h-1.5 rounded-full ${i <= level ? 'bg-accent' : 'bg-border'}`}
+        />
+      ))}
+    </span>
+  );
 }
 
 export default function Tournaments() {
@@ -85,23 +94,22 @@ export default function Tournaments() {
         {loading ? (
           <LoadingSpinner />
         ) : filtered.length === 0 ? (
-          <EmptyState icon="🏟️" title="No tournaments" description="No tournaments match your filters" />
+          <EmptyState title="No tournaments" description="No tournaments match your filters" />
         ) : (
           filtered.map((t) => (
-            <Card key={t.id} onClick={() => navigate(`/tournament/${t.id}`)} className="border-l-4 border-l-green-500">
+            <Card key={t.id} onClick={() => navigate(`/tournament/${t.id}`)}>
               <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-[15px] flex-1 mr-2 text-text">
+                <h3 className="font-semibold text-sm flex-1 mr-2 text-text">
                   {t.name}
                 </h3>
                 {statusBadge(t.status)}
               </div>
-              <div className="flex items-center gap-3 text-xs text-text-secondary">
-                <span>📍 {t.city}, {t.country}</span>
-                <span>📅 {t.start_date}</span>
-              </div>
-              <div className="flex items-center gap-3 mt-2 text-xs text-text-secondary">
-                <span className="text-amber-400">{importanceStars(t.importance_level)}</span>
-                <span>👥 {t.entry_count} entries</span>
+              <p className="text-xs text-text-secondary">
+                {t.city}, {t.country} · {t.start_date}
+              </p>
+              <div className="flex items-center gap-3 mt-2">
+                <ImportanceDots level={t.importance_level} />
+                <span className="text-xs text-muted">{t.entry_count} entries</span>
               </div>
             </Card>
           ))

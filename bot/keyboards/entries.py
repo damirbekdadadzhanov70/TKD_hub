@@ -71,3 +71,28 @@ def my_entries_keyboard(
             )]
         )
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def entry_detail_keyboard(
+    entries: list[tuple[UUID, str]],
+    tournament_id: UUID,
+    lang: str,
+    *,
+    can_withdraw: bool = True,
+) -> InlineKeyboardMarkup:
+    """entries: list of (entry_id, athlete_name)."""
+    buttons = []
+    if can_withdraw:
+        for entry_id, name in entries:
+            buttons.append(
+                [InlineKeyboardButton(
+                    text=f"❌ {name}",
+                    callback_data=f"withdraw:{entry_id}",
+                )]
+            )
+    buttons.append(
+        [InlineKeyboardButton(
+            text=t("back", lang), callback_data="back_my_entries"
+        )]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

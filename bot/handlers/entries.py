@@ -11,6 +11,7 @@ from bot.keyboards.entries import (
     age_category_keyboard,
     athlete_checkbox_keyboard,
     confirm_entries_keyboard,
+    entry_detail_keyboard,
     my_entries_keyboard,
 )
 from bot.states.entries import EnterAthletes
@@ -355,9 +356,11 @@ async def on_view_entries(callback: CallbackQuery):
         entries = result.scalars().all()
 
         t_result = await session.execute(
-            select(Tournament.name).where(Tournament.id == tid)
+            select(Tournament).where(Tournament.id == tid)
         )
-        t_name = t_result.scalar_one_or_none() or "?"
+        tournament = t_result.scalar_one_or_none()
+
+    t_name = tournament.name if tournament else "?"
 
     if not entries:
         await callback.message.edit_text(t("no_entries", lang))
@@ -370,5 +373,136 @@ async def on_view_entries(callback: CallbackQuery):
             f"• {entry.athlete.full_name} — {entry.weight_category}, {entry.age_category}"
         )
 
-    await callback.message.edit_text("\n".join(lines))
+    can_withdraw = tournament and tournament.registration_deadline >= date.today()
+    entry_items = [(e.id, e.athlete.full_name) for e in entries]
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=entry_detail_keyboard(entry_items, tid, lang, can_withdraw=can_withdraw),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("withdraw:"))
+async def on_withdraw_entry(callback: CallbackQuery):
+    coach, lang = await _get_coach_and_lang(callback.from_user.id)
+    if not coach:
+        await callback.answer()
+        return
+
+    entry_id = callback.data.split(":")[1]
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(TournamentEntry)
+            .where(
+                TournamentEntry.id == entry_id,
+                TournamentEntry.coach_id == coach.id,
+            )
+            .options(
+                selectinload(TournamentEntry.athlete).selectinload(Athlete.user),
+                selectinload(TournamentEntry.tournament),
+            )
+        )
+        entry = result.scalar_one_or_none()
+
+        if not entry:
+            await callback.answer(t("request_not_found", lang), show_alert=True)
+            return
+
+        if entry.tournament.registration_deadline < date.today():
+            await callback.answer(t("cannot_withdraw_deadline", lang), show_alert=True)
+            return
+
+        tid = str(entry.tournament_id)
+        t_name = entry.tournament.name
+        athlete_user = entry.athlete.user if entry.athlete else None
+
+        await session.delete(entry)
+        await session.commit()
+
+    await callback.answer(t("athlete_withdrawn", lang))
+
+    # Notify athlete
+    if athlete_user:
+        a_lang = athlete_user.language or "ru"
+        try:
+            await callback.bot.send_message(
+                athlete_user.telegram_id,
+                t("you_withdrawn_from_tournament", a_lang).format(tournament=t_name),
+            )
+        except Exception:
+            pass
+
+    # Refresh entry list
+    async with async_session() as session:
+        result = await session.execute(
+            select(TournamentEntry)
+            .where(
+                TournamentEntry.tournament_id == tid,
+                TournamentEntry.coach_id == coach.id,
+            )
+            .options(selectinload(TournamentEntry.athlete))
+        )
+        entries = result.scalars().all()
+
+        t_result = await session.execute(
+            select(Tournament).where(Tournament.id == tid)
+        )
+        tournament = t_result.scalar_one_or_none()
+
+    if not entries:
+        await callback.message.edit_text(t("no_entries", lang))
+        return
+
+    lines = [f"<b>{t_name}</b>\n"]
+    for e in entries:
+        lines.append(f"• {e.athlete.full_name} — {e.weight_category}, {e.age_category}")
+
+    can_withdraw = tournament and tournament.registration_deadline >= date.today()
+    entry_items = [(e.id, e.athlete.full_name) for e in entries]
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=entry_detail_keyboard(entry_items, tid, lang, can_withdraw=can_withdraw),
+    )
+
+
+@router.callback_query(F.data == "back_my_entries")
+async def on_back_to_my_entries(callback: CallbackQuery):
+    coach, lang = await _get_coach_and_lang(callback.from_user.id)
+    if not coach:
+        await callback.answer()
+        return
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(TournamentEntry)
+            .where(TournamentEntry.coach_id == coach.id)
+            .options(selectinload(TournamentEntry.tournament))
+        )
+        entries = result.scalars().all()
+
+    if not entries:
+        await callback.message.edit_text(t("no_entries", lang))
+        await callback.answer()
+        return
+
+    by_tournament: dict[str, tuple[str, int]] = {}
+    for entry in entries:
+        tid = str(entry.tournament_id)
+        if tid not in by_tournament:
+            by_tournament[tid] = (entry.tournament.name, 0)
+        name, count = by_tournament[tid]
+        by_tournament[tid] = (name, count + 1)
+
+    items = [
+        (tid, name, f"{count} {t('athletes_word', lang)}")
+        for tid, (name, count) in by_tournament.items()
+    ]
+
+    await callback.message.edit_text(
+        t("your_entries", lang),
+        reply_markup=my_entries_keyboard(items, lang),
+    )
     await callback.answer()

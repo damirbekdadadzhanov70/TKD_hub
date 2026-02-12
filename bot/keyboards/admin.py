@@ -5,6 +5,27 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from bot.utils.helpers import t
 
 
+def admin_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=t("admin_pending_coaches", lang),
+            callback_data="admin_action:pending_coaches",
+        )],
+        [InlineKeyboardButton(
+            text=t("admin_add_tournament", lang),
+            callback_data="admin_action:add_tournament",
+        )],
+        [InlineKeyboardButton(
+            text=t("admin_edit_tournament", lang),
+            callback_data="admin_action:edit_tournament",
+        )],
+        [InlineKeyboardButton(
+            text=t("admin_delete_tournament", lang),
+            callback_data="admin_action:delete_tournament",
+        )],
+    ])
+
+
 def pending_coaches_keyboard(
     coaches: list[tuple[UUID, str]], lang: str
 ) -> InlineKeyboardMarkup:

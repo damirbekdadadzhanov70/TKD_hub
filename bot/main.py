@@ -17,6 +17,7 @@ from bot.handlers import (
     tournaments_view,
     entries,
 )
+from bot.utils.scheduler import scheduler_loop
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,6 +38,12 @@ async def main():
     dp.include_router(tournaments_admin.router)
     dp.include_router(tournaments_view.router)
     dp.include_router(entries.router)
+
+    async def on_startup(bot_instance: Bot) -> None:
+        asyncio.create_task(scheduler_loop(bot_instance))
+        logger.info("Scheduler started")
+
+    dp.startup.register(on_startup)
 
     logger.info("Bot starting...")
     await dp.start_polling(bot)

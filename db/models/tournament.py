@@ -34,6 +34,7 @@ class Tournament(Base):
     creator: Mapped["User"] = relationship()
     entries: Mapped[list["TournamentEntry"]] = relationship(back_populates="tournament")
     results: Mapped[list["TournamentResult"]] = relationship(back_populates="tournament")
+    interests: Mapped[list["TournamentInterest"]] = relationship(back_populates="tournament")
 
 
 class TournamentEntry(Base):
@@ -68,4 +69,17 @@ class TournamentResult(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     tournament: Mapped["Tournament"] = relationship(back_populates="results")
+    athlete: Mapped["Athlete"] = relationship()
+
+
+class TournamentInterest(Base):
+    __tablename__ = "tournament_interests"
+    __table_args__ = (UniqueConstraint("tournament_id", "athlete_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tournament_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("tournaments.id"), nullable=False)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    tournament: Mapped["Tournament"] = relationship(back_populates="interests")
     athlete: Mapped["Athlete"] = relationship()

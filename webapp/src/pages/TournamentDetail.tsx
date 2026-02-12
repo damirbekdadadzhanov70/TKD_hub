@@ -18,7 +18,7 @@ export default function TournamentDetail() {
   );
 
   if (loading) return <LoadingSpinner />;
-  if (!tournament) return <EmptyState icon="❌" title="Tournament not found" />;
+  if (!tournament) return <EmptyState title="Tournament not found" />;
 
   return (
     <div>
@@ -110,7 +110,7 @@ export default function TournamentDetail() {
             Entries ({tournament.entries.length})
           </h2>
           {tournament.entries.length === 0 ? (
-            <EmptyState icon="📋" title="No entries yet" />
+            <EmptyState title="No entries yet" />
           ) : (
             tournament.entries.map((entry) => (
               <Card key={entry.id}>
@@ -124,10 +124,10 @@ export default function TournamentDetail() {
                     </p>
                   </div>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
+                    className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
                       entry.status === 'approved'
-                        ? 'bg-green-50 text-green-600'
-                        : 'bg-amber-50 text-amber-600'
+                        ? 'bg-emerald-50/70 text-emerald-700'
+                        : 'bg-amber-50/70 text-amber-700'
                     }`}
                   >
                     {entry.status}

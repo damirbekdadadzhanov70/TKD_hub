@@ -8,7 +8,7 @@ import { getRatings } from '../api/endpoints';
 import { mockRatings } from '../api/mock';
 import type { RatingEntry } from '../types';
 
-const PODIUM_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
+const PODIUM_COLORS = ['#C9A96E', '#A8AEB5', '#B08D6E'];
 const PODIUM_ORDER = [1, 0, 2]; // Display order: 2nd, 1st, 3rd
 
 function Podium({ top3 }: { top3: RatingEntry[] }) {
@@ -38,7 +38,11 @@ function Podium({ top3 }: { top3: RatingEntry[] }) {
                 {athlete.full_name.charAt(0)}
               </div>
               {isFirst && (
-                <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-base">👑</span>
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-[#C9A96E]">
+                    <path d="M2 4l3 12h14l3-12-5 4-5-6-5 6-5-4z" /><path d="M5 20h14a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2z" />
+                  </svg>
+                </span>
               )}
             </div>
             <p className="text-xs font-semibold text-center truncate w-full text-text">
@@ -138,7 +142,7 @@ export default function Rating() {
       {loading ? (
         <LoadingSpinner />
       ) : entries.length === 0 ? (
-        <EmptyState icon="🏅" title="No ratings" description="No athletes match your filters" />
+        <EmptyState title="No ratings" description="No athletes match your filters" />
       ) : (
         <>
           <Podium top3={top3} />
