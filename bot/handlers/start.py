@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from bot.keyboards.registration import language_keyboard, role_keyboard
 from bot.states.registration import AthleteRegistration, CoachRegistration
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.user import User
@@ -39,21 +40,26 @@ async def cmd_start(message: Message, state: FSMContext, command: CommandObject)
         await message.answer(t("already_registered", lang))
         return
 
+    tg_lang = (message.from_user.language_code or "")[:2].lower()
+    pre_selected = tg_lang if tg_lang in ("ru", "en") else None
     await message.answer(
         "🥋 Добро пожаловать в TKD Hub!\nВыберите язык / Choose language:",
-        reply_markup=language_keyboard(),
+        reply_markup=language_keyboard(pre_selected=pre_selected),
     )
 
 
 @router.callback_query(F.data.startswith("lang:"))
 async def on_language_chosen(callback: CallbackQuery, state: FSMContext):
-    lang = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "lang")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    lang = parts[1]
     await state.update_data(language=lang)
 
     async with async_session() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == callback.from_user.id)
-        )
+        result = await session.execute(select(User).where(User.telegram_id == callback.from_user.id))
         user = result.scalar_one_or_none()
 
         if not user:
@@ -80,7 +86,12 @@ async def on_language_chosen(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("role:"))
 async def on_role_chosen(callback: CallbackQuery, state: FSMContext):
-    role = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "role")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    role = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(role=role)

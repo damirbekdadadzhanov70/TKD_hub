@@ -1,8 +1,9 @@
 import uuid
 from datetime import date
 from decimal import Decimal
+from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TournamentListItem(BaseModel):
@@ -32,7 +33,7 @@ class TournamentEntryRead(BaseModel):
 class TournamentRead(BaseModel):
     id: uuid.UUID
     name: str
-    description: str | None = None
+    description: Optional[str] = None
     start_date: date
     end_date: date
     city: str
@@ -40,10 +41,10 @@ class TournamentRead(BaseModel):
     venue: str
     age_categories: list = []
     weight_categories: list = []
-    entry_fee: Decimal | None = None
+    entry_fee: Optional[Decimal] = None
     currency: str = "USD"
     registration_deadline: date
-    organizer_contact: str | None = None
+    organizer_contact: Optional[str] = None
     status: str
     importance_level: int
     entries: list[TournamentEntryRead] = []
@@ -55,3 +56,14 @@ class TournamentEntryCreate(BaseModel):
     athlete_id: uuid.UUID
     weight_category: str
     age_category: str
+
+
+class TournamentBatchEnter(BaseModel):
+    athlete_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=50)
+    age_category: str = Field(..., min_length=1, max_length=50)
+
+
+class TournamentInterestResponse(BaseModel):
+    tournament_id: uuid.UUID
+    athlete_id: uuid.UUID
+    created: bool

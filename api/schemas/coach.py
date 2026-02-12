@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -13,7 +14,7 @@ class CoachRead(BaseModel):
     city: str
     club: str
     qualification: str
-    photo_url: str | None = None
+    photo_url: Optional[str] = None
     is_verified: bool = False
 
     model_config = {"from_attributes": True}
@@ -25,6 +26,17 @@ class CoachAthleteRead(BaseModel):
     weight_category: str
     belt: str
     rating_points: int = 0
-    club: str | None = None
+    club: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class CoachEntryRead(BaseModel):
+    id: uuid.UUID
+    tournament_id: uuid.UUID
+    tournament_name: str
+    athlete_id: uuid.UUID
+    athlete_name: str
+    weight_category: str
+    age_category: str
+    status: str

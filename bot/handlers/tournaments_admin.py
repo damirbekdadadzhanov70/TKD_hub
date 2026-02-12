@@ -19,6 +19,8 @@ from bot.keyboards.tournaments import (
     importance_keyboard,
 )
 from bot.states.tournaments import AddTournament, DeleteTournament, EditTournament
+from bot.utils.audit import write_audit_log
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.tournament import Tournament
@@ -29,9 +31,7 @@ router = Router()
 
 async def _get_admin_lang(telegram_id: int) -> str:
     async with async_session() as session:
-        result = await session.execute(
-            select(User.language).where(User.telegram_id == telegram_id)
-        )
+        result = await session.execute(select(User.language).where(User.telegram_id == telegram_id))
         lang = result.scalar_one_or_none()
     return lang or "ru"
 
@@ -116,15 +116,18 @@ async def add_city(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(t_city=message.text.strip())
-    await message.answer(
-        t("choose_country", lang), reply_markup=country_keyboard(lang)
-    )
+    await message.answer(t("choose_country", lang), reply_markup=country_keyboard(lang))
     await state.set_state(AddTournament.country)
 
 
 @router.callback_query(AddTournament.country, F.data.startswith("country:"))
 async def add_country_cb(callback: CallbackQuery, state: FSMContext):
-    country = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "country")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    country = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
 
@@ -192,15 +195,18 @@ async def add_entry_fee(message: Message, state: FSMContext):
         return
 
     await state.update_data(t_entry_fee=str(fee))
-    await message.answer(
-        t("choose_currency", lang), reply_markup=currency_keyboard()
-    )
+    await message.answer(t("choose_currency", lang), reply_markup=currency_keyboard())
     await state.set_state(AddTournament.currency)
 
 
 @router.callback_query(AddTournament.currency, F.data.startswith("currency:"))
 async def add_currency(callback: CallbackQuery, state: FSMContext):
-    currency = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "currency")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    currency = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(t_currency=currency)
@@ -226,17 +232,18 @@ async def add_deadline(message: Message, state: FSMContext):
         return
 
     await state.update_data(t_deadline=deadline.isoformat())
-    await message.answer(
-        t("choose_importance", lang), reply_markup=importance_keyboard()
-    )
+    await message.answer(t("choose_importance", lang), reply_markup=importance_keyboard())
     await state.set_state(AddTournament.importance_level)
 
 
-@router.callback_query(
-    AddTournament.importance_level, F.data.startswith("importance:")
-)
+@router.callback_query(AddTournament.importance_level, F.data.startswith("importance:"))
 async def add_importance(callback: CallbackQuery, state: FSMContext):
-    level = int(callback.data.split(":")[1])
+    try:
+        parts = parse_callback(callback.data, "importance")
+        level = int(parts[1])
+    except (CallbackParseError, ValueError):
+        await callback.answer("Error")
+        return
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(t_importance=level)
@@ -259,9 +266,7 @@ async def add_importance(callback: CallbackQuery, state: FSMContext):
         importance="⭐" * data["t_importance"],
     )
 
-    await callback.message.edit_text(
-        summary, reply_markup=confirm_tournament_keyboard(lang)
-    )
+    await callback.message.edit_text(summary, reply_markup=confirm_tournament_keyboard(lang))
     await state.set_state(AddTournament.confirm)
     await callback.answer()
 
@@ -273,9 +278,7 @@ async def add_confirm(callback: CallbackQuery, state: FSMContext):
 
     async with async_session() as session:
         # Get user id
-        result = await session.execute(
-            select(User.id).where(User.telegram_id == callback.from_user.id)
-        )
+        result = await session.execute(select(User.id).where(User.telegram_id == callback.from_user.id))
         user_id = result.scalar_one()
 
         tournament = Tournament(
@@ -295,6 +298,16 @@ async def add_confirm(callback: CallbackQuery, state: FSMContext):
             created_by=user_id,
         )
         session.add(tournament)
+        await session.flush()
+
+        await write_audit_log(
+            session,
+            callback.from_user.id,
+            action="create_tournament",
+            target_type="tournament",
+            target_id=str(tournament.id),
+            details={"name": data["t_name"]},
+        )
         await session.commit()
 
     await state.clear()
@@ -333,7 +346,12 @@ async def cmd_edit_tournament(message: Message, state: FSMContext):
 
 @router.callback_query(EditTournament.select_tournament, F.data.startswith("t_edit:"))
 async def edit_select(callback: CallbackQuery, state: FSMContext):
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "t_edit")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(edit_tid=tid)
@@ -346,11 +364,13 @@ async def edit_select(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(
-    EditTournament.select_field, F.data.startswith("t_edit_field:")
-)
+@router.callback_query(EditTournament.select_field, F.data.startswith("t_edit_field:"))
 async def edit_field_select(callback: CallbackQuery, state: FSMContext):
-    parts = callback.data.split(":")
+    try:
+        parts = parse_callback(callback.data, "t_edit_field", expected_parts=3)
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
     field = parts[2]
     data = await state.get_data()
     lang = data.get("language", "ru")
@@ -370,9 +390,7 @@ async def edit_enter_value(message: Message, state: FSMContext):
     raw = message.text.strip()
 
     async with async_session() as session:
-        result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = result.scalar_one_or_none()
 
         if not tournament:
@@ -399,6 +417,14 @@ async def edit_enter_value(message: Message, state: FSMContext):
             else:
                 setattr(tournament, field, raw)
 
+            await write_audit_log(
+                session,
+                message.from_user.id,
+                action="update_tournament",
+                target_type="tournament",
+                target_id=tid,
+                details={"field": field, "value": raw},
+            )
             await session.commit()
         except (ValueError, InvalidOperation):
             await message.answer(t("invalid_value", lang))
@@ -437,11 +463,14 @@ async def cmd_delete_tournament(message: Message, state: FSMContext):
     await state.set_state(DeleteTournament.select_tournament)
 
 
-@router.callback_query(
-    DeleteTournament.select_tournament, F.data.startswith("t_delete:")
-)
+@router.callback_query(DeleteTournament.select_tournament, F.data.startswith("t_delete:"))
 async def delete_select(callback: CallbackQuery, state: FSMContext):
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "t_delete")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
 
@@ -453,23 +482,32 @@ async def delete_select(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(
-    DeleteTournament.confirm, F.data.startswith("t_confirm_delete:")
-)
+@router.callback_query(DeleteTournament.confirm, F.data.startswith("t_confirm_delete:"))
 async def delete_confirm(callback: CallbackQuery, state: FSMContext):
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "t_confirm_delete")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
 
     async with async_session() as session:
         result = await session.execute(
-            select(Tournament)
-            .where(Tournament.id == tid)
-            .options(selectinload(Tournament.entries))
+            select(Tournament).where(Tournament.id == tid).options(selectinload(Tournament.entries))
         )
         tournament = result.scalar_one_or_none()
 
         if tournament:
+            await write_audit_log(
+                session,
+                callback.from_user.id,
+                action="delete_tournament",
+                target_type="tournament",
+                target_id=tid,
+                details={"name": tournament.name},
+            )
             for entry in tournament.entries:
                 await session.delete(entry)
             await session.delete(tournament)

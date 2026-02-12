@@ -5,10 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from bot.keyboards.my_athletes import athlete_detail_keyboard, athletes_list_keyboard
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.athlete import Athlete
-from db.models.coach import Coach, CoachAthlete
+from db.models.coach import CoachAthlete
 from db.models.user import User
 
 router = Router()
@@ -18,9 +19,7 @@ async def _get_coach_and_lang(telegram_id: int):
     """Return (coach, lang) or (None, lang)."""
     async with async_session() as session:
         result = await session.execute(
-            select(User)
-            .where(User.telegram_id == telegram_id)
-            .options(selectinload(User.coach))
+            select(User).where(User.telegram_id == telegram_id).options(selectinload(User.coach))
         )
         user = result.scalar_one_or_none()
 
@@ -75,12 +74,15 @@ async def on_view_athlete(callback: CallbackQuery):
         await callback.answer()
         return
 
-    athlete_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "view_athlete")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    athlete_id = parts[1]
 
     async with async_session() as session:
-        result = await session.execute(
-            select(Athlete).where(Athlete.id == athlete_id)
-        )
+        result = await session.execute(select(Athlete).where(Athlete.id == athlete_id))
         athlete = result.scalar_one_or_none()
 
     if not athlete:
@@ -100,9 +102,7 @@ async def on_view_athlete(callback: CallbackQuery):
         club=athlete.club or "—",
     )
 
-    await callback.message.edit_text(
-        text, reply_markup=athlete_detail_keyboard(athlete.id, lang)
-    )
+    await callback.message.edit_text(text, reply_markup=athlete_detail_keyboard(athlete.id, lang))
     await callback.answer()
 
 
@@ -113,7 +113,12 @@ async def on_unlink_athlete(callback: CallbackQuery):
         await callback.answer()
         return
 
-    athlete_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "unlink_athlete")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    athlete_id = parts[1]
 
     async with async_session() as session:
         result = await session.execute(

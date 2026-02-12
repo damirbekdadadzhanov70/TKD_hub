@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from aiogram import F, Router
@@ -10,20 +11,21 @@ from sqlalchemy.orm import selectinload
 from bot.config import settings
 from bot.keyboards.admin import admin_menu_keyboard, pending_coaches_keyboard, review_coach_keyboard
 from bot.states.admin import DeclineCoach
+from bot.utils.audit import write_audit_log
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
-from db.models.coach import Coach
 from db.models.role_request import RoleRequest
 from db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
 
 async def _get_user_lang(telegram_id: int) -> str:
     async with async_session() as session:
-        result = await session.execute(
-            select(User.language).where(User.telegram_id == telegram_id)
-        )
+        result = await session.execute(select(User.language).where(User.telegram_id == telegram_id))
         lang = result.scalar_one_or_none()
     return lang or "ru"
 
@@ -47,7 +49,12 @@ async def on_admin_action(callback: CallbackQuery):
         return
 
     lang = await _get_user_lang(callback.from_user.id)
-    action = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "admin_action")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    action = parts[1]
 
     if action == "pending_coaches":
         async with async_session() as session:
@@ -74,17 +81,11 @@ async def on_admin_action(callback: CallbackQuery):
                 reply_markup=pending_coaches_keyboard(coaches_list, lang),
             )
     elif action == "add_tournament":
-        await callback.message.edit_text(
-            t("admin_use_command", lang).format(command="/add_tournament")
-        )
+        await callback.message.edit_text(t("admin_use_command", lang).format(command="/add_tournament"))
     elif action == "edit_tournament":
-        await callback.message.edit_text(
-            t("admin_use_command", lang).format(command="/edit_tournament")
-        )
+        await callback.message.edit_text(t("admin_use_command", lang).format(command="/edit_tournament"))
     elif action == "delete_tournament":
-        await callback.message.edit_text(
-            t("admin_use_command", lang).format(command="/delete_tournament")
-        )
+        await callback.message.edit_text(t("admin_use_command", lang).format(command="/delete_tournament"))
 
     await callback.answer()
 
@@ -130,7 +131,12 @@ async def on_review_coach(callback: CallbackQuery):
         return
 
     lang = await _get_user_lang(callback.from_user.id)
-    request_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "review_coach")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    request_id = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
@@ -159,9 +165,7 @@ async def on_review_coach(callback: CallbackQuery):
         qualification=coach.qualification,
     )
 
-    await callback.message.edit_text(
-        text, reply_markup=review_coach_keyboard(req.id, lang)
-    )
+    await callback.message.edit_text(text, reply_markup=review_coach_keyboard(req.id, lang))
     await callback.answer()
 
 
@@ -172,7 +176,12 @@ async def on_approve_coach(callback: CallbackQuery):
         return
 
     lang = await _get_user_lang(callback.from_user.id)
-    request_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "approve_coach")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    request_id = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
@@ -194,6 +203,13 @@ async def on_approve_coach(callback: CallbackQuery):
         if coach:
             coach.is_verified = True
 
+        await write_audit_log(
+            session,
+            callback.from_user.id,
+            action="approve_coach",
+            target_type="role_request",
+            target_id=request_id,
+        )
         await session.commit()
 
     await callback.message.edit_text(t("coach_approved", lang))
@@ -208,7 +224,7 @@ async def on_approve_coach(callback: CallbackQuery):
                 t("your_coach_approved", coach_lang),
             )
         except Exception:
-            pass
+            logger.warning("Failed to notify coach %s about approval", req.user.telegram_id)
 
 
 @router.callback_query(F.data.startswith("decline_coach:"))
@@ -218,13 +234,15 @@ async def on_decline_coach(callback: CallbackQuery, state: FSMContext):
         return
 
     lang = await _get_user_lang(callback.from_user.id)
-    request_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "decline_coach")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    request_id = parts[1]
 
     async with async_session() as session:
-        result = await session.execute(
-            select(RoleRequest)
-            .where(RoleRequest.id == request_id)
-        )
+        result = await session.execute(select(RoleRequest).where(RoleRequest.id == request_id))
         req = result.scalar_one_or_none()
 
         if not req or req.status != "pending":
@@ -247,9 +265,7 @@ async def on_decline_reason(message: Message, state: FSMContext):
 
     async with async_session() as session:
         result = await session.execute(
-            select(RoleRequest)
-            .where(RoleRequest.id == request_id)
-            .options(selectinload(RoleRequest.user))
+            select(RoleRequest).where(RoleRequest.id == request_id).options(selectinload(RoleRequest.user))
         )
         req = result.scalar_one_or_none()
 
@@ -261,6 +277,15 @@ async def on_decline_reason(message: Message, state: FSMContext):
         req.status = "declined"
         req.admin_comment = reason
         req.reviewed_at = datetime.now(timezone.utc)
+
+        await write_audit_log(
+            session,
+            message.from_user.id,
+            action="decline_coach",
+            target_type="role_request",
+            target_id=request_id,
+            details={"reason": reason},
+        )
         await session.commit()
 
     await state.clear()
@@ -274,4 +299,4 @@ async def on_decline_reason(message: Message, state: FSMContext):
                 t("your_coach_declined_reason", coach_lang).format(reason=reason),
             )
         except Exception:
-            pass
+            logger.warning("Failed to notify coach %s about decline", req.user.telegram_id)

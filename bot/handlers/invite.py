@@ -1,5 +1,6 @@
+import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -10,25 +11,25 @@ from sqlalchemy.orm import selectinload
 
 from bot.config import settings
 from bot.keyboards.invite import invite_decision_keyboard
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
-from db.models.athlete import Athlete
 from db.models.coach import Coach, CoachAthlete
+from db.models.invite_token import InviteToken
 from db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
-# In-memory invite tokens: token -> (coach_id, created_at)
-invite_tokens: dict[str, tuple[uuid.UUID, datetime]] = {}
+INVITE_TTL_HOURS = 48
 
 
 @router.message(Command("invite"))
 async def cmd_invite(message: Message):
     async with async_session() as session:
         result = await session.execute(
-            select(User)
-            .where(User.telegram_id == message.from_user.id)
-            .options(selectinload(User.coach))
+            select(User).where(User.telegram_id == message.from_user.id).options(selectinload(User.coach))
         )
         user = result.scalar_one_or_none()
 
@@ -45,7 +46,16 @@ async def cmd_invite(message: Message):
         return
 
     token = uuid.uuid4().hex[:12]
-    invite_tokens[token] = (coach.id, datetime.now(timezone.utc))
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=INVITE_TTL_HOURS)
+
+    async with async_session() as session:
+        invite = InviteToken(
+            token=token,
+            coach_id=coach.id,
+            expires_at=expires_at,
+        )
+        session.add(invite)
+        await session.commit()
 
     bot_username = settings.BOT_USERNAME
     link = f"https://t.me/{bot_username}?start=invite_{token}"
@@ -53,27 +63,33 @@ async def cmd_invite(message: Message):
     await message.answer(t("invite_link_created", lang).format(link=link))
 
 
-async def handle_invite_deep_link(
-    message: Message, state: FSMContext, args: str
-):
+async def handle_invite_deep_link(message: Message, state: FSMContext, args: str):
     token = args.removeprefix("invite_")
 
     # Look up user language
     async with async_session() as session:
         result = await session.execute(
-            select(User)
-            .where(User.telegram_id == message.from_user.id)
-            .options(selectinload(User.athlete))
+            select(User).where(User.telegram_id == message.from_user.id).options(selectinload(User.athlete))
         )
         user = result.scalar_one_or_none()
 
     lang = (user.language if user else None) or "ru"
 
-    if token not in invite_tokens:
+    # Look up token in DB
+    async with async_session() as session:
+        result = await session.execute(
+            select(InviteToken).where(
+                InviteToken.token == token,
+                InviteToken.used.is_(False),
+            )
+        )
+        invite = result.scalar_one_or_none()
+
+    if not invite or invite.expires_at < datetime.now(timezone.utc):
         await message.answer(t("invite_expired", lang))
         return
 
-    coach_id, created_at = invite_tokens[token]
+    coach_id = invite.coach_id
 
     if not user or not user.athlete:
         await message.answer(t("invite_must_be_athlete", lang))
@@ -89,22 +105,29 @@ async def handle_invite_deep_link(
         )
         if existing.scalar_one_or_none():
             await message.answer(t("invite_already_linked", lang))
-            # Clean up used token
-            invite_tokens.pop(token, None)
+            # Mark token as used
+            invite_result = await session.execute(select(InviteToken).where(InviteToken.token == token))
+            db_invite = invite_result.scalar_one_or_none()
+            if db_invite:
+                db_invite.used = True
+                await session.commit()
             return
 
         # Get coach info
-        coach_result = await session.execute(
-            select(Coach).where(Coach.id == coach_id)
-        )
+        coach_result = await session.execute(select(Coach).where(Coach.id == coach_id))
         coach = coach_result.scalar_one_or_none()
 
     if not coach:
         await message.answer(t("invite_expired", lang))
         return
 
-    # Remove token so it can't be reused
-    invite_tokens.pop(token, None)
+    # Mark token as used
+    async with async_session() as session:
+        result = await session.execute(select(InviteToken).where(InviteToken.token == token))
+        db_invite = result.scalar_one_or_none()
+        if db_invite:
+            db_invite.used = True
+            await session.commit()
 
     text = t("invite_received", lang).format(
         name=coach.full_name,
@@ -120,14 +143,17 @@ async def handle_invite_deep_link(
 
 @router.callback_query(F.data.startswith("invite_accept:"))
 async def on_invite_accept(callback: CallbackQuery):
-    coach_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "invite_accept")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    coach_id = parts[1]
 
     async with async_session() as session:
         # Get athlete
         user_result = await session.execute(
-            select(User)
-            .where(User.telegram_id == callback.from_user.id)
-            .options(selectinload(User.athlete))
+            select(User).where(User.telegram_id == callback.from_user.id).options(selectinload(User.athlete))
         )
         user = user_result.scalar_one_or_none()
         lang = (user.language if user else None) or "ru"
@@ -173,20 +199,16 @@ async def on_invite_accept(callback: CallbackQuery):
         try:
             await callback.bot.send_message(
                 coach.user.telegram_id,
-                t("athlete_accepted_invite", coach_lang).format(
-                    name=user.athlete.full_name
-                ),
+                t("athlete_accepted_invite", coach_lang).format(name=user.athlete.full_name),
             )
         except Exception:
-            pass
+            logger.warning("Failed to notify coach %s about accepted invite", coach.user.telegram_id)
 
 
 @router.callback_query(F.data.startswith("invite_decline:"))
 async def on_invite_decline(callback: CallbackQuery):
     async with async_session() as session:
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == callback.from_user.id)
-        )
+        user_result = await session.execute(select(User).where(User.telegram_id == callback.from_user.id))
         user = user_result.scalar_one_or_none()
 
     lang = (user.language if user else None) or "ru"

@@ -1,10 +1,12 @@
 import type {
   CoachAthlete,
+  CoachEntry,
   MeResponse,
   RatingEntry,
   TournamentDetail,
   TournamentListItem,
   TrainingLog,
+  TrainingLogStats,
 } from '../types';
 
 export const mockMe: MeResponse = {
@@ -289,6 +291,13 @@ export const mockRatings: RatingEntry[] = [
   },
 ];
 
+export const mockTrainingStats: TrainingLogStats = {
+  total_sessions: 7,
+  total_minutes: 420,
+  avg_intensity: 'medium',
+  training_days: 7,
+};
+
 export const mockCoachAthletes: CoachAthlete[] = [
   {
     id: '00000000-0000-0000-0000-000000000001',
@@ -313,5 +322,28 @@ export const mockCoachAthletes: CoachAthlete[] = [
     belt: '1 Gup',
     rating_points: 340,
     club: 'TKD Academy',
+  },
+];
+
+export const mockCoachEntries: CoachEntry[] = [
+  {
+    id: '00000000-0000-0000-0000-000000000050',
+    tournament_id: '00000000-0000-0000-0000-000000000010',
+    tournament_name: 'Central Asian Open Championship 2026',
+    athlete_id: '00000000-0000-0000-0000-000000000001',
+    athlete_name: 'Alikhanov Damir',
+    weight_category: '-68kg',
+    age_category: 'Seniors',
+    status: 'approved',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000051',
+    tournament_id: '00000000-0000-0000-0000-000000000010',
+    tournament_name: 'Central Asian Open Championship 2026',
+    athlete_id: '00000000-0000-0000-0000-000000000046',
+    athlete_name: 'Ibraimova Asel',
+    weight_category: '-57kg',
+    age_category: 'Seniors',
+    status: 'pending',
   },
 ];

@@ -37,8 +37,8 @@ export function useApi<T>(
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
-      // Fall back to mock data on error
-      setData(mockData);
+      setData(null);
+      console.error('API error:', message);
     } finally {
       setLoading(false);
     }

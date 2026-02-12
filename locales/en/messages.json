@@ -151,5 +151,8 @@
   "you_withdrawn_from_tournament": "📢 Your coach has withdrawn you from tournament <b>{tournament}</b>.",
   "cannot_withdraw_deadline": "⏰ Registration deadline has passed, withdrawal is not possible.",
 
-  "deadline_reminder": "⏰ Reminder: the registration deadline for <b>{tournament}</b> ({deadline}) is in 3 days!\n\nYou have {count} unregistered athletes."
+  "deadline_reminder": "⏰ Reminder: the registration deadline for <b>{tournament}</b> ({deadline}) is in 3 days!\n\nYou have {count} unregistered athletes.",
+
+  "invalid_age_category": "⚠️ Invalid age category for this tournament.",
+  "invalid_weight_category": "⚠️ Athlete {name} has weight category {category} which is not allowed in this tournament. Skipped."
 }

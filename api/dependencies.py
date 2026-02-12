@@ -1,17 +1,23 @@
 import hashlib
 import hmac
 import json
+import logging
+import time
 from dataclasses import dataclass
 from urllib.parse import parse_qs, unquote
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select
 
 from bot.config import settings
-from db.base import async_session
+from db.base import get_session
 from db.models import User
+
+logger = logging.getLogger(__name__)
+
+INIT_DATA_MAX_AGE = 86400  # 24 hours
 
 
 @dataclass
@@ -40,19 +46,35 @@ def validate_init_data(init_data: str) -> dict:
     data_check_string = "\n".join(data_pairs)
 
     # secret_key = HMAC-SHA256("WebAppData", bot_token)
-    secret_key = hmac.new(
-        b"WebAppData", settings.BOT_TOKEN.encode(), hashlib.sha256
-    ).digest()
+    secret_key = hmac.new(b"WebAppData", settings.BOT_TOKEN.encode(), hashlib.sha256).digest()
 
     # calculated_hash = HMAC-SHA256(secret_key, data_check_string)
-    calculated_hash = hmac.new(
-        secret_key, data_check_string.encode(), hashlib.sha256
-    ).hexdigest()
+    calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(calculated_hash, received_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid initData signature",
+        )
+
+    # Validate auth_date to prevent replay attacks
+    auth_date_str = parsed.get("auth_date", [None])[0]
+    if not auth_date_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing auth_date in initData",
+        )
+    try:
+        auth_date = int(auth_date_str)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid auth_date",
+        ) from err
+    if time.time() - auth_date > INIT_DATA_MAX_AGE:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="InitData expired",
         )
 
     # Extract user info
@@ -63,11 +85,24 @@ def validate_init_data(init_data: str) -> dict:
             detail="No user data in initData",
         )
 
-    return json.loads(unquote(user_raw))
+    try:
+        return json.loads(unquote(user_raw))
+    except json.JSONDecodeError as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user data in initData",
+        ) from err
 
 
-async def get_current_user(request: Request) -> AuthContext:
-    """FastAPI dependency: validate initData and return AuthContext."""
+async def get_current_user(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> AuthContext:
+    """FastAPI dependency: validate initData and return AuthContext.
+
+    Session lifecycle is managed by get_session dependency —
+    auto-closes when request ends, no manual cleanup needed.
+    """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("tma "):
         raise HTTPException(
@@ -84,23 +119,15 @@ async def get_current_user(request: Request) -> AuthContext:
             detail="No telegram id in user data",
         )
 
-    session = async_session()
-    try:
-        result = await session.execute(
-            select(User)
-            .where(User.telegram_id == telegram_id)
-            .options(selectinload(User.athlete), selectinload(User.coach))
+    result = await session.execute(
+        select(User)
+        .where(User.telegram_id == telegram_id)
+        .options(selectinload(User.athlete), selectinload(User.coach))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not registered",
         )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not registered",
-            )
-        return AuthContext(user=user, session=session)
-    except HTTPException:
-        await session.close()
-        raise
-    except Exception:
-        await session.close()
-        raise
+    return AuthContext(user=user, session=session)

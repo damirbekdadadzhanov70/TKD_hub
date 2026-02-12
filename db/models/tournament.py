@@ -32,9 +32,15 @@ class Tournament(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     creator: Mapped["User"] = relationship()
-    entries: Mapped[list["TournamentEntry"]] = relationship(back_populates="tournament")
-    results: Mapped[list["TournamentResult"]] = relationship(back_populates="tournament")
-    interests: Mapped[list["TournamentInterest"]] = relationship(back_populates="tournament")
+    entries: Mapped[list["TournamentEntry"]] = relationship(
+        back_populates="tournament", cascade="all, delete-orphan", passive_deletes=True
+    )
+    results: Mapped[list["TournamentResult"]] = relationship(
+        back_populates="tournament", cascade="all, delete-orphan", passive_deletes=True
+    )
+    interests: Mapped[list["TournamentInterest"]] = relationship(
+        back_populates="tournament", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class TournamentEntry(Base):
@@ -42,9 +48,11 @@ class TournamentEntry(Base):
     __table_args__ = (UniqueConstraint("tournament_id", "athlete_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    tournament_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("tournaments.id"), nullable=False)
-    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id"), nullable=False)
-    coach_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("coaches.id"), nullable=False)
+    tournament_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
+    )
+    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
+    coach_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("coaches.id", ondelete="CASCADE"), nullable=False)
     weight_category: Mapped[str] = mapped_column(String(50), nullable=False)
     age_category: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending")
@@ -60,8 +68,10 @@ class TournamentResult(Base):
     __tablename__ = "tournament_results"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    tournament_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("tournaments.id"), nullable=False)
-    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id"), nullable=False)
+    tournament_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
+    )
+    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
     weight_category: Mapped[str] = mapped_column(String(50), nullable=False)
     age_category: Mapped[str] = mapped_column(String(50), nullable=False)
     place: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -77,8 +87,10 @@ class TournamentInterest(Base):
     __table_args__ = (UniqueConstraint("tournament_id", "athlete_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    tournament_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("tournaments.id"), nullable=False)
-    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id"), nullable=False)
+    tournament_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
+    )
+    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     tournament: Mapped["Tournament"] = relationship(back_populates="interests")

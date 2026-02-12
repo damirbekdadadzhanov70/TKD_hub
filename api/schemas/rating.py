@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -9,8 +10,8 @@ class RatingEntry(BaseModel):
     full_name: str
     country: str
     city: str
-    club: str | None = None
+    club: Optional[str] = None
     weight_category: str
     belt: str
     rating_points: int
-    photo_url: str | None = None
+    photo_url: Optional[str] = None

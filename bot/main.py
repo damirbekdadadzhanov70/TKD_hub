@@ -8,14 +8,14 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.config import settings
 from bot.handlers import (
-    start,
-    registration,
     admin_coaches,
+    entries,
     invite,
     my_athletes,
+    registration,
+    start,
     tournaments_admin,
     tournaments_view,
-    entries,
 )
 from bot.utils.scheduler import scheduler_loop
 

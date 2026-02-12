@@ -85,6 +85,12 @@ export interface TournamentDetail {
   entries: TournamentEntry[];
 }
 
+export interface TournamentInterestResponse {
+  tournament_id: string;
+  athlete_id: string;
+  created: boolean;
+}
+
 export interface TrainingLog {
   id: string;
   date: string;
@@ -103,6 +109,22 @@ export interface TrainingLogCreate {
   intensity: string;
   weight?: number | null;
   notes?: string | null;
+}
+
+export interface TrainingLogUpdate {
+  date?: string;
+  type?: string;
+  duration_minutes?: number;
+  intensity?: string;
+  weight?: number | null;
+  notes?: string | null;
+}
+
+export interface TrainingLogStats {
+  total_sessions: number;
+  total_minutes: number;
+  avg_intensity: string;
+  training_days: number;
 }
 
 export interface RatingEntry {
@@ -125,4 +147,23 @@ export interface CoachAthlete {
   belt: string;
   rating_points: number;
   club: string | null;
+}
+
+export interface CoachEntry {
+  id: string;
+  tournament_id: string;
+  tournament_name: string;
+  athlete_id: string;
+  athlete_name: string;
+  weight_category: string;
+  age_category: string;
+  status: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  has_next: boolean;
 }

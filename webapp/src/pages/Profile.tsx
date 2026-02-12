@@ -2,9 +2,9 @@ import { useState } from 'react';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
-import { getCoachAthletes, getMe, updateMe } from '../api/endpoints';
-import { mockCoachAthletes, mockMe } from '../api/mock';
-import type { AthleteUpdate, CoachAthlete, MeResponse } from '../types';
+import { getCoachAthletes, getCoachEntries, getMe, updateMe } from '../api/endpoints';
+import { mockCoachAthletes, mockCoachEntries, mockMe } from '../api/mock';
+import type { AthleteUpdate, CoachAthlete, CoachEntry, MeResponse } from '../types';
 
 export default function Profile() {
   const { data: me, loading, refetch } = useApi<MeResponse>(getMe, mockMe, []);
@@ -115,6 +115,7 @@ export default function Profile() {
           </div>
 
           <CoachAthletesList />
+          <CoachEntriesList />
         </>
       )}
 
@@ -245,6 +246,57 @@ function CoachAthletesList() {
             </Card>
           ))}
         </>
+      )}
+    </div>
+  );
+}
+
+/* ---- Coach entries ---- */
+function CoachEntriesList() {
+  const { data: entries, loading } = useApi<CoachEntry[]>(
+    getCoachEntries,
+    mockCoachEntries,
+    [],
+  );
+
+  return (
+    <div className="px-4 mb-4">
+      <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
+        Active Entries ({entries?.length || 0})
+      </h2>
+      {loading ? (
+        <LoadingSpinner />
+      ) : !entries || entries.length === 0 ? (
+        <Card>
+          <p className="text-sm text-center text-text-secondary">No active entries</p>
+        </Card>
+      ) : (
+        entries.map((e) => (
+          <Card key={e.id} className="!p-3">
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-text truncate">{e.athlete_name}</p>
+                <p className="text-[11px] text-text-secondary">
+                  {e.tournament_name}
+                </p>
+                <p className="text-[11px] text-text-secondary">
+                  {e.weight_category} · {e.age_category}
+                </p>
+              </div>
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ml-2 ${
+                  e.status === 'approved'
+                    ? 'bg-emerald-50/70 text-emerald-700'
+                    : e.status === 'rejected'
+                    ? 'bg-rose-50/70 text-rose-700'
+                    : 'bg-amber-50/70 text-amber-700'
+                }`}
+              >
+                {e.status}
+              </span>
+            </div>
+          </Card>
+        ))
       )}
     </div>
   );

@@ -3,39 +3,61 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from bot.utils.helpers import t
 
 
-def language_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:ru"),
-            InlineKeyboardButton(text="🇬🇧 English", callback_data="lang:en"),
+def language_keyboard(pre_selected: str | None = None) -> InlineKeyboardMarkup:
+    ru_label = "🇷🇺 Русский ✓" if pre_selected == "ru" else "🇷🇺 Русский"
+    en_label = "🇬🇧 English ✓" if pre_selected == "en" else "🇬🇧 English"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=ru_label, callback_data="lang:ru"),
+                InlineKeyboardButton(text=en_label, callback_data="lang:en"),
+            ]
         ]
-    ])
+    )
 
 
 def role_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=t("role_athlete", lang), callback_data="role:athlete"),
-            InlineKeyboardButton(text=t("role_coach", lang), callback_data="role:coach"),
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t("role_athlete", lang), callback_data="role:athlete"),
+                InlineKeyboardButton(text=t("role_coach", lang), callback_data="role:coach"),
+            ]
         ]
-    ])
+    )
 
 
 def gender_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=t("gender_male", lang), callback_data="gender:M"),
-            InlineKeyboardButton(text=t("gender_female", lang), callback_data="gender:F"),
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t("gender_male", lang), callback_data="gender:M"),
+                InlineKeyboardButton(text=t("gender_female", lang), callback_data="gender:F"),
+            ]
         ]
-    ])
+    )
 
 
 # WT senior weight categories
 WEIGHT_CATEGORIES_MALE = [
-    "54kg", "58kg", "63kg", "68kg", "74kg", "80kg", "87kg", "+87kg",
+    "54kg",
+    "58kg",
+    "63kg",
+    "68kg",
+    "74kg",
+    "80kg",
+    "87kg",
+    "+87kg",
 ]
 WEIGHT_CATEGORIES_FEMALE = [
-    "46kg", "49kg", "53kg", "57kg", "62kg", "67kg", "73kg", "+73kg",
+    "46kg",
+    "49kg",
+    "53kg",
+    "57kg",
+    "62kg",
+    "67kg",
+    "73kg",
+    "+73kg",
 ]
 
 
@@ -118,12 +140,12 @@ def country_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 
 def club_skip_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t("no_club", lang), callback_data="club:skip")]
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t("no_club", lang), callback_data="club:skip")]]
+    )
 
 
 def photo_skip_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t("skip_photo", lang), callback_data="photo:skip")]
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t("skip_photo", lang), callback_data="photo:skip")]]
+    )

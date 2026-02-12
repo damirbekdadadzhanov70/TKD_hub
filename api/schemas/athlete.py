@@ -1,6 +1,7 @@
 import uuid
 from datetime import date
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -15,18 +16,18 @@ class AthleteRead(BaseModel):
     belt: str
     country: str
     city: str
-    club: str | None = None
-    photo_url: str | None = None
+    club: Optional[str] = None
+    photo_url: Optional[str] = None
     rating_points: int = 0
 
     model_config = {"from_attributes": True}
 
 
 class AthleteUpdate(BaseModel):
-    full_name: str | None = None
-    weight_category: str | None = None
-    current_weight: Decimal | None = None
-    belt: str | None = None
-    city: str | None = None
-    club: str | None = None
-    photo_url: str | None = None
+    full_name: Optional[str] = None
+    weight_category: Optional[str] = None
+    current_weight: Optional[Decimal] = None
+    belt: Optional[str] = None
+    city: Optional[str] = None
+    club: Optional[str] = None
+    photo_url: Optional[str] = None

@@ -1,13 +1,16 @@
-from db.models.user import User
 from db.models.athlete import Athlete
+from db.models.audit_log import AuditLog
 from db.models.coach import Coach, CoachAthlete
+from db.models.invite_token import InviteToken
+from db.models.role_request import RoleRequest
 from db.models.tournament import Tournament, TournamentEntry, TournamentInterest, TournamentResult
 from db.models.training import TrainingLog
-from db.models.role_request import RoleRequest
+from db.models.user import User
 
 __all__ = [
     "User",
     "Athlete",
+    "AuditLog",
     "Coach",
     "CoachAthlete",
     "Tournament",
@@ -16,4 +19,5 @@ __all__ = [
     "TournamentResult",
     "TrainingLog",
     "RoleRequest",
+    "InviteToken",
 ]

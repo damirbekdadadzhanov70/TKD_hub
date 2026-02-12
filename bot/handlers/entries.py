@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 from aiogram import F, Router
@@ -15,12 +16,15 @@ from bot.keyboards.entries import (
     my_entries_keyboard,
 )
 from bot.states.entries import EnterAthletes
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.athlete import Athlete
-from db.models.coach import Coach, CoachAthlete
+from db.models.coach import CoachAthlete
 from db.models.tournament import Tournament, TournamentEntry
 from db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -28,9 +32,7 @@ router = Router()
 async def _get_coach_and_lang(telegram_id: int):
     async with async_session() as session:
         result = await session.execute(
-            select(User)
-            .where(User.telegram_id == telegram_id)
-            .options(selectinload(User.coach))
+            select(User).where(User.telegram_id == telegram_id).options(selectinload(User.coach))
         )
         user = result.scalar_one_or_none()
 
@@ -69,12 +71,15 @@ async def on_tournament_enter(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "tournament_enter")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
 
     async with async_session() as session:
-        result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = result.scalar_one_or_none()
 
     if not tournament:
@@ -108,11 +113,14 @@ async def on_tournament_enter(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(
-    EnterAthletes.select_athletes, F.data.startswith("toggle_athlete:")
-)
+@router.callback_query(EnterAthletes.select_athletes, F.data.startswith("toggle_athlete:"))
 async def on_toggle_athlete(callback: CallbackQuery, state: FSMContext):
-    athlete_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "toggle_athlete")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    athlete_id = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     selected = set(data.get("selected_athletes", []))
@@ -127,15 +135,11 @@ async def on_toggle_athlete(callback: CallbackQuery, state: FSMContext):
     coach_id = data["entry_coach_id"]
     athletes = await _get_coach_athletes(coach_id)
 
-    await callback.message.edit_reply_markup(
-        reply_markup=athlete_checkbox_keyboard(athletes, selected, lang)
-    )
+    await callback.message.edit_reply_markup(reply_markup=athlete_checkbox_keyboard(athletes, selected, lang))
     await callback.answer()
 
 
-@router.callback_query(
-    EnterAthletes.select_athletes, F.data == "confirm_athletes_selection"
-)
+@router.callback_query(EnterAthletes.select_athletes, F.data == "confirm_athletes_selection")
 async def on_confirm_selection(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
@@ -148,9 +152,7 @@ async def on_confirm_selection(callback: CallbackQuery, state: FSMContext):
     tid = data["entry_tid"]
 
     async with async_session() as session:
-        result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = result.scalar_one_or_none()
 
     if not tournament or not tournament.age_categories:
@@ -167,11 +169,14 @@ async def on_confirm_selection(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(
-    EnterAthletes.select_age_category, F.data.startswith("entry_age:")
-)
+@router.callback_query(EnterAthletes.select_age_category, F.data.startswith("entry_age:"))
 async def on_age_category(callback: CallbackQuery, state: FSMContext):
-    age_cat = callback.data.split(":", 1)[1]
+    try:
+        parts = parse_callback(callback.data, "entry_age")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    age_cat = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     selected = data.get("selected_athletes", [])
@@ -180,14 +185,10 @@ async def on_age_category(callback: CallbackQuery, state: FSMContext):
 
     # Build summary
     async with async_session() as session:
-        result = await session.execute(
-            select(Athlete).where(Athlete.id.in_(selected))
-        )
+        result = await session.execute(select(Athlete).where(Athlete.id.in_(selected)))
         athletes = result.scalars().all()
 
-        t_result = await session.execute(
-            select(Tournament).where(Tournament.id == data["entry_tid"])
-        )
+        t_result = await session.execute(select(Tournament).where(Tournament.id == data["entry_tid"]))
         tournament = t_result.scalar_one_or_none()
 
     names = [f"• {a.full_name} ({a.weight_category})" for a in athletes]
@@ -198,9 +199,7 @@ async def on_age_category(callback: CallbackQuery, state: FSMContext):
         count=len(names),
     )
 
-    await callback.message.edit_text(
-        summary, reply_markup=confirm_entries_keyboard(lang)
-    )
+    await callback.message.edit_text(summary, reply_markup=confirm_entries_keyboard(lang))
     await state.set_state(EnterAthletes.confirm)
     await callback.answer()
 
@@ -217,11 +216,14 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
     async with async_session() as session:
         # Get athletes for their weight categories
         result = await session.execute(
-            select(Athlete)
-            .where(Athlete.id.in_(selected))
-            .options(selectinload(Athlete.user))
+            select(Athlete).where(Athlete.id.in_(selected)).options(selectinload(Athlete.user))
         )
         athletes = result.scalars().all()
+
+        # Fetch tournament for weight category validation
+        t_result = await session.execute(select(Tournament).where(Tournament.id == tid))
+        tournament = t_result.scalar_one_or_none()
+        allowed_weights = set(tournament.weight_categories) if tournament and tournament.weight_categories else set()
 
         created = 0
         for athlete in athletes:
@@ -233,6 +235,10 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
                 )
             )
             if existing.scalar_one_or_none():
+                continue
+
+            # Validate weight category if tournament defines them
+            if allowed_weights and athlete.weight_category not in allowed_weights:
                 continue
 
             entry = TournamentEntry(
@@ -249,23 +255,17 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
         await session.commit()
 
     await state.clear()
-    await callback.message.edit_text(
-        t("entries_created", lang).format(count=created)
-    )
+    await callback.message.edit_text(t("entries_created", lang).format(count=created))
     await callback.answer()
 
     # Notify athletes
     async with async_session() as session:
         result = await session.execute(
-            select(Athlete)
-            .where(Athlete.id.in_(selected))
-            .options(selectinload(Athlete.user))
+            select(Athlete).where(Athlete.id.in_(selected)).options(selectinload(Athlete.user))
         )
         athletes = result.scalars().all()
 
-        t_result = await session.execute(
-            select(Tournament.name).where(Tournament.id == tid)
-        )
+        t_result = await session.execute(select(Tournament.name).where(Tournament.id == tid))
         t_name = t_result.scalar_one_or_none() or "?"
 
     for athlete in athletes:
@@ -274,12 +274,10 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
             try:
                 await callback.bot.send_message(
                     athlete.user.telegram_id,
-                    t("you_entered_tournament", a_lang).format(
-                        tournament=t_name
-                    ),
+                    t("you_entered_tournament", a_lang).format(tournament=t_name),
                 )
             except Exception:
-                pass
+                logger.warning("Failed to notify athlete %s about tournament entry", athlete.user.telegram_id)
 
 
 @router.callback_query(F.data == "entry_cancel")
@@ -324,10 +322,7 @@ async def cmd_my_entries(message: Message):
         name, count = by_tournament[tid]
         by_tournament[tid] = (name, count + 1)
 
-    items = [
-        (tid, name, f"{count} {t('athletes_word', lang)}")
-        for tid, (name, count) in by_tournament.items()
-    ]
+    items = [(tid, name, f"{count} {t('athletes_word', lang)}") for tid, (name, count) in by_tournament.items()]
 
     await message.answer(
         t("your_entries", lang),
@@ -342,7 +337,12 @@ async def on_view_entries(callback: CallbackQuery):
         await callback.answer()
         return
 
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "view_entries")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
@@ -355,9 +355,7 @@ async def on_view_entries(callback: CallbackQuery):
         )
         entries = result.scalars().all()
 
-        t_result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        t_result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = t_result.scalar_one_or_none()
 
     t_name = tournament.name if tournament else "?"
@@ -369,9 +367,7 @@ async def on_view_entries(callback: CallbackQuery):
 
     lines = [f"<b>{t_name}</b>\n"]
     for entry in entries:
-        lines.append(
-            f"• {entry.athlete.full_name} — {entry.weight_category}, {entry.age_category}"
-        )
+        lines.append(f"• {entry.athlete.full_name} — {entry.weight_category}, {entry.age_category}")
 
     can_withdraw = tournament and tournament.registration_deadline >= date.today()
     entry_items = [(e.id, e.athlete.full_name) for e in entries]
@@ -390,7 +386,12 @@ async def on_withdraw_entry(callback: CallbackQuery):
         await callback.answer()
         return
 
-    entry_id = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "withdraw")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    entry_id = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
@@ -432,7 +433,7 @@ async def on_withdraw_entry(callback: CallbackQuery):
                 t("you_withdrawn_from_tournament", a_lang).format(tournament=t_name),
             )
         except Exception:
-            pass
+            logger.warning("Failed to notify athlete %s about withdrawal", athlete_user.telegram_id)
 
     # Refresh entry list
     async with async_session() as session:
@@ -446,9 +447,7 @@ async def on_withdraw_entry(callback: CallbackQuery):
         )
         entries = result.scalars().all()
 
-        t_result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        t_result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = t_result.scalar_one_or_none()
 
     if not entries:
@@ -496,10 +495,7 @@ async def on_back_to_my_entries(callback: CallbackQuery):
         name, count = by_tournament[tid]
         by_tournament[tid] = (name, count + 1)
 
-    items = [
-        (tid, name, f"{count} {t('athletes_word', lang)}")
-        for tid, (name, count) in by_tournament.items()
-    ]
+    items = [(tid, name, f"{count} {t('athletes_word', lang)}") for tid, (name, count) in by_tournament.items()]
 
     await callback.message.edit_text(
         t("your_entries", lang),

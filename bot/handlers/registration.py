@@ -14,6 +14,7 @@ from bot.keyboards.registration import (
     weight_category_keyboard,
 )
 from bot.states.registration import AthleteRegistration, CoachRegistration
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.athlete import Athlete
@@ -55,7 +56,12 @@ async def athlete_dob(message: Message, state: FSMContext):
 
 @router.callback_query(AthleteRegistration.gender, F.data.startswith("gender:"))
 async def athlete_gender(callback: CallbackQuery, state: FSMContext):
-    gender = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "gender")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    gender = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(gender=gender)
@@ -70,7 +76,12 @@ async def athlete_gender(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AthleteRegistration.weight_category, F.data.startswith("weight:"))
 async def athlete_weight_category(callback: CallbackQuery, state: FSMContext):
-    weight_cat = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "weight")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    weight_cat = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(weight_category=weight_cat)
@@ -100,7 +111,12 @@ async def athlete_current_weight(message: Message, state: FSMContext):
 
 @router.callback_query(AthleteRegistration.belt, F.data.startswith("belt:"))
 async def athlete_belt(callback: CallbackQuery, state: FSMContext):
-    belt = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "belt")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    belt = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(belt=belt)
@@ -115,7 +131,12 @@ async def athlete_belt(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AthleteRegistration.country, F.data.startswith("country:"))
 async def athlete_country(callback: CallbackQuery, state: FSMContext):
-    country = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "country")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    country = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
 
@@ -250,7 +271,12 @@ async def coach_dob(message: Message, state: FSMContext):
 
 @router.callback_query(CoachRegistration.gender, F.data.startswith("gender:"))
 async def coach_gender(callback: CallbackQuery, state: FSMContext):
-    gender = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "gender")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    gender = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(gender=gender)
@@ -265,7 +291,12 @@ async def coach_gender(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(CoachRegistration.country, F.data.startswith("country:"))
 async def coach_country(callback: CallbackQuery, state: FSMContext):
-    country = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "country")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    country = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
 

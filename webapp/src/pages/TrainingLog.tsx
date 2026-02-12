@@ -3,9 +3,20 @@ import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
-import { createTrainingLog, getTrainingLogs } from '../api/endpoints';
-import { mockTrainingLogs } from '../api/mock';
-import type { TrainingLog as TrainingLogType, TrainingLogCreate } from '../types';
+import {
+  createTrainingLog,
+  deleteTrainingLog,
+  getTrainingLogs,
+  getTrainingStats,
+  updateTrainingLog,
+} from '../api/endpoints';
+import { mockTrainingLogs, mockTrainingStats } from '../api/mock';
+import type {
+  TrainingLog as TrainingLogType,
+  TrainingLogCreate,
+  TrainingLogStats,
+  TrainingLogUpdate,
+} from '../types';
 
 const TRAINING_TYPES = ['sparring', 'technique', 'cardio', 'strength', 'flexibility', 'poomsae'];
 const INTENSITIES = ['low', 'medium', 'high'];
@@ -63,10 +74,17 @@ export default function TrainingLogPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [showForm, setShowForm] = useState(false);
+  const [editingLog, setEditingLog] = useState<TrainingLogType | null>(null);
 
   const { data: logs, loading, refetch } = useApi<TrainingLogType[]>(
     () => getTrainingLogs({ month, year }),
     mockTrainingLogs,
+    [month, year],
+  );
+
+  const { data: stats } = useApi<TrainingLogStats>(
+    () => getTrainingStats({ month, year }),
+    mockTrainingStats,
     [month, year],
   );
 
@@ -83,19 +101,6 @@ export default function TrainingLogPage() {
     return set;
   }, [logs, year, month]);
 
-  const stats = useMemo(() => {
-    if (!logs || logs.length === 0) return null;
-    const totalSessions = logs.length;
-    const totalMinutes = logs.reduce((s, l) => s + l.duration_minutes, 0);
-    const totalHours = (totalMinutes / 60).toFixed(1);
-    const intensityMap: Record<string, number> = { low: 1, medium: 2, high: 3 };
-    const avgIntensityNum = logs.reduce((s, l) => s + (intensityMap[l.intensity] || 2), 0) / totalSessions;
-    let avgIntensity = 'Medium';
-    if (avgIntensityNum < 1.5) avgIntensity = 'Low';
-    else if (avgIntensityNum > 2.5) avgIntensity = 'High';
-    return { totalSessions, totalHours, avgIntensity };
-  }, [logs]);
-
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = getFirstDayOfWeek(year, month);
   const today = now.getDate();
@@ -108,6 +113,15 @@ export default function TrainingLogPage() {
   const nextMonth = () => {
     if (month === 12) { setMonth(1); setYear(year + 1); }
     else setMonth(month + 1);
+  };
+
+  const handleDelete = async (logId: string) => {
+    try {
+      await deleteTrainingLog(logId);
+      refetch();
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -162,21 +176,21 @@ export default function TrainingLogPage() {
       </div>
 
       {/* Monthly stats */}
-      {stats && (
+      {stats && stats.total_sessions > 0 && (
         <div className="px-4">
           <Card>
             <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">Month Summary</h3>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent">{stats.totalSessions}</p>
+                <p className="text-xl font-bold text-accent">{stats.total_sessions}</p>
                 <p className="text-[11px] text-text-secondary mt-0.5">Sessions</p>
               </div>
               <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent">{stats.totalHours}</p>
+                <p className="text-xl font-bold text-accent">{(stats.total_minutes / 60).toFixed(1)}</p>
                 <p className="text-[11px] text-text-secondary mt-0.5">Hours</p>
               </div>
               <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent">{stats.avgIntensity}</p>
+                <p className="text-xl font-bold text-accent capitalize">{stats.avg_intensity}</p>
                 <p className="text-[11px] text-text-secondary mt-0.5">Avg Intensity</p>
               </div>
             </div>
@@ -208,11 +222,25 @@ export default function TrainingLogPage() {
                     </p>
                   </div>
                 </div>
-                {log.weight && (
-                  <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
-                    {log.weight} kg
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {log.weight && (
+                    <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
+                      {log.weight} kg
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setEditingLog(log)}
+                    className="text-xs border-none bg-transparent cursor-pointer text-accent px-1"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(log.id)}
+                    className="text-xs border-none bg-transparent cursor-pointer text-rose-500 px-1"
+                  >
+                    Del
+                  </button>
+                </div>
               </div>
               {log.notes && (
                 <p className="text-xs mt-2 text-text ml-12">{log.notes}</p>
@@ -240,6 +268,15 @@ export default function TrainingLogPage() {
         <TrainingForm
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); refetch(); }}
+        />
+      )}
+
+      {/* Edit form modal */}
+      {editingLog && (
+        <TrainingEditForm
+          log={editingLog}
+          onClose={() => setEditingLog(null)}
+          onSaved={() => { setEditingLog(null); refetch(); }}
         />
       )}
     </div>
@@ -351,6 +388,126 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60"
           >
             {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrainingEditForm({
+  log,
+  onClose,
+  onSaved,
+}: {
+  log: TrainingLogType;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<TrainingLogUpdate>({
+    date: log.date,
+    type: log.type,
+    duration_minutes: log.duration_minutes,
+    intensity: log.intensity,
+    weight: log.weight,
+    notes: log.notes,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      await updateTrainingLog(log.id, form);
+      onSaved();
+    } catch {
+      onSaved();
+    }
+  };
+
+  const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+      <div className="w-full rounded-t-2xl max-h-[85vh] flex flex-col overflow-hidden bg-white">
+        <div className="flex justify-between items-center p-4 pb-2 shrink-0">
+          <h2 className="text-lg font-bold text-text">Edit Training</h2>
+          <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">Date</span>
+            <input
+              type="date"
+              value={form.date ?? ''}
+              onChange={(e) => update('date', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">Type</span>
+            <select
+              value={form.type ?? ''}
+              onChange={(e) => update('type', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            >
+              {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
+            <input
+              type="number"
+              value={form.duration_minutes ?? 0}
+              onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
+            <select
+              value={form.intensity ?? ''}
+              onChange={(e) => update('intensity', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            >
+              {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
+            <input
+              type="number"
+              step="0.1"
+              value={form.weight ?? ''}
+              onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+              placeholder="Optional"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">Notes</span>
+            <textarea
+              value={form.notes ?? ''}
+              onChange={(e) => update('notes', e.target.value || null)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
+              rows={3}
+              placeholder="Optional"
+            />
+          </label>
+        </div>
+
+        <div className="p-4 pt-2 shrink-0">
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

@@ -7,9 +7,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from bot.keyboards.tournaments import tournament_detail_keyboard, tournaments_list_keyboard
+from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
 from db.base import async_session
-from db.models.athlete import Athlete
 from db.models.tournament import Tournament, TournamentInterest
 from db.models.user import User
 
@@ -54,10 +54,7 @@ async def cmd_tournaments(message: Message):
         await message.answer(t("no_upcoming_tournaments", lang))
         return
 
-    items = [
-        (t_.id, t_.name, t_.start_date.strftime("%d.%m.%Y"))
-        for t_ in tournaments
-    ]
+    items = [(t_.id, t_.name, t_.start_date.strftime("%d.%m.%Y")) for t_ in tournaments]
 
     await message.answer(
         t("upcoming_tournaments", lang),
@@ -68,12 +65,15 @@ async def cmd_tournaments(message: Message):
 @router.callback_query(F.data.startswith("tournament_detail:"))
 async def on_tournament_detail(callback: CallbackQuery):
     user, is_coach, is_athlete, lang = await _get_user_and_role(callback.from_user.id)
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "tournament_detail")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
 
     async with async_session() as session:
-        result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = result.scalar_one_or_none()
 
     if not tournament:
@@ -110,7 +110,8 @@ async def on_tournament_detail(callback: CallbackQuery):
     await callback.message.edit_text(
         text,
         reply_markup=tournament_detail_keyboard(
-            tournament.id, lang,
+            tournament.id,
+            lang,
             is_coach=is_coach,
             is_athlete=is_athlete,
             is_interested=is_interested,
@@ -122,7 +123,12 @@ async def on_tournament_detail(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("tournaments_page:"))
 async def on_tournaments_page(callback: CallbackQuery):
     user, is_coach, is_athlete, lang = await _get_user_and_role(callback.from_user.id)
-    page = int(callback.data.split(":")[1])
+    try:
+        parts = parse_callback(callback.data, "tournaments_page")
+        page = int(parts[1])
+    except (CallbackParseError, ValueError):
+        await callback.answer("Error")
+        return
 
     async with async_session() as session:
         result = await session.execute(
@@ -138,10 +144,7 @@ async def on_tournaments_page(callback: CallbackQuery):
     if not tournaments:
         await callback.message.edit_text(t("no_upcoming_tournaments", lang))
     else:
-        items = [
-            (t_.id, t_.name, t_.start_date.strftime("%d.%m.%Y"))
-            for t_ in tournaments
-        ]
+        items = [(t_.id, t_.name, t_.start_date.strftime("%d.%m.%Y")) for t_ in tournaments]
         await callback.message.edit_text(
             t("upcoming_tournaments", lang),
             reply_markup=tournaments_list_keyboard(items, lang, page=page),
@@ -167,10 +170,7 @@ async def on_back_to_tournaments(callback: CallbackQuery):
     if not tournaments:
         await callback.message.edit_text(t("no_upcoming_tournaments", lang))
     else:
-        items = [
-            (t_.id, t_.name, t_.start_date.strftime("%d.%m.%Y"))
-            for t_ in tournaments
-        ]
+        items = [(t_.id, t_.name, t_.start_date.strftime("%d.%m.%Y")) for t_ in tournaments]
         await callback.message.edit_text(
             t("upcoming_tournaments", lang),
             reply_markup=tournaments_list_keyboard(items, lang),
@@ -185,7 +185,12 @@ async def on_tournament_interest(callback: CallbackQuery):
         await callback.answer()
         return
 
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "t_interest")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
     athlete_id = user.athlete.id
 
     async with async_session() as session:
@@ -198,25 +203,19 @@ async def on_tournament_interest(callback: CallbackQuery):
         existing = result.scalar_one_or_none()
 
         if existing:
-            await session.execute(
-                delete(TournamentInterest).where(TournamentInterest.id == existing.id)
-            )
+            await session.execute(delete(TournamentInterest).where(TournamentInterest.id == existing.id))
             await session.commit()
             is_interested = False
             await callback.answer(t("interest_removed", lang))
         else:
-            session.add(TournamentInterest(
-                tournament_id=tid, athlete_id=athlete_id
-            ))
+            session.add(TournamentInterest(tournament_id=tid, athlete_id=athlete_id))
             await session.commit()
             is_interested = True
             await callback.answer(t("interest_added", lang))
 
     # Re-fetch tournament to re-render detail
     async with async_session() as session:
-        result = await session.execute(
-            select(Tournament).where(Tournament.id == tid)
-        )
+        result = await session.execute(select(Tournament).where(Tournament.id == tid))
         tournament = result.scalar_one_or_none()
 
     if not tournament:
@@ -240,7 +239,8 @@ async def on_tournament_interest(callback: CallbackQuery):
     await callback.message.edit_text(
         text,
         reply_markup=tournament_detail_keyboard(
-            tournament.id, lang,
+            tournament.id,
+            lang,
             is_coach=is_coach,
             is_athlete=is_athlete,
             is_interested=is_interested,
@@ -255,7 +255,12 @@ async def on_interested_athletes(callback: CallbackQuery):
         await callback.answer()
         return
 
-    tid = callback.data.split(":")[1]
+    try:
+        parts = parse_callback(callback.data, "t_int_list")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    tid = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
