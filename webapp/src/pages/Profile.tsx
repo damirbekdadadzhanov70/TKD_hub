@@ -7,10 +7,28 @@ import { mockCoachAthletes, mockCoachEntries, mockMe } from '../api/mock';
 import type { AthleteUpdate, CoachAthlete, CoachEntry, MeResponse } from '../types';
 
 export default function Profile() {
-  const { data: me, loading, refetch } = useApi<MeResponse>(getMe, mockMe, []);
+  const { data: me, loading, error, refetch } = useApi<MeResponse>(getMe, mockMe, []);
   const [editing, setEditing] = useState(false);
 
-  if (loading || !me) return <LoadingSpinner />;
+  if (loading) return <LoadingSpinner />;
+
+  if (error || !me) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 pt-20 text-center">
+        <p className="text-4xl mb-3">😕</p>
+        <h2 className="text-lg font-bold text-text mb-1">Could not load profile</h2>
+        <p className="text-sm text-text-secondary mb-4">
+          {error || 'Make sure you are registered via the bot and the API server is running.'}
+        </p>
+        <button
+          onClick={refetch}
+          className="px-6 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const isCoach = me.role === 'coach';
   const isAthlete = me.role === 'athlete';
