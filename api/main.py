@@ -1,10 +1,12 @@
 import logging
 import os
 import time
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -90,3 +92,18 @@ app.include_router(audit.router, prefix="/api", tags=["audit"])
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Serve webapp static files (SPA) ─────────────────────────
+_webapp_dist = Path(__file__).resolve().parent.parent / "webapp" / "dist"
+
+if _webapp_dist.is_dir():
+    app.mount("/assets", StaticFiles(directory=_webapp_dist / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the React SPA for all non-API routes."""
+        file_path = _webapp_dist / full_path
+        if full_path and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(_webapp_dist / "index.html")

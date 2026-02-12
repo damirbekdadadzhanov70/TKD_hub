@@ -33,22 +33,22 @@ echo -e "${CYAN}[1/4] Applying database migrations...${NC}"
 alembic upgrade head
 echo -e "${GREEN}      Migrations applied.${NC}\n"
 
-# 3. Start API
-echo -e "${CYAN}[2/4] Starting API server (port 8000)...${NC}"
+# 3. Build webapp
+echo -e "${CYAN}[2/4] Building webapp...${NC}"
+(cd webapp && npm run build)
+echo -e "${GREEN}      Webapp built → webapp/dist/${NC}\n"
+
+# 4. Start API (serves both API + webapp/dist)
+echo -e "${CYAN}[3/4] Starting API server (port 8000)...${NC}"
 uvicorn api.main:app --reload --port 8000 &
 PIDS+=($!)
-echo -e "${GREEN}      API started (PID $!).${NC}\n"
+echo -e "${GREEN}      API + webapp on http://localhost:8000${NC}\n"
 
-# 4. Start webapp
-echo -e "${CYAN}[3/4] Starting webapp dev server (port 5173)...${NC}"
-(cd webapp && npm run dev) &
-PIDS+=($!)
-echo -e "${GREEN}      Webapp started (PID $!).${NC}\n"
-
-# Wait a moment for servers to initialize
+# Wait a moment for server to initialize
 sleep 2
 
 # 5. Start bot (foreground — Ctrl+C stops everything)
 echo -e "${CYAN}[4/4] Starting Telegram bot...${NC}"
-echo -e "${GREEN}      All services running. Press Ctrl+C to stop.${NC}\n"
+echo -e "${GREEN}      All services running. Press Ctrl+C to stop.${NC}"
+echo -e "${GREEN}      Use 'ngrok http 8000' in another terminal for Telegram Mini App.${NC}\n"
 python3 -m bot.main
