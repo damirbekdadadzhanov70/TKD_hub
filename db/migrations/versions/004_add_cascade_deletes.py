@@ -16,13 +16,22 @@ down_revision: str | None = "b5e2a8f14c03"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# Naming convention so Alembic can find unnamed SQLite FK constraints
+_naming = {"fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s"}
+
 
 def upgrade() -> None:
     # tournament_entries
-    with op.batch_alter_table("tournament_entries") as batch_op:
-        batch_op.drop_constraint("fk_tournament_entries_tournament_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_entries_athlete_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_entries_coach_id", type_="foreignkey")
+    with op.batch_alter_table("tournament_entries", naming_convention=_naming) as batch_op:
+        batch_op.drop_constraint(
+            "fk_tournament_entries_tournament_id_tournaments", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_entries_athlete_id_athletes", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_entries_coach_id_coaches", type_="foreignkey"
+        )
         batch_op.create_foreign_key(
             "fk_tournament_entries_tournament_id", "tournaments", ["tournament_id"], ["id"], ondelete="CASCADE"
         )
@@ -34,9 +43,13 @@ def upgrade() -> None:
         )
 
     # tournament_results
-    with op.batch_alter_table("tournament_results") as batch_op:
-        batch_op.drop_constraint("fk_tournament_results_tournament_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_results_athlete_id", type_="foreignkey")
+    with op.batch_alter_table("tournament_results", naming_convention=_naming) as batch_op:
+        batch_op.drop_constraint(
+            "fk_tournament_results_tournament_id_tournaments", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_results_athlete_id_athletes", type_="foreignkey"
+        )
         batch_op.create_foreign_key(
             "fk_tournament_results_tournament_id", "tournaments", ["tournament_id"], ["id"], ondelete="CASCADE"
         )
@@ -45,9 +58,13 @@ def upgrade() -> None:
         )
 
     # tournament_interests
-    with op.batch_alter_table("tournament_interests") as batch_op:
-        batch_op.drop_constraint("fk_tournament_interests_tournament_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_interests_athlete_id", type_="foreignkey")
+    with op.batch_alter_table("tournament_interests", naming_convention=_naming) as batch_op:
+        batch_op.drop_constraint(
+            "fk_tournament_interests_tournament_id_tournaments", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_interests_athlete_id_athletes", type_="foreignkey"
+        )
         batch_op.create_foreign_key(
             "fk_tournament_interests_tournament_id", "tournaments", ["tournament_id"], ["id"], ondelete="CASCADE"
         )
@@ -57,25 +74,36 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # tournament_interests
-    with op.batch_alter_table("tournament_interests") as batch_op:
-        batch_op.drop_constraint("fk_tournament_interests_tournament_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_interests_athlete_id", type_="foreignkey")
-        batch_op.create_foreign_key("fk_tournament_interests_tournament_id", "tournaments", ["tournament_id"], ["id"])
-        batch_op.create_foreign_key("fk_tournament_interests_athlete_id", "athletes", ["athlete_id"], ["id"])
+    with op.batch_alter_table("tournament_interests", naming_convention=_naming) as batch_op:
+        batch_op.drop_constraint(
+            "fk_tournament_interests_tournament_id", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_interests_athlete_id", type_="foreignkey"
+        )
+        batch_op.create_foreign_key(None, "tournaments", ["tournament_id"], ["id"])
+        batch_op.create_foreign_key(None, "athletes", ["athlete_id"], ["id"])
 
-    # tournament_results
-    with op.batch_alter_table("tournament_results") as batch_op:
-        batch_op.drop_constraint("fk_tournament_results_tournament_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_results_athlete_id", type_="foreignkey")
-        batch_op.create_foreign_key("fk_tournament_results_tournament_id", "tournaments", ["tournament_id"], ["id"])
-        batch_op.create_foreign_key("fk_tournament_results_athlete_id", "athletes", ["athlete_id"], ["id"])
+    with op.batch_alter_table("tournament_results", naming_convention=_naming) as batch_op:
+        batch_op.drop_constraint(
+            "fk_tournament_results_tournament_id", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_results_athlete_id", type_="foreignkey"
+        )
+        batch_op.create_foreign_key(None, "tournaments", ["tournament_id"], ["id"])
+        batch_op.create_foreign_key(None, "athletes", ["athlete_id"], ["id"])
 
-    # tournament_entries
-    with op.batch_alter_table("tournament_entries") as batch_op:
-        batch_op.drop_constraint("fk_tournament_entries_tournament_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_entries_athlete_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_tournament_entries_coach_id", type_="foreignkey")
-        batch_op.create_foreign_key("fk_tournament_entries_tournament_id", "tournaments", ["tournament_id"], ["id"])
-        batch_op.create_foreign_key("fk_tournament_entries_athlete_id", "athletes", ["athlete_id"], ["id"])
-        batch_op.create_foreign_key("fk_tournament_entries_coach_id", "coaches", ["coach_id"], ["id"])
+    with op.batch_alter_table("tournament_entries", naming_convention=_naming) as batch_op:
+        batch_op.drop_constraint(
+            "fk_tournament_entries_tournament_id", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_entries_athlete_id", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_tournament_entries_coach_id", type_="foreignkey"
+        )
+        batch_op.create_foreign_key(None, "tournaments", ["tournament_id"], ["id"])
+        batch_op.create_foreign_key(None, "athletes", ["athlete_id"], ["id"])
+        batch_op.create_foreign_key(None, "coaches", ["coach_id"], ["id"])

@@ -37,6 +37,8 @@ _env = os.getenv("ENVIRONMENT", "development")
 _cors_extra = os.getenv("CORS_ORIGINS", "")
 
 allowed_origins: list[str] = ["https://web.telegram.org"]
+_origin_regex: str | None = None
+
 if _cors_extra:
     allowed_origins.extend(o.strip() for o in _cors_extra.split(",") if o.strip())
 if _env != "production":
@@ -48,10 +50,12 @@ if _env != "production":
             "https://localhost:5174",
         ]
     )
+    _origin_regex = r"https://.*\.(vercel\.app|ngrok-free\.app|ngrok\.io)"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

@@ -1,6 +1,6 @@
 import WebApp from '@twa-dev/sdk';
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export async function apiRequest<T>(
   path: string,
