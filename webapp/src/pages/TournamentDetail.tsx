@@ -255,7 +255,7 @@ function EnterAthletesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-      <div className="w-full rounded-t-2xl max-h-[85vh] flex flex-col overflow-hidden bg-white">
+      <div className="w-full rounded-t-2xl bottom-sheet flex flex-col overflow-hidden bg-white">
         <div className="flex justify-between items-center p-4 pb-2 shrink-0">
           <h2 className="text-lg font-bold text-text">Select Athletes</h2>
           <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
@@ -295,7 +295,7 @@ function EnterAthletesModal({
           )}
         </div>
 
-        <div className="p-4 pt-2 shrink-0">
+        <div className="p-4 pt-2 shrink-0 bottom-sheet-footer">
           <button
             onClick={handleSubmit}
             disabled={submitting || selected.size === 0}

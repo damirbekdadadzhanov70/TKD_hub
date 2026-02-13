@@ -36,6 +36,15 @@ body {
   flex-direction: column;
 }
 
+/* Bottom sheet modal */
+.bottom-sheet {
+  max-height: calc(var(--app-vh, 100vh) * 0.85);
+}
+
+.bottom-sheet-footer {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Page transition */
 .page-enter {
   opacity: 0;
