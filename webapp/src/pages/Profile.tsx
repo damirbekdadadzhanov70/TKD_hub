@@ -5,23 +5,12 @@ import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
+import { useI18n } from '../i18n/I18nProvider';
 import { getCoachAthletes, getCoachEntries, getMe, updateCoach, updateMe } from '../api/endpoints';
 import { mockCoachAthletes, mockCoachEntries, mockMe, updateMockMe } from '../api/mock';
 import type { AthleteUpdate, CoachAthlete, CoachEntry, CoachUpdate, MeResponse } from '../types';
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
-const ROLE_LABELS: Record<MeResponse['role'], string> = {
-  athlete: 'Athlete',
-  coach: 'Coach',
-  admin: 'Admin',
-  none: 'None',
-};
-const ROLE_DESCRIPTIONS: Record<MeResponse['role'], string> = {
-  athlete: 'Training logs, tournaments, ratings',
-  coach: 'Manage athletes and entries',
-  admin: 'Full access to all features',
-  none: '',
-};
 
 const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
 const BELTS = ['1 Gup', '1 Dan', '2 Dan', '3 Dan', '4 Dan', '5 Dan'];
@@ -61,6 +50,7 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 export default function Profile() {
   const { user: tgUser } = useTelegram();
+  const { t } = useI18n();
   const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -69,7 +59,7 @@ export default function Profile() {
   if (!me) return (
     <div className="flex flex-col items-center justify-center pt-20 px-4">
       <p className="text-sm text-text-secondary text-center">
-        Could not load profile. Please reopen the app from Telegram.
+        {t('common.couldNotLoad')}
       </p>
     </div>
   );
@@ -94,7 +84,7 @@ export default function Profile() {
       {/* Settings gear — top right */}
       <div className="flex justify-end px-4 pt-4">
         <button
-          aria-label="Settings"
+          aria-label={t('profile.settings')}
           onClick={() => setShowSettings(true)}
           className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
         >
@@ -133,7 +123,7 @@ export default function Profile() {
           </p>
         )}
         {isAdmin && (
-          <p className="text-sm text-text-secondary mt-0.5">Administrator</p>
+          <p className="text-sm text-text-secondary mt-0.5">{t('profile.administrator')}</p>
         )}
       </div>
 
@@ -155,10 +145,10 @@ export default function Profile() {
       {/* Admin profile */}
       {isAdmin && (
         <div className="px-4">
-          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
-          <InfoRow label="Role" value="Administrator" />
-          <InfoRow label="Users" value="7 registered" />
-          <InfoRow label="Tournaments" value="5 total" />
+          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
+          <InfoRow label={t('profile.role')} value={t('profile.administrator')} />
+          <InfoRow label="Users" value={`7 ${t('profile.usersCount')}`} />
+          <InfoRow label={t('nav.tournaments')} value={`5 ${t('profile.tournamentsCount')}`} />
         </div>
       )}
 
@@ -187,6 +177,7 @@ function AthleteSection({
   editing: boolean;
   setEditing: (v: boolean) => void;
 }) {
+  const { t } = useI18n();
   const athlete = me.athlete!;
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -196,27 +187,27 @@ function AthleteSection({
       <div className="flex items-center justify-center mx-4 mb-5 py-3 border-y border-border">
         <div className="flex-1 text-center">
           <p className="font-mono text-2xl text-text-heading">{athlete.rating_points}</p>
-          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Rating</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.ratingLabel')}</p>
         </div>
         <div className="w-px h-10 bg-border" />
         <div className="flex-1 text-center">
           <p className="font-mono text-2xl text-text-heading">—</p>
-          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Tourneys</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.tourneys')}</p>
         </div>
         <div className="w-px h-10 bg-border" />
         <div className="flex-1 text-center">
           <p className="font-mono text-2xl text-text-heading">—</p>
-          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Medals</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.medals')}</p>
         </div>
       </div>
 
       {/* Information */}
       <div className="px-4 mb-4">
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
-        <InfoRow label="Club" value={athlete.club || '—'} />
-        <InfoRow label="City" value={athlete.city} />
-        <InfoRow label="Weight" value={`${athlete.current_weight} kg`} />
-        <InfoRow label="Gender" value={athlete.gender === 'M' ? 'Male' : 'Female'} />
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
+        <InfoRow label={t('profile.club')} value={athlete.club || '—'} />
+        <InfoRow label={t('profile.city')} value={athlete.city} />
+        <InfoRow label={t('profile.weightLabel')} value={`${athlete.current_weight} kg`} />
+        <InfoRow label={t('profile.genderLabel')} value={athlete.gender === 'M' ? t('profile.male') : t('profile.female')} />
       </div>
 
       {/* Tournament History — collapsible */}
@@ -225,7 +216,7 @@ function AthleteSection({
           onClick={() => setHistoryOpen(!historyOpen)}
           className="flex items-center gap-1.5 border-none bg-transparent cursor-pointer p-0 mb-2"
         >
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled">Tournament History</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled">{t('profile.tournamentHistory')}</span>
           <ChevronIcon open={historyOpen} />
         </button>
         {historyOpen && (
@@ -242,7 +233,7 @@ function AthleteSection({
           onClick={() => setEditing(true)}
           className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent hover:bg-accent-light active:bg-accent-light transition-colors"
         >
-          Edit Profile
+          {t('profile.editProfile')}
         </button>
       </div>
 
@@ -272,6 +263,7 @@ function AthleteSection({
 /* ---- Coach Section ---- */
 
 function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) => void }) {
+  const { t } = useI18n();
   const coach = me.coach!;
   const navigate = useNavigate();
   const [showInvite, setShowInvite] = useState(false);
@@ -316,22 +308,22 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
       <div className="flex items-center justify-center mx-4 mb-5 py-3 border-y border-border">
         <div className="flex-1 text-center">
           <p className="font-mono text-2xl text-text-heading">{athletes?.length || 0}</p>
-          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Athletes</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.athletesStat')}</p>
         </div>
         <div className="w-px h-10 bg-border" />
         <div className="flex-1 text-center">
           <p className="font-mono text-2xl text-text-heading">{entries?.length || 0}</p>
-          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Active Entries</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.activeEntries')}</p>
         </div>
       </div>
 
       {/* Information */}
       <div className="px-4 mb-4">
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
-        <InfoRow label="Club" value={coach.club} />
-        <InfoRow label="City" value={coach.city} />
-        <InfoRow label="Qualification" value={coach.qualification} />
-        <InfoRow label="Verified" value={coach.is_verified ? 'Yes' : 'Pending'} accent={coach.is_verified} />
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
+        <InfoRow label={t('profile.club')} value={coach.club} />
+        <InfoRow label={t('profile.city')} value={coach.city} />
+        <InfoRow label={t('profile.qualification')} value={coach.qualification} />
+        <InfoRow label={t('profile.verifiedLabel')} value={coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} accent={coach.is_verified} />
       </div>
 
       {/* Edit button — outlined */}
@@ -340,7 +332,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
           onClick={() => setEditing(true)}
           className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent hover:bg-accent-light active:bg-accent-light transition-colors"
         >
-          Edit Profile
+          {t('profile.editProfile')}
         </button>
       </div>
 
@@ -366,11 +358,11 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
 
       {/* Athletes list */}
       <div className="px-4 mb-4">
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Athletes</p>
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.athletes')}</p>
         {loadingAthletes ? (
           <LoadingSpinner />
         ) : !athletes || athletes.length === 0 ? (
-          <p className="text-sm text-text-secondary">No athletes yet</p>
+          <p className="text-sm text-text-secondary">{t('profile.noAthletesYet')}</p>
         ) : (
           athletes.map((a, i) => (
             <div
@@ -393,17 +385,17 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
           onClick={() => setShowInvite(true)}
           className="text-sm text-accent border-none bg-transparent cursor-pointer p-0 mt-2 active:opacity-70"
         >
-          + Add athlete
+          {t('profile.addAthlete')}
         </button>
       </div>
 
       {/* Active entries */}
       <div className="px-4 mb-4">
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Active Entries</p>
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.activeEntries')}</p>
         {loadingEntries ? (
           <LoadingSpinner />
         ) : !entries || entries.length === 0 ? (
-          <p className="text-sm text-text-secondary">No active entries</p>
+          <p className="text-sm text-text-secondary">{t('profile.noActiveEntries')}</p>
         ) : (
           entries.map((e, i) => (
             <div
@@ -420,7 +412,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
                 onClick={() => navigate(`/tournament/${e.tournament_id}`)}
                 className="text-[13px] text-accent shrink-0 ml-2 cursor-pointer border-none bg-transparent p-0 active:opacity-70"
               >
-                Edit →
+                {t('profile.editArrow')}
               </button>
             </div>
           ))
@@ -431,16 +423,16 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
       {showInvite && (
         <BottomSheet onClose={() => setShowInvite(false)}>
           <div className="p-4 pt-5 text-center">
-            <h2 className="text-lg font-heading text-text-heading mb-2">Add Athlete</h2>
+            <h2 className="text-lg font-heading text-text-heading mb-2">{t('profile.addAthleteTitle')}</h2>
             <p className="text-sm text-text-secondary mb-4">
-              Athletes are linked automatically when they register and specify your name as their coach.
+              {t('profile.addAthleteDesc')}
             </p>
             <div className="bg-bg-secondary rounded-xl p-4 mb-4">
-              <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-1">Your name</p>
+              <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-1">{t('profile.yourName')}</p>
               <p className="text-lg font-medium text-text">{coach.full_name}</p>
             </div>
             <p className="text-xs text-text-disabled">
-              Share your name with athletes so they can find you during registration.
+              {t('profile.shareNameHint')}
             </p>
           </div>
         </BottomSheet>
@@ -494,29 +486,42 @@ function SettingsSheet({
   onRoleChange: (role: MeResponse['role']) => void;
 }) {
   const { showToast } = useToast();
-  const [lang, setLang] = useState(() => localStorage.getItem('app_language') || me.language || 'ru');
+  const { t, lang, setLang } = useI18n();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const ROLE_LABELS: Record<MeResponse['role'], string> = {
+    athlete: t('profile.roleAthlete'),
+    coach: t('profile.roleCoach'),
+    admin: t('profile.roleAdmin'),
+    none: '',
+  };
+  const ROLE_DESCRIPTIONS: Record<MeResponse['role'], string> = {
+    athlete: t('profile.roleAthleteDesc'),
+    coach: t('profile.roleCoachDesc'),
+    admin: t('profile.roleAdminDesc'),
+    none: '',
+  };
 
   if (showDeleteConfirm) {
     return (
       <BottomSheet onClose={onClose}>
         <div className="p-4 pt-5 text-center">
-          <h2 className="text-lg font-heading text-text-heading mb-1">Delete account?</h2>
+          <h2 className="text-lg font-heading text-text-heading mb-1">{t('profile.deleteAccountTitle')}</h2>
           <p className="text-sm text-text-secondary mb-5">
-            This will permanently delete your account and all associated data. This action cannot be undone.
+            {t('profile.deleteAccountDesc')}
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setShowDeleteConfirm(false)}
               className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
-              onClick={() => { onClose(); showToast('Account deletion requested'); }}
+              onClick={() => { onClose(); showToast(t('profile.accountDeletionRequested')); }}
               className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 transition-all"
             >
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </div>
@@ -535,12 +540,12 @@ function SettingsSheet({
             <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
           </svg>
         </button>
-        <h2 className="text-lg font-heading text-text-heading">Settings</h2>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.settings')}</h2>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
         {/* Role */}
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-3">Role</p>
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-3">{t('profile.role')}</p>
         <div className="space-y-1.5 mb-4">
           {ROLES.map((role) => (
             <button
@@ -562,12 +567,12 @@ function SettingsSheet({
         </div>
 
         {/* Language */}
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">Language</p>
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.language')}</p>
         <div className="space-y-1 mb-4">
-          {[{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }].map((l) => (
+          {[{ value: 'ru' as const, label: 'Русский' }, { value: 'en' as const, label: 'English' }].map((l) => (
             <button
               key={l.value}
-              onClick={() => { setLang(l.value); localStorage.setItem('app_language', l.value); }}
+              onClick={() => setLang(l.value)}
               className="w-full flex items-center gap-3 py-2.5 border-none bg-transparent cursor-pointer text-left"
             >
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -581,12 +586,17 @@ function SettingsSheet({
         </div>
 
         {/* Account links */}
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">Account</p>
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.account')}</p>
         <div className="mb-4">
-          {['Request coach role', 'Export data', 'About', 'Support'].map((item) => (
+          {[
+            ...(me.role === 'admin' ? [] : [me.role === 'coach' ? t('profile.requestAthleteRole') : t('profile.requestCoachRole')]),
+            t('profile.exportData'),
+            t('profile.about'),
+            t('profile.support'),
+          ].map((item) => (
             <button
               key={item}
-              onClick={() => { onClose(); showToast('Coming soon'); }}
+              onClick={() => { onClose(); showToast(t('common.comingSoon')); }}
               className="w-full flex items-center justify-between py-2.5 border-b border-border border-x-0 border-t-0 bg-transparent cursor-pointer text-left active:opacity-70"
             >
               <span className="text-sm text-text">{item}</span>
@@ -599,7 +609,7 @@ function SettingsSheet({
           onClick={() => setShowDeleteConfirm(true)}
           className="w-full text-center text-sm text-text-disabled border-none bg-transparent cursor-pointer py-2 active:opacity-70"
         >
-          Delete account
+          {t('profile.deleteAccount')}
         </button>
 
         <p className="text-center font-mono text-[11px] text-text-disabled mt-4">v0.1.0</p>
@@ -619,6 +629,7 @@ function EditProfileForm({
   onClose: () => void;
   onSaved: (data: AthleteUpdate) => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState<AthleteUpdate>({
     full_name: athlete.full_name,
     weight_category: athlete.weight_category,
@@ -664,12 +675,12 @@ function EditProfileForm({
             <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
           </svg>
         </button>
-        <h2 className="text-lg font-heading text-text-heading">Edit Profile</h2>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.editProfile')}</h2>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-4">
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Full Name</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.fullName')}</span>
           <input
             value={form.full_name || ''}
             onChange={(e) => update('full_name', e.target.value)}
@@ -678,7 +689,7 @@ function EditProfileForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Weight Category</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.weightCategory')}</span>
           <div className="flex flex-wrap gap-1.5">
             {WEIGHT_CATEGORIES.map((w) => (
               <button
@@ -697,7 +708,7 @@ function EditProfileForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Current Weight (kg)</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.currentWeight')}</span>
           <input
             type="number"
             step="0.1"
@@ -708,7 +719,7 @@ function EditProfileForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Belt</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.belt')}</span>
           <select
             value={form.belt || ''}
             onChange={(e) => update('belt', e.target.value)}
@@ -722,7 +733,7 @@ function EditProfileForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">City</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.city')}</span>
           <select
             value={form.city || ''}
             onChange={(e) => update('city', e.target.value)}
@@ -736,7 +747,7 @@ function EditProfileForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Club</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.club')}</span>
           <input
             value={form.club || ''}
             onChange={(e) => update('club', e.target.value)}
@@ -751,7 +762,7 @@ function EditProfileForm({
           disabled={saving || !hasChanges}
           className="w-full py-3.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-40 active:opacity-80 transition-all"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('common.saving') : t('profile.saveChanges')}
         </button>
       </div>
     </BottomSheet>
@@ -769,6 +780,7 @@ function EditCoachForm({
   onClose: () => void;
   onSaved: (data: CoachUpdate) => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState<CoachUpdate>({
     full_name: coach.full_name,
     city: coach.city,
@@ -810,12 +822,12 @@ function EditCoachForm({
             <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
           </svg>
         </button>
-        <h2 className="text-lg font-heading text-text-heading">Edit Profile</h2>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.editProfile')}</h2>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-4">
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Full Name</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.fullName')}</span>
           <input
             value={form.full_name || ''}
             onChange={(e) => update('full_name', e.target.value)}
@@ -824,7 +836,7 @@ function EditCoachForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">City</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.city')}</span>
           <select
             value={form.city || ''}
             onChange={(e) => update('city', e.target.value)}
@@ -838,7 +850,7 @@ function EditCoachForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Club</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.club')}</span>
           <input
             value={form.club || ''}
             onChange={(e) => update('club', e.target.value)}
@@ -847,12 +859,12 @@ function EditCoachForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Qualification</span>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.qualification')}</span>
           <input
             value={form.qualification || ''}
             onChange={(e) => update('qualification', e.target.value)}
             className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
-            placeholder="e.g. 4 Dan, International Coach"
+            placeholder={t('onboarding.qualificationPlaceholder')}
           />
         </div>
       </div>
@@ -863,7 +875,7 @@ function EditCoachForm({
           disabled={saving || !hasChanges}
           className="w-full py-3.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-40 active:opacity-80 transition-all"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('common.saving') : t('profile.saveChanges')}
         </button>
       </div>
     </BottomSheet>

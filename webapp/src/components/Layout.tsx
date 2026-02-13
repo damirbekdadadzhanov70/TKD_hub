@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import BottomNav from './BottomNav';
 import { useTelegram } from '../hooks/useTelegram';
+import { useI18n } from '../i18n/I18nProvider';
 
 const DETAIL_ROUTES = ['/tournament/'];
 
@@ -12,6 +13,7 @@ function isDetailRoute(path: string) {
 export default function Layout() {
   const location = useLocation();
   const { isTelegram } = useTelegram();
+  const { t } = useI18n();
   const mainRef = useRef<HTMLElement>(null);
   const prevPath = useRef(location.pathname);
 
@@ -36,7 +38,7 @@ export default function Layout() {
     <div className="min-h-screen bg-bg">
       {!isTelegram && (
         <div className="bg-accent-light text-accent text-xs text-center py-2.5 px-4 font-medium">
-          Open in Telegram for full experience
+          {t('layout.openInTelegram')}
         </div>
       )}
       <main ref={mainRef} className="pb-20">

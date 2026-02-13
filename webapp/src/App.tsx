@@ -9,6 +9,7 @@ import Profile from './pages/Profile';
 import Onboarding from './pages/Onboarding';
 import { useTelegram } from './hooks/useTelegram';
 import { useApi } from './hooks/useApi';
+import { useI18n } from './i18n/I18nProvider';
 import { getMe } from './api/endpoints';
 import { mockMe } from './api/mock';
 import type { MeResponse } from './types';
@@ -21,6 +22,16 @@ function FullScreenSpinner() {
         <div className="h-4 w-1/2 skeleton" />
         <div className="h-4 w-5/6 skeleton" />
       </div>
+    </div>
+  );
+}
+
+function NotFoundPage() {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center pt-20 px-4">
+      <p className="text-5xl font-heading text-text-heading mb-3">404</p>
+      <p className="text-sm text-text-secondary">{t('common.pageNotFound')}</p>
     </div>
   );
 }
@@ -69,12 +80,7 @@ function AppRoutes() {
           <Route path="/profile" element={<Profile />} />
           <Route
             path="*"
-            element={
-              <div className="flex flex-col items-center justify-center pt-20 px-4">
-                <p className="text-5xl font-heading text-text-heading mb-3">404</p>
-                <p className="text-sm text-text-secondary">Page not found</p>
-              </div>
-            }
+            element={<NotFoundPage />}
           />
         </Route>
       )}

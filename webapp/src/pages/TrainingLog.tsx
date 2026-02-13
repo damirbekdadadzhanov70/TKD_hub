@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
+import { useI18n } from '../i18n/I18nProvider';
 import {
   createTrainingLog,
   getTrainingLogs,
@@ -66,18 +67,17 @@ function getFirstDayOfWeek(year: number, month: number) {
   return day === 0 ? 6 : day - 1;
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-const INTENSITY_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-};
 
 export default function TrainingLogPage() {
+  const { t, tArray } = useI18n();
+  const MONTH_NAMES = tArray('training.months');
+  const WEEKDAYS = tArray('training.weekdays');
+  const INTENSITY_LABELS: Record<string, string> = {
+    low: t('training.intensityLow'),
+    medium: t('training.intensityMedium'),
+    high: t('training.intensityHigh'),
+  };
+
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -149,7 +149,7 @@ export default function TrainingLogPage() {
     <div className="relative">
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-3xl font-heading text-text-heading">
-          Training Log
+          {t('training.title')}
         </h1>
       </div>
 
@@ -157,14 +157,14 @@ export default function TrainingLogPage() {
       <div className="px-4">
         <Card>
           <div className="flex items-center justify-between mb-3">
-            <button aria-label="Previous month" onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">‹</button>
+            <button aria-label={t('training.prevMonth')} onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">‹</button>
             <span className="font-semibold text-sm text-text">
               {MONTH_NAMES[month - 1]} {year}
             </span>
-            <button aria-label="Next month" onClick={nextMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">›</button>
+            <button aria-label={t('training.nextMonth')} onClick={nextMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">›</button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
+            {WEEKDAYS.map((d) => (
               <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
             ))}
             {Array.from({ length: firstDayOfWeek }).map((_, i) => (
@@ -207,7 +207,7 @@ export default function TrainingLogPage() {
                 {selectedDay} {MONTH_NAMES[month - 1]}
               </p>
               {selectedDayLogs.length === 0 ? (
-                <p className="text-sm text-text-secondary py-2">No training this day</p>
+                <p className="text-sm text-text-secondary py-2">{t('training.noTrainingThisDay')}</p>
               ) : (
                 selectedDayLogs.map((log) => (
                   <div key={log.id} className="flex items-center justify-between py-2">
@@ -218,7 +218,7 @@ export default function TrainingLogPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-semibold capitalize text-text">{log.type}</p>
                         <p className="text-[11px] text-text-secondary">
-                          {log.duration_minutes} min · {INTENSITY_LABELS[log.intensity] || log.intensity}
+                          {log.duration_minutes} {t('common.min')} · {INTENSITY_LABELS[log.intensity] || log.intensity}
                         </p>
                       </div>
                     </div>
@@ -237,19 +237,19 @@ export default function TrainingLogPage() {
       {stats && stats.total_sessions > 0 && (
         <div className="px-4">
           <Card>
-            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">Month Summary</h3>
+            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">{t('training.monthSummary')}</h3>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-accent-light rounded-xl py-3">
                 <p className="text-xl font-bold text-accent">{stats.total_sessions}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5">Sessions</p>
+                <p className="text-[11px] text-text-secondary mt-0.5">{t('training.sessions')}</p>
               </div>
               <div className="bg-accent-light rounded-xl py-3">
                 <p className="text-xl font-bold text-accent">{(stats.total_minutes / 60).toFixed(1)}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5">Hours</p>
+                <p className="text-[11px] text-text-secondary mt-0.5">{t('training.hours')}</p>
               </div>
               <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent capitalize">{stats.avg_intensity}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5">Avg Intensity</p>
+                <p className="text-xl font-bold text-accent capitalize">{INTENSITY_LABELS[stats.avg_intensity] || stats.avg_intensity}</p>
+                <p className="text-[11px] text-text-secondary mt-0.5">{t('training.avgIntensity')}</p>
               </div>
             </div>
           </Card>
@@ -258,11 +258,11 @@ export default function TrainingLogPage() {
 
       {/* Log list */}
       <div className="px-4">
-        <h3 className="text-sm font-semibold text-text-secondary mb-2">Recent Sessions</h3>
+        <h3 className="text-sm font-semibold text-text-secondary mb-2">{t('training.recentSessions')}</h3>
         {loading ? (
           <LoadingSpinner />
         ) : !logs || logs.length === 0 ? (
-          <EmptyState title="No training logs" description="Tap + to add your first entry" />
+          <EmptyState title={t('training.noTrainingLogs')} description={t('training.noTrainingLogsDesc')} />
         ) : (
           logs.map((log) => (
             <Card key={log.id} onClick={() => setActionLog(log)}>
@@ -276,7 +276,7 @@ export default function TrainingLogPage() {
                       {log.type}
                     </p>
                     <p className="text-xs mt-0.5 text-text-secondary">
-                      {log.date} · {log.duration_minutes} min · {INTENSITY_LABELS[log.intensity] || log.intensity}
+                      {log.date} · {log.duration_minutes} {t('common.min')} · {INTENSITY_LABELS[log.intensity] || log.intensity}
                     </p>
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export default function TrainingLogPage() {
               )}
               {log.coach_comment && (
                 <p className="text-xs mt-1 italic text-accent ml-12">
-                  Coach: {log.coach_comment}
+                  {t('training.coach')}: {log.coach_comment}
                 </p>
               )}
             </Card>
@@ -301,7 +301,7 @@ export default function TrainingLogPage() {
 
       {/* FAB */}
       <button
-        aria-label="Add training"
+        aria-label={t('training.addTraining')}
         onClick={() => setShowForm(true)}
         className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
       >
@@ -327,7 +327,7 @@ export default function TrainingLogPage() {
                 }}
                 className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 transition-all"
               >
-                Edit
+                {t('common.edit')}
               </button>
               <button
                 onClick={() => {
@@ -337,13 +337,13 @@ export default function TrainingLogPage() {
                 }}
                 className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 transition-all"
               >
-                Delete
+                {t('common.delete')}
               </button>
               <button
                 onClick={() => setActionLog(null)}
                 className="w-full py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text-secondary active:opacity-80 transition-all"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -355,22 +355,22 @@ export default function TrainingLogPage() {
         <BottomSheet onClose={() => setConfirmAction(null)}>
           <div className="p-4 pt-5 text-center">
             <h2 className="text-lg font-bold text-text mb-1">
-              {confirmAction.type === 'delete' ? 'Delete session?' : 'Edit session?'}
+              {confirmAction.type === 'delete' ? t('training.deleteSession') : t('training.editSession')}
             </h2>
             <p className="text-sm text-text-secondary mb-1">
               <span className="capitalize font-medium">{confirmAction.log.type}</span> · {confirmAction.log.date}
             </p>
             <p className="text-xs text-text-disabled mb-5">
               {confirmAction.type === 'delete'
-                ? 'This action cannot be undone.'
-                : 'You will be able to modify the session details.'}
+                ? t('training.cannotBeUndone')
+                : t('training.canModifyDetails')}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmAction(null)}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -387,7 +387,7 @@ export default function TrainingLogPage() {
                     : 'bg-accent text-accent-text'
                 }`}
               >
-                {confirmAction.type === 'delete' ? 'Delete' : 'Edit'}
+                {confirmAction.type === 'delete' ? t('common.delete') : t('common.edit')}
               </button>
             </div>
           </div>
@@ -425,6 +425,7 @@ export default function TrainingLogPage() {
 
 function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (data: TrainingLogCreate) => void }) {
   const { hapticNotification } = useTelegram();
+  const { t } = useI18n();
   const [form, setForm] = useState<TrainingLogCreate>({
     date: new Date().toISOString().slice(0, 10),
     type: 'sparring',
@@ -452,13 +453,13 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
   return (
     <BottomSheet onClose={onClose}>
       <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-        <h2 className="text-lg font-bold text-text">Add Training</h2>
+        <h2 className="text-lg font-bold text-text">{t('training.addTrainingTitle')}</h2>
         <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Date</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.date')}</span>
           <input
             type="date"
             value={form.date}
@@ -468,18 +469,18 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Type</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.type')}</span>
           <select
             value={form.type}
             onChange={(e) => update('type', e.target.value)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           >
-            {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {TRAINING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
           </select>
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.duration')}</span>
           <input
             type="number"
             value={form.duration_minutes}
@@ -489,7 +490,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.intensity')}</span>
           <select
             value={form.intensity}
             onChange={(e) => update('intensity', e.target.value)}
@@ -500,25 +501,25 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.weight')}</span>
           <input
             type="number"
             step="0.1"
             value={form.weight ?? ''}
             onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
-            placeholder="Optional"
+            placeholder={t('common.optional')}
           />
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Notes</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.notes')}</span>
           <textarea
             value={form.notes ?? ''}
             onChange={(e) => update('notes', e.target.value || null)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none resize-none"
             rows={3}
-            placeholder="Optional"
+            placeholder={t('common.optional')}
           />
         </label>
       </div>
@@ -529,7 +530,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
           disabled={saving}
           className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common.saving') : t('common.save')}
         </button>
       </div>
     </BottomSheet>
@@ -546,6 +547,7 @@ function TrainingEditForm({
   onSaved: (data: TrainingLogUpdate) => void;
 }) {
   const { hapticNotification } = useTelegram();
+  const { t } = useI18n();
   const [form, setForm] = useState<TrainingLogUpdate>({
     date: log.date,
     type: log.type,
@@ -573,13 +575,13 @@ function TrainingEditForm({
   return (
     <BottomSheet onClose={onClose}>
       <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-        <h2 className="text-lg font-bold text-text">Edit Training</h2>
+        <h2 className="text-lg font-bold text-text">{t('training.editTraining')}</h2>
         <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Date</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.date')}</span>
           <input
             type="date"
             value={form.date ?? ''}
@@ -589,18 +591,18 @@ function TrainingEditForm({
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Type</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.type')}</span>
           <select
             value={form.type ?? ''}
             onChange={(e) => update('type', e.target.value)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           >
-            {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {TRAINING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
           </select>
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.duration')}</span>
           <input
             type="number"
             value={form.duration_minutes ?? 0}
@@ -610,7 +612,7 @@ function TrainingEditForm({
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.intensity')}</span>
           <select
             value={form.intensity ?? ''}
             onChange={(e) => update('intensity', e.target.value)}
@@ -621,25 +623,25 @@ function TrainingEditForm({
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.weight')}</span>
           <input
             type="number"
             step="0.1"
             value={form.weight ?? ''}
             onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
-            placeholder="Optional"
+            placeholder={t('common.optional')}
           />
         </label>
 
         <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Notes</span>
+          <span className="text-xs mb-1 block text-text-secondary">{t('training.notes')}</span>
           <textarea
             value={form.notes ?? ''}
             onChange={(e) => update('notes', e.target.value || null)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none resize-none"
             rows={3}
-            placeholder="Optional"
+            placeholder={t('common.optional')}
           />
         </label>
       </div>
@@ -650,7 +652,7 @@ function TrainingEditForm({
           disabled={saving}
           className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('common.saving') : t('training.saveChanges')}
         </button>
       </div>
     </BottomSheet>

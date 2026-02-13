@@ -9,6 +9,7 @@ import type {
   MeResponse,
   PaginatedResponse,
   RatingEntry,
+  TournamentCreate,
   TournamentDetail,
   TournamentEntry,
   TournamentInterestResponse,
@@ -61,6 +62,13 @@ export async function getTournaments(params?: {
   const qs = searchParams.toString();
   const res = await apiRequest<PaginatedResponse<TournamentListItem>>(`/tournaments${qs ? `?${qs}` : ''}`);
   return res.items;
+}
+
+export function createTournament(data: TournamentCreate): Promise<TournamentListItem> {
+  return apiRequest<TournamentListItem>('/tournaments', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export function getTournament(id: string): Promise<TournamentDetail> {

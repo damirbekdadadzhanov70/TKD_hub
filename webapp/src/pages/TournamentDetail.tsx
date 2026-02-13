@@ -6,6 +6,7 @@ import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
+import { useI18n } from '../i18n/I18nProvider';
 import {
   enterTournament,
   getCoachAthletes,
@@ -26,6 +27,7 @@ export default function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showBackButton, isTelegram } = useTelegram();
+  const { t } = useI18n();
   const [tab, setTab] = useState<'details' | 'results'>('details');
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function TournamentDetail() {
   }, [tournament, myAthleteId, me?.athlete]);
 
   if (loading) return <LoadingSpinner />;
-  if (!syncedTournament) return <EmptyState title="Tournament not found" />;
+  if (!syncedTournament) return <EmptyState title={t('tournamentDetail.notFound')} />;
 
   const isAthlete = me?.role === 'athlete';
   const isCoach = me?.role === 'coach';
@@ -71,7 +73,7 @@ export default function TournamentDetail() {
             onClick={() => navigate(-1)}
             className="text-sm mb-3 border-none bg-transparent cursor-pointer text-accent"
           >
-            ← Back
+            {t('tournamentDetail.back')}
           </button>
         )}
         <h1 className="text-xl font-heading text-text-heading mb-1">
@@ -95,7 +97,7 @@ export default function TournamentDetail() {
                 : 'text-text-secondary'
             }`}
           >
-            Details
+            {t('tournamentDetail.details')}
           </button>
           <button
             onClick={() => setTab('results')}
@@ -105,7 +107,7 @@ export default function TournamentDetail() {
                 : 'text-text-secondary'
             }`}
           >
-            Results
+            {t('tournamentDetail.results')}
           </button>
         </div>
       )}
@@ -116,27 +118,27 @@ export default function TournamentDetail() {
           <Card>
             <div className="grid grid-cols-2 gap-y-2 text-sm">
               <div>
-                <span className="text-text-secondary">Dates</span>
+                <span className="text-text-secondary">{t('tournamentDetail.dates')}</span>
                 <p className="font-medium text-text">
                   {syncedTournament.start_date} — {syncedTournament.end_date}
                 </p>
               </div>
               <div>
-                <span className="text-text-secondary">Location</span>
+                <span className="text-text-secondary">{t('tournamentDetail.location')}</span>
                 <p className="font-medium text-text">
                   {syncedTournament.venue}, {syncedTournament.city}
                 </p>
               </div>
               <div>
-                <span className="text-text-secondary">Registration deadline</span>
+                <span className="text-text-secondary">{t('tournamentDetail.registrationDeadline')}</span>
                 <p className="font-medium text-text">
                   {syncedTournament.registration_deadline}
                 </p>
               </div>
               <div>
-                <span className="text-text-secondary">Entry fee</span>
+                <span className="text-text-secondary">{t('tournamentDetail.entryFee')}</span>
                 <p className="font-medium text-text">
-                  {syncedTournament.entry_fee ? `${syncedTournament.entry_fee} ${syncedTournament.currency}` : 'Free'}
+                  {syncedTournament.entry_fee ? `${syncedTournament.entry_fee} ${syncedTournament.currency}` : t('common.free')}
                 </p>
               </div>
             </div>
@@ -145,7 +147,7 @@ export default function TournamentDetail() {
           {syncedTournament.age_categories.length > 0 && (
             <Card>
               <h3 className="font-semibold text-sm mb-2 text-text">
-                Age categories
+                {t('tournamentDetail.ageCategories')}
               </h3>
               <div className="flex flex-wrap gap-1.5">
                 {syncedTournament.age_categories.map((cat) => (
@@ -163,7 +165,7 @@ export default function TournamentDetail() {
           {syncedTournament.weight_categories.length > 0 && (
             <Card>
               <h3 className="font-semibold text-sm mb-2 text-text">
-                Weight categories
+                {t('tournamentDetail.weightCategories')}
               </h3>
               <div className="flex flex-wrap gap-1.5">
                 {syncedTournament.weight_categories.map((cat) => (
@@ -188,10 +190,10 @@ export default function TournamentDetail() {
 
           <div className="mt-4">
             <h2 className="text-lg font-semibold mb-3 text-text">
-              Entries ({syncedTournament.entries.length})
+              {t('tournamentDetail.entries')} ({syncedTournament.entries.length})
             </h2>
             {syncedTournament.entries.length === 0 ? (
-              <EmptyState title="No entries yet" />
+              <EmptyState title={t('tournamentDetail.noEntries')} />
             ) : (
               syncedTournament.entries.map((entry) => (
                 <Card key={entry.id}>
@@ -232,6 +234,7 @@ export default function TournamentDetail() {
 /* ---- Results tab ---- */
 
 function ResultsTab() {
+  const { t } = useI18n();
   const results = mockTournamentResults;
 
   const grouped = useMemo(() => {
@@ -249,7 +252,7 @@ function ResultsTab() {
   if (results.length === 0) {
     return (
       <div className="px-4">
-        <EmptyState title="No results yet" />
+        <EmptyState title={t('tournamentDetail.noResults')} />
       </div>
     );
   }
@@ -290,6 +293,7 @@ function ResultsTab() {
 /* ---- Interest button ---- */
 
 function InterestButton({ tournamentId }: { tournamentId: string }) {
+  const { t } = useI18n();
   const [marked, setMarked] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -315,7 +319,7 @@ function InterestButton({ tournamentId }: { tournamentId: string }) {
           : 'bg-accent text-accent-text'
       } disabled:opacity-60`}
     >
-      {loading ? 'Saving...' : marked ? 'Interested!' : 'I\'m Interested'}
+      {loading ? t('common.saving') : marked ? t('tournamentDetail.interested') : t('tournamentDetail.imInterested')}
     </button>
   );
 }
@@ -323,6 +327,7 @@ function InterestButton({ tournamentId }: { tournamentId: string }) {
 /* ---- Enter athletes button + modal ---- */
 
 function EnterAthletesButton({ tournamentId, onDone }: { tournamentId: string; onDone: () => void }) {
+  const { t } = useI18n();
   const [showModal, setShowModal] = useState(false);
 
   return (
@@ -331,7 +336,7 @@ function EnterAthletesButton({ tournamentId, onDone }: { tournamentId: string; o
         onClick={() => setShowModal(true)}
         className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 bg-accent text-accent-text active:opacity-80 transition-all"
       >
-        Enter Athletes
+        {t('tournamentDetail.enterAthletes')}
       </button>
       {showModal && (
         <EnterAthletesModal
@@ -354,6 +359,7 @@ function EnterAthletesModal({
   onDone: () => void;
 }) {
   const { hapticNotification } = useTelegram();
+  const { t } = useI18n();
   const { data: athletes, loading } = useApi<CoachAthlete[]>(
     getCoachAthletes,
     mockCoachAthletes,
@@ -387,7 +393,7 @@ function EnterAthletesModal({
   return (
     <BottomSheet onClose={onClose}>
       <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-        <h2 className="text-xl font-heading text-text-heading">Select Athletes</h2>
+        <h2 className="text-xl font-heading text-text-heading">{t('tournamentDetail.selectAthletes')}</h2>
         <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
       </div>
 
@@ -395,7 +401,7 @@ function EnterAthletesModal({
         {loading ? (
           <LoadingSpinner />
         ) : !athletes || athletes.length === 0 ? (
-          <EmptyState title="No athletes" description="You have no linked athletes" />
+          <EmptyState title={t('tournamentDetail.noAthletes')} description={t('tournamentDetail.noLinkedAthletes')} />
         ) : (
           athletes.map((a) => (
             <button
@@ -430,7 +436,7 @@ function EnterAthletesModal({
           disabled={submitting || selected.size === 0}
           className="w-full py-3.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-40 active:opacity-80 transition-all"
         >
-          {submitting ? 'Confirming...' : selected.size === 0 ? 'Select athletes' : `Confirm · ${selected.size} athlete${selected.size !== 1 ? 's' : ''}`}
+          {submitting ? t('tournamentDetail.confirming') : selected.size === 0 ? t('tournamentDetail.selectAthletesBtn') : `${t('tournamentDetail.confirmCount')} · ${selected.size}`}
         </button>
       </div>
     </BottomSheet>

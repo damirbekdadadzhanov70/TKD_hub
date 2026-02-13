@@ -4,6 +4,7 @@ import PullToRefresh from '../components/PullToRefresh';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
+import { useI18n } from '../i18n/I18nProvider';
 import { getMe, getRatings } from '../api/endpoints';
 import { mockMe, mockRatings } from '../api/mock';
 import type { MeResponse, RatingEntry } from '../types';
@@ -17,10 +18,6 @@ const PODIUM_ORDER = [1, 0, 2]; // 2nd, 1st, 3rd
 
 const CITY_OPTIONS = ['Москва', 'Санкт-Петербург', 'Казань', 'Нижний Новгород', 'Махачкала', 'Рязань'];
 const WEIGHT_OPTIONS = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
-const GENDER_OPTIONS = [
-  { value: 'M', label: 'Мужской' },
-  { value: 'F', label: 'Женский' },
-];
 
 /* ---- Chevron icon ---- */
 
@@ -46,11 +43,13 @@ function DropdownFilter({
   label,
   value,
   options,
+  allLabel,
   onChange,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
+  allLabel: string;
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -89,7 +88,7 @@ function DropdownFilter({
                 !value ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
               }`}
             >
-              <span className="text-sm font-medium">All</span>
+              <span className="text-sm font-medium">{allLabel}</span>
               {!value && <CheckIcon />}
             </button>
             {options.map((o) => (
@@ -194,6 +193,7 @@ function Podium({ top3, onSelect }: { top3: RatingEntry[]; onSelect: (e: RatingE
 /* ---- Athlete Profile BottomSheet ---- */
 
 function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: () => void }) {
+  const { t } = useI18n();
   const medalColor = athlete.rank <= 3 ? PODIUM_COLORS[athlete.rank - 1] : null;
 
   return (
@@ -209,7 +209,7 @@ function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: (
               <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-lg font-heading text-text-heading">Athlete Profile</h2>
+          <h2 className="text-lg font-heading text-text-heading">{t('rating.athleteProfile')}</h2>
         </div>
 
         {/* Avatar + name — matches Profile page style */}
@@ -247,30 +247,30 @@ function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: (
         <div className="flex items-center justify-center mb-5 py-3 border-y border-border">
           <div className="flex-1 text-center">
             <p className="font-mono text-2xl text-text-heading">{athlete.rating_points}</p>
-            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Rating</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('rating.ratingLabel')}</p>
           </div>
           <div className="w-px h-10 bg-border" />
           <div className="flex-1 text-center">
             <p className="font-mono text-2xl text-text-heading">#{athlete.rank}</p>
-            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Rank</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('rating.rank')}</p>
           </div>
           <div className="w-px h-10 bg-border" />
           <div className="flex-1 text-center">
             <p className="font-mono text-2xl text-text-heading">{athlete.belt.split(' ')[0]}</p>
-            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Dan</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('rating.dan')}</p>
           </div>
         </div>
 
         {/* Information — InfoRow style like Profile */}
         <div className="mb-2">
-          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
+          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('rating.information')}</p>
           <div className="flex justify-between items-center py-2">
-            <span className="text-[11px] text-text-disabled">City</span>
+            <span className="text-[11px] text-text-disabled">{t('rating.cityLabel')}</span>
             <span className="text-[15px] text-text">{athlete.city}</span>
           </div>
           {athlete.club && (
             <div className="flex justify-between items-center py-2">
-              <span className="text-[11px] text-text-disabled">Club</span>
+              <span className="text-[11px] text-text-disabled">{t('rating.clubLabel')}</span>
               <span className="text-[15px] text-text">{athlete.club}</span>
             </div>
           )}
@@ -283,10 +283,16 @@ function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: (
 /* ---- Main ---- */
 
 export default function Rating() {
+  const { t } = useI18n();
   const [city, setCity] = useState('');
   const [weight, setWeight] = useState('');
   const [gender, setGender] = useState('');
   const [selectedAthlete, setSelectedAthlete] = useState<RatingEntry | null>(null);
+
+  const GENDER_OPTIONS = [
+    { value: 'M', label: t('rating.genderMale') },
+    { value: 'F', label: t('rating.genderFemale') },
+  ];
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
   const { data: ratings, loading, refetch } = useApi<RatingEntry[]>(
@@ -342,28 +348,31 @@ export default function Rating() {
     <div className="relative pb-16">
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-3xl font-heading text-text-heading">
-          Rating
+          {t('rating.title')}
         </h1>
       </div>
 
       {/* Dropdown filters */}
       <div className="flex items-center gap-2 px-4 py-2">
         <DropdownFilter
-          label="City"
+          label={t('rating.city')}
           value={city}
           options={CITY_OPTIONS.map((c) => ({ value: c, label: c }))}
+          allLabel={t('common.all')}
           onChange={setCity}
         />
         <DropdownFilter
-          label="Weight"
+          label={t('rating.weight')}
           value={weight}
           options={WEIGHT_OPTIONS.map((w) => ({ value: w, label: w }))}
+          allLabel={t('common.all')}
           onChange={setWeight}
         />
         <DropdownFilter
-          label="Gender"
+          label={t('rating.gender')}
           value={gender}
           options={GENDER_OPTIONS}
+          allLabel={t('common.all')}
           onChange={setGender}
         />
       </div>
@@ -371,7 +380,7 @@ export default function Rating() {
       {loading ? (
         <LoadingSpinner />
       ) : entries.length === 0 ? (
-        <EmptyState title="No ratings" description="No athletes match your filters" />
+        <EmptyState title={t('rating.noRatings')} description={t('rating.noRatingsDesc')} />
       ) : (
         <>
           <Podium top3={top3} onSelect={setSelectedAthlete} />
@@ -430,7 +439,7 @@ export default function Rating() {
           className="fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-accent-light border-none cursor-pointer z-40 active:opacity-80 transition-all shadow-sm"
         >
           <span className="font-mono text-[13px] font-medium text-accent">
-            Your rank: #{myEntry.rank}
+            {t('rating.yourRank')}: #{myEntry.rank}
           </span>
         </button>
       )}

@@ -119,6 +119,19 @@ export interface TrainingLog {
   coach_comment: string | null;
 }
 
+export interface TournamentCreate {
+  name: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  city: string;
+  venue: string;
+  entry_fee: number | null;
+  currency: string;
+  registration_deadline: string;
+  importance_level: number;
+}
+
 export interface TrainingLogCreate {
   date: string;
   type: string;

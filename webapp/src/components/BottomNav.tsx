@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
+import { useI18n } from '../i18n/I18nProvider';
 
 function TrophyIcon({ className }: { className?: string }) {
   return (
@@ -49,16 +50,17 @@ function UserIcon({ className }: { className?: string }) {
 }
 
 const tabs = [
-  { path: '/', Icon: TrophyIcon, label: 'Tournaments' },
-  { path: '/training', Icon: ClipboardIcon, label: 'Training' },
-  { path: '/rating', Icon: PodiumIcon, label: 'Rating' },
-  { path: '/profile', Icon: null, label: 'Profile' },
+  { path: '/', Icon: TrophyIcon, labelKey: 'nav.tournaments' },
+  { path: '/training', Icon: ClipboardIcon, labelKey: 'nav.training' },
+  { path: '/rating', Icon: PodiumIcon, labelKey: 'nav.rating' },
+  { path: '/profile', Icon: null, labelKey: 'nav.profile' },
 ];
 
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { hapticFeedback, user: tgUser } = useTelegram();
+  const { t } = useI18n();
 
   const handleNav = (path: string) => {
     hapticFeedback('light');
@@ -83,7 +85,7 @@ export default function BottomNav() {
         return (
           <button
             key={tab.path}
-            aria-label={tab.label}
+            aria-label={t(tab.labelKey)}
             onClick={() => handleNav(tab.path)}
             className={`flex-1 flex items-center justify-center h-[60px] transition-all border-none bg-transparent cursor-pointer active:scale-95 ${
               isActive && !isProfile
@@ -95,7 +97,7 @@ export default function BottomNav() {
               photoUrl ? (
                 <img
                   src={photoUrl}
-                  alt="Profile"
+                  alt={t('nav.profile')}
                   className={`w-8 h-8 -mt-1 rounded-full object-cover ${
                     isActive ? 'ring-2 ring-accent' : 'opacity-60'
                   }`}

@@ -5,6 +5,7 @@ import type {
   CoachRegistration,
   MeResponse,
   RatingEntry,
+  TournamentCreate,
   TournamentDetail,
   TournamentListItem,
   TournamentResult,
@@ -195,6 +196,22 @@ export const mockTournaments: TournamentListItem[] = [
     entry_count: 54,
   },
 ];
+
+export function addMockTournament(data: TournamentCreate): TournamentListItem {
+  const item: TournamentListItem = {
+    id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: data.name,
+    start_date: data.start_date,
+    end_date: data.end_date,
+    city: data.city,
+    country: 'Россия',
+    status: 'upcoming',
+    importance_level: data.importance_level,
+    entry_count: 0,
+  };
+  mockTournaments.unshift(item);
+  return item;
+}
 
 export const mockTournamentDetail: TournamentDetail = {
   ...mockTournaments[0],
