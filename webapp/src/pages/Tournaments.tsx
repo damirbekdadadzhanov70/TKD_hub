@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PullToRefresh from '../components/PullToRefresh';
 import BottomSheet from '../components/BottomSheet';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
@@ -51,10 +52,10 @@ const CITIES = [
   'Москва',
   'Санкт-Петербург',
   'Казань',
-  'Московская область',
+  'Екатеринбург',
   'Нижний Новгород',
   'Рязань',
-  'Дагестан',
+  'Махачкала',
 ];
 
 function CheckIcon() {
@@ -79,15 +80,20 @@ export default function Tournaments() {
   const [status, setStatus] = useState('');
   const [showCityPicker, setShowCityPicker] = useState(false);
 
-  const { data: tournaments, loading } = useApi<TournamentListItem[]>(
+  const { data: tournaments, loading, refetch } = useApi<TournamentListItem[]>(
     () => getTournaments({ country: city || undefined, status: status || undefined }),
     mockTournaments,
     [city, status],
   );
 
-  const filtered = tournaments || [];
+  const filtered = (tournaments || []).filter((t) => {
+    if (status && t.status !== status) return false;
+    if (city && t.city !== city) return false;
+    return true;
+  });
 
   return (
+    <PullToRefresh onRefresh={() => refetch(true)}>
     <div>
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-3xl font-heading text-text-heading">
@@ -105,7 +111,7 @@ export default function Tournaments() {
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                 status === s.value
                   ? 'bg-accent text-white border-accent'
-                  : 'bg-bg-secondary text-text-secondary border-border'
+                  : 'bg-bg-secondary text-text-secondary border-border hover:border-accent/40'
               }`}
             >
               {s.label}
@@ -113,11 +119,12 @@ export default function Tournaments() {
           ))}
         </div>
         <button
+          aria-label="Filter by city"
           onClick={() => setShowCityPicker(true)}
           className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center border cursor-pointer transition-colors ${
             city
               ? 'bg-accent text-white border-accent'
-              : 'bg-bg-secondary text-text-secondary border-border'
+              : 'bg-bg-secondary text-text-secondary border-border hover:border-accent/40'
           }`}
         >
           <FilterIcon />
@@ -207,5 +214,6 @@ export default function Tournaments() {
         )}
       </div>
     </div>
+    </PullToRefresh>
   );
 }

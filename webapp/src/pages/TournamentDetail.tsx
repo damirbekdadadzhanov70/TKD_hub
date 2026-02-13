@@ -25,7 +25,7 @@ const MEDAL_COLORS: Record<number, string> = {
 export default function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { showBackButton } = useTelegram();
+  const { showBackButton, isTelegram } = useTelegram();
   const [tab, setTab] = useState<'details' | 'results'>('details');
 
   useEffect(() => {
@@ -40,29 +40,46 @@ export default function TournamentDetail() {
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
 
+  // Sync entry names with current user profile
+  const myAthleteId = me?.athlete?.id;
+  const syncedTournament = useMemo(() => {
+    if (!tournament || !myAthleteId || !me?.athlete) return tournament;
+    const name = me.athlete.full_name;
+    const synced = tournament.entries.some((e) => e.athlete_id === myAthleteId && e.athlete_name !== name);
+    if (!synced) return tournament;
+    return {
+      ...tournament,
+      entries: tournament.entries.map((e) =>
+        e.athlete_id === myAthleteId ? { ...e, athlete_name: name } : e,
+      ),
+    };
+  }, [tournament, myAthleteId, me?.athlete]);
+
   if (loading) return <LoadingSpinner />;
-  if (!tournament) return <EmptyState title="Tournament not found" />;
+  if (!syncedTournament) return <EmptyState title="Tournament not found" />;
 
   const isAthlete = me?.role === 'athlete';
   const isCoach = me?.role === 'coach';
-  const isOpen = tournament.status === 'upcoming' || tournament.status === 'registration_open';
-  const isCompleted = tournament.status === 'completed';
+  const isOpen = syncedTournament.status === 'upcoming' || syncedTournament.status === 'registration_open';
+  const isCompleted = syncedTournament.status === 'completed';
 
   return (
     <div>
       <div className="px-4 pt-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm mb-3 border-none bg-transparent cursor-pointer text-accent"
-        >
-          ← Back
-        </button>
+        {!isTelegram && (
+          <button
+            onClick={() => navigate(-1)}
+            className="text-sm mb-3 border-none bg-transparent cursor-pointer text-accent"
+          >
+            ← Back
+          </button>
+        )}
         <h1 className="text-xl font-heading text-text-heading mb-1">
-          {tournament.name}
+          {syncedTournament.name}
         </h1>
-        {tournament.description && (
+        {syncedTournament.description && (
           <p className="text-sm mb-3 text-text-secondary">
-            {tournament.description}
+            {syncedTournament.description}
           </p>
         )}
       </div>
@@ -101,37 +118,37 @@ export default function TournamentDetail() {
               <div>
                 <span className="text-text-secondary">Dates</span>
                 <p className="font-medium text-text">
-                  {tournament.start_date} — {tournament.end_date}
+                  {syncedTournament.start_date} — {syncedTournament.end_date}
                 </p>
               </div>
               <div>
                 <span className="text-text-secondary">Location</span>
                 <p className="font-medium text-text">
-                  {tournament.venue}, {tournament.city}
+                  {syncedTournament.venue}, {syncedTournament.city}
                 </p>
               </div>
               <div>
                 <span className="text-text-secondary">Registration deadline</span>
                 <p className="font-medium text-text">
-                  {tournament.registration_deadline}
+                  {syncedTournament.registration_deadline}
                 </p>
               </div>
               <div>
                 <span className="text-text-secondary">Entry fee</span>
                 <p className="font-medium text-text">
-                  {tournament.entry_fee ? `${tournament.entry_fee} ${tournament.currency}` : 'Free'}
+                  {syncedTournament.entry_fee ? `${syncedTournament.entry_fee} ${syncedTournament.currency}` : 'Free'}
                 </p>
               </div>
             </div>
           </Card>
 
-          {tournament.age_categories.length > 0 && (
+          {syncedTournament.age_categories.length > 0 && (
             <Card>
               <h3 className="font-semibold text-sm mb-2 text-text">
                 Age categories
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {tournament.age_categories.map((cat) => (
+                {syncedTournament.age_categories.map((cat) => (
                   <span
                     key={cat}
                     className="text-xs px-2 py-1 rounded-full bg-accent-light text-accent"
@@ -143,13 +160,13 @@ export default function TournamentDetail() {
             </Card>
           )}
 
-          {tournament.weight_categories.length > 0 && (
+          {syncedTournament.weight_categories.length > 0 && (
             <Card>
               <h3 className="font-semibold text-sm mb-2 text-text">
                 Weight categories
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {tournament.weight_categories.map((cat) => (
+                {syncedTournament.weight_categories.map((cat) => (
                   <span
                     key={cat}
                     className="text-xs px-2 py-1 rounded-full bg-accent-light text-accent"
@@ -163,20 +180,20 @@ export default function TournamentDetail() {
 
           {/* Action buttons */}
           {isOpen && isAthlete && (
-            <InterestButton tournamentId={tournament.id} />
+            <InterestButton tournamentId={syncedTournament.id} />
           )}
           {isOpen && isCoach && (
-            <EnterAthletesButton tournamentId={tournament.id} onDone={refetch} />
+            <EnterAthletesButton tournamentId={syncedTournament.id} onDone={refetch} />
           )}
 
           <div className="mt-4">
             <h2 className="text-lg font-semibold mb-3 text-text">
-              Entries ({tournament.entries.length})
+              Entries ({syncedTournament.entries.length})
             </h2>
-            {tournament.entries.length === 0 ? (
+            {syncedTournament.entries.length === 0 ? (
               <EmptyState title="No entries yet" />
             ) : (
-              tournament.entries.map((entry) => (
+              syncedTournament.entries.map((entry) => (
                 <Card key={entry.id}>
                   <div className="flex justify-between items-center">
                     <div>
@@ -362,7 +379,8 @@ function EnterAthletesModal({
       hapticNotification('success');
       onDone();
     } catch {
-      onDone();
+      hapticNotification('error');
+      setSubmitting(false);
     }
   };
 

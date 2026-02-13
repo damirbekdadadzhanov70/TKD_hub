@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import BottomSheet from '../components/BottomSheet';
+import PullToRefresh from '../components/PullToRefresh';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
@@ -14,7 +15,7 @@ const PODIUM_COLORS = [
 ];
 const PODIUM_ORDER = [1, 0, 2]; // 2nd, 1st, 3rd
 
-const CITY_OPTIONS = ['Москва', 'Санкт-Петербург', 'Казань', 'Нижний Новгород', 'Дагестан', 'Рязань'];
+const CITY_OPTIONS = ['Москва', 'Санкт-Петербург', 'Казань', 'Нижний Новгород', 'Махачкала', 'Рязань'];
 const WEIGHT_OPTIONS = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
 const GENDER_OPTIONS = [
   { value: 'M', label: 'Мужской' },
@@ -113,65 +114,75 @@ function DropdownFilter({
 /* ---- Podium ---- */
 
 function Podium({ top3, onSelect }: { top3: RatingEntry[]; onSelect: (e: RatingEntry) => void }) {
-  if (top3.length < 3) return null;
+  if (top3.length === 0) return null;
 
-  const heights = ['h-28', 'h-22', 'h-18'];
-  const avatarSizes = ['w-[60px] h-[60px] text-lg', 'w-12 h-12 text-sm', 'w-12 h-12 text-sm'];
-  const rankSizes = ['text-4xl', 'text-3xl', 'text-3xl'];
+  const minHeights = ['min-h-[280px]', 'min-h-[240px]', 'min-h-[220px]'];
+  const avatarSizes = ['w-14 h-14 text-lg', 'w-11 h-11 text-sm', 'w-11 h-11 text-sm'];
+  const rankSizes = ['text-2xl', 'text-xl', 'text-xl'];
+  const topMargins = ['mt-0', 'mt-10', 'mt-16'];
+
+  // Display order: 2nd, 1st, 3rd — skip missing positions
+  const slots = PODIUM_ORDER.filter((idx) => idx < top3.length);
 
   return (
-    <div className="flex items-end justify-center gap-3 px-6 pt-6 pb-4">
-      {PODIUM_ORDER.map((idx) => {
+    <div className="flex items-end justify-center gap-2.5 px-4 pt-6 pb-4">
+      {slots.map((idx) => {
         const athlete = top3[idx];
         const rank = idx + 1;
         return (
           <div
             key={athlete.athlete_id}
-            className="flex flex-col items-center flex-1 cursor-pointer"
+            className={`flex-1 ${topMargins[idx]} relative cursor-pointer active:opacity-80 transition-opacity podium-bar`}
+            style={{ animationDelay: `${idx * 100}ms` }}
             onClick={() => onSelect(athlete)}
           >
-            {/* Avatar with rank */}
-            <div className="relative mb-1.5 podium-text" style={{ animationDelay: `${idx * 100 + 250}ms` }}>
-              <div
-                className={`${avatarSizes[idx]} rounded-full flex items-center justify-center font-medium`}
-                style={{
-                  backgroundColor: PODIUM_COLORS[idx] + '20',
-                  color: PODIUM_COLORS[idx],
-                  border: `2px solid ${PODIUM_COLORS[idx]}`,
-                }}
-              >
-                {athlete.full_name.charAt(0)}
-              </div>
-              <span
-                className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-mono font-medium text-white"
-                style={{ backgroundColor: PODIUM_COLORS[idx] }}
-              >
-                {rank}
-              </span>
-            </div>
-            <p className="text-xs font-medium text-center truncate w-full text-text podium-text" style={{ animationDelay: `${idx * 100 + 300}ms` }}>
-              {athlete.full_name.split(' ').pop()}
-            </p>
-            <p className="font-mono text-sm text-text-heading mt-0.5 podium-text" style={{ animationDelay: `${idx * 100 + 350}ms` }}>
-              {athlete.rating_points}
-            </p>
-            <p className="text-[11px] text-text-secondary truncate w-full text-center podium-text" style={{ animationDelay: `${idx * 100 + 350}ms` }}>
-              {athlete.city}
-            </p>
-            {/* Podium block */}
+            {/* Background */}
             <div
-              className={`w-full ${heights[idx]} rounded-t-xl flex items-start justify-center pt-2 mt-1.5 podium-bar`}
-              style={{
-                backgroundColor: PODIUM_COLORS[idx] + '20',
-                animationDelay: `${idx * 100}ms`,
-              }}
-            >
-              <span
-                className={`${rankSizes[idx]} font-mono font-medium leading-none`}
-                style={{ color: PODIUM_COLORS[idx] }}
-              >
-                {rank}
-              </span>
+              className="absolute inset-0 rounded-2xl"
+              style={{ backgroundColor: PODIUM_COLORS[idx], opacity: 0.1 }}
+            />
+            {/* Content */}
+            <div className={`relative flex flex-col items-center justify-between ${minHeights[idx]} py-5 px-1`}>
+              {/* Top group: rank + avatar + name */}
+              <div className="flex flex-col items-center">
+                <span className={`${rankSizes[idx]} font-mono font-black mb-3 podium-text`} style={{ color: PODIUM_COLORS[idx], animationDelay: `${idx * 100 + 200}ms` }}>
+                  {rank}
+                </span>
+                <div className="podium-text mb-2" style={{ animationDelay: `${idx * 100 + 250}ms` }}>
+                  {athlete.photo_url ? (
+                    <img
+                      src={athlete.photo_url}
+                      alt={athlete.full_name}
+                      className={`${avatarSizes[idx]} rounded-full object-cover`}
+                      style={{ border: `2px solid ${PODIUM_COLORS[idx]}` }}
+                    />
+                  ) : (
+                    <div
+                      className={`${avatarSizes[idx]} rounded-full flex items-center justify-center font-medium`}
+                      style={{
+                        backgroundColor: PODIUM_COLORS[idx],
+                        opacity: 0.15,
+                        color: PODIUM_COLORS[idx],
+                        border: `2px solid ${PODIUM_COLORS[idx]}`,
+                      }}
+                    >
+                      {athlete.full_name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs font-medium text-center truncate w-full text-text podium-text" style={{ animationDelay: `${idx * 100 + 300}ms` }}>
+                  {athlete.full_name.split(' ').pop()}
+                </p>
+              </div>
+              {/* Bottom group: rating + city */}
+              <div className="flex flex-col items-center">
+                <p className="font-mono text-base font-bold text-text-heading podium-text" style={{ animationDelay: `${idx * 100 + 330}ms` }}>
+                  {athlete.rating_points}
+                </p>
+                <p className="text-[10px] text-text-secondary truncate w-full text-center mt-1 podium-text" style={{ animationDelay: `${idx * 100 + 360}ms` }}>
+                  {athlete.city}
+                </p>
+              </div>
             </div>
           </div>
         );
@@ -183,12 +194,15 @@ function Podium({ top3, onSelect }: { top3: RatingEntry[]; onSelect: (e: RatingE
 /* ---- Athlete Profile BottomSheet ---- */
 
 function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: () => void }) {
+  const medalColor = athlete.rank <= 3 ? PODIUM_COLORS[athlete.rank - 1] : null;
+
   return (
     <BottomSheet onClose={onClose}>
       <div className="p-4 pt-5">
         <div className="flex items-center gap-3 mb-5">
           <button
             onClick={onClose}
+            aria-label="Close"
             className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -198,42 +212,68 @@ function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: (
           <h2 className="text-lg font-heading text-text-heading">Athlete Profile</h2>
         </div>
 
-        <div className="flex flex-col items-center mb-5">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium mb-3"
-            style={{
-              backgroundColor: 'var(--color-medal-gold)20',
-              color: 'var(--color-medal-gold)',
-              border: '2px solid var(--color-medal-gold)',
-            }}
-          >
-            {athlete.full_name.charAt(0)}
-          </div>
-          <h3 className="text-xl font-heading text-text-heading">{athlete.full_name}</h3>
+        {/* Avatar + name — matches Profile page style */}
+        <div className="flex flex-col items-center pb-4">
+          {athlete.photo_url ? (
+            <img
+              src={athlete.photo_url}
+              alt={athlete.full_name}
+              className="w-24 h-24 rounded-full object-cover mb-3"
+              style={{ border: medalColor ? `2px solid ${medalColor}` : '1px solid var(--color-accent)' }}
+            />
+          ) : (
+            <div
+              className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-medium mb-3"
+              style={medalColor ? {
+                backgroundColor: medalColor + '20',
+                color: medalColor,
+                border: `2px solid ${medalColor}`,
+              } : {
+                backgroundColor: 'var(--color-accent-light)',
+                color: 'var(--color-accent)',
+                border: '1px solid var(--color-accent)',
+              }}
+            >
+              {athlete.full_name.charAt(0)}
+            </div>
+          )}
+          <h3 className="text-[22px] font-heading text-text-heading">{athlete.full_name}</h3>
           <p className="text-sm text-text-secondary mt-0.5">
             {athlete.belt} · {athlete.weight_category}
           </p>
-          <p className="text-xs text-text-disabled mt-0.5">
-            {athlete.city}, {athlete.country}
-          </p>
-          {athlete.club && (
-            <p className="text-xs text-text-disabled">{athlete.club}</p>
-          )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-bg-secondary rounded-xl py-3">
-            <p className="text-xl font-mono text-text-heading">#{athlete.rank}</p>
-            <p className="text-[11px] uppercase tracking-wider text-text-disabled mt-0.5">Rank</p>
+        {/* Stats — 3 columns with vertical dividers, same as Profile */}
+        <div className="flex items-center justify-center mb-5 py-3 border-y border-border">
+          <div className="flex-1 text-center">
+            <p className="font-mono text-2xl text-text-heading">{athlete.rating_points}</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Rating</p>
           </div>
-          <div className="bg-bg-secondary rounded-xl py-3">
-            <p className="text-xl font-mono text-text-heading">{athlete.rating_points}</p>
-            <p className="text-[11px] uppercase tracking-wider text-text-disabled mt-0.5">Points</p>
+          <div className="w-px h-10 bg-border" />
+          <div className="flex-1 text-center">
+            <p className="font-mono text-2xl text-text-heading">#{athlete.rank}</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Rank</p>
           </div>
-          <div className="bg-bg-secondary rounded-xl py-3">
-            <p className="text-xl font-mono text-text-heading">{athlete.belt.split(' ')[0]}</p>
-            <p className="text-[11px] uppercase tracking-wider text-text-disabled mt-0.5">Dan</p>
+          <div className="w-px h-10 bg-border" />
+          <div className="flex-1 text-center">
+            <p className="font-mono text-2xl text-text-heading">{athlete.belt.split(' ')[0]}</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Dan</p>
           </div>
+        </div>
+
+        {/* Information — InfoRow style like Profile */}
+        <div className="mb-2">
+          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-[11px] text-text-disabled">City</span>
+            <span className="text-[15px] text-text">{athlete.city}</span>
+          </div>
+          {athlete.club && (
+            <div className="flex justify-between items-center py-2">
+              <span className="text-[11px] text-text-disabled">Club</span>
+              <span className="text-[15px] text-text">{athlete.club}</span>
+            </div>
+          )}
         </div>
       </div>
     </BottomSheet>
@@ -249,7 +289,7 @@ export default function Rating() {
   const [selectedAthlete, setSelectedAthlete] = useState<RatingEntry | null>(null);
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
-  const { data: ratings, loading } = useApi<RatingEntry[]>(
+  const { data: ratings, loading, refetch } = useApi<RatingEntry[]>(
     () => getRatings({
       country: city || undefined,
       weight_category: weight || undefined,
@@ -259,11 +299,33 @@ export default function Rating() {
     [city, weight, gender],
   );
 
-  const entries = ratings || [];
+  const myAthleteId = me?.athlete?.id;
+
+  // Sync user's rating entry with current profile data + client-side filtering
+  const entries = useMemo(() => {
+    let raw = ratings || [];
+    // Client-side filtering for demo mode
+    if (city) raw = raw.filter((e) => e.city === city);
+    if (weight) raw = raw.filter((e) => e.weight_category === weight);
+    if (gender) raw = raw.filter((e) => e.gender === gender);
+    // Sync current user's data
+    if (myAthleteId && me?.athlete) {
+      const a = me.athlete;
+      raw = raw.map((e) =>
+        e.athlete_id === myAthleteId
+          ? { ...e, full_name: a.full_name, city: a.city, club: a.club, weight_category: a.weight_category, belt: a.belt, rating_points: a.rating_points }
+          : e,
+      );
+    }
+    // Sort by points descending and re-rank
+    return raw
+      .sort((a, b) => b.rating_points - a.rating_points)
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [ratings, myAthleteId, me, city, weight, gender]);
+
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 
-  const myAthleteId = me?.athlete?.id;
   const myEntry = myAthleteId ? entries.find((e) => e.athlete_id === myAthleteId) : null;
   const myRowRef = useRef<HTMLDivElement>(null);
 
@@ -276,6 +338,7 @@ export default function Rating() {
   };
 
   return (
+    <PullToRefresh onRefresh={() => refetch(true)}>
     <div className="relative pb-16">
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-3xl font-heading text-text-heading">
@@ -322,13 +385,22 @@ export default function Rating() {
                   key={entry.athlete_id}
                   ref={isMe ? myRowRef : undefined}
                   onClick={() => setSelectedAthlete(entry)}
-                  className="flex items-center gap-3 py-3 border-b border-border cursor-pointer transition-colors active:opacity-80"
+                  className="flex items-center gap-3 py-3 border-b border-border cursor-pointer transition-colors hover:bg-bg-secondary active:opacity-80"
                 >
                   {/* Avatar with rank badge */}
                   <div className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-accent-light text-accent">
-                      {entry.full_name.charAt(0)}
-                    </div>
+                    {entry.photo_url ? (
+                      <img
+                        src={entry.photo_url}
+                        alt={entry.full_name}
+                        className="w-10 h-10 rounded-full object-cover"
+                        style={{ border: '1px solid var(--color-accent)' }}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-accent-light text-accent">
+                        {entry.full_name.charAt(0)}
+                      </div>
+                    )}
                     <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-medium bg-bg-divider text-text-secondary">
                       {entry.rank}
                     </span>
@@ -371,5 +443,6 @@ export default function Rating() {
         />
       )}
     </div>
+    </PullToRefresh>
   );
 }

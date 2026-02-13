@@ -1,7 +1,10 @@
 import { apiRequest } from './client';
 import type {
+  AthleteRegistration,
   AthleteUpdate,
   CoachAthlete,
+  CoachRegistration,
+  CoachUpdate,
   CoachEntry,
   MeResponse,
   PaginatedResponse,
@@ -26,6 +29,23 @@ export function updateMe(data: AthleteUpdate): Promise<MeResponse> {
   return apiRequest<MeResponse>('/me', {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+}
+
+export function updateCoach(data: CoachUpdate): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/me', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export function registerProfile(payload: {
+  role: 'athlete' | 'coach';
+  data: AthleteRegistration | CoachRegistration;
+}): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/me/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 

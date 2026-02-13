@@ -6,7 +6,7 @@ interface UseApiResult<T> {
   loading: boolean;
   error: string | null;
   isDemo: boolean;
-  refetch: () => void;
+  refetch: (silent?: boolean) => Promise<void>;
   mutate: (data: T) => void;
 }
 
@@ -25,10 +25,10 @@ export function useApi<T>(
 
   const isTelegram = !!WebApp.initData;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
-    setIsDemo(false);
+    if (!silent) setIsDemo(false);
 
     // Use mock data when: not in Telegram, or no API URL configured
     if (!isTelegram || !hasApi) {

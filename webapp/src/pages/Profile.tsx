@@ -1,27 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import BottomSheet from '../components/BottomSheet';
+import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
-import { getCoachAthletes, getCoachEntries, getMe, updateMe } from '../api/endpoints';
+import { getCoachAthletes, getCoachEntries, getMe, updateCoach, updateMe } from '../api/endpoints';
 import { mockCoachAthletes, mockCoachEntries, mockMe, updateMockMe } from '../api/mock';
-import type { AthleteUpdate, CoachAthlete, CoachEntry, MeResponse } from '../types';
+import type { AthleteUpdate, CoachAthlete, CoachEntry, CoachUpdate, MeResponse } from '../types';
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
 const ROLE_LABELS: Record<MeResponse['role'], string> = {
   athlete: 'Athlete',
   coach: 'Coach',
   admin: 'Admin',
+  none: 'None',
 };
 const ROLE_DESCRIPTIONS: Record<MeResponse['role'], string> = {
   athlete: 'Training logs, tournaments, ratings',
   coach: 'Manage athletes and entries',
   admin: 'Full access to all features',
+  none: '',
 };
 
 const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
 const BELTS = ['1 Gup', '1 Dan', '2 Dan', '3 Dan', '4 Dan', '5 Dan'];
-const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Московская область', 'Нижний Новгород', 'Рязань', 'Дагестан', 'Новосибирск', 'Краснодар', 'Владивосток'];
+const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Рязань', 'Махачкала', 'Новосибирск', 'Краснодар', 'Владивосток'];
 
 /* ---- Icons ---- */
 
@@ -79,17 +83,20 @@ export default function Profile() {
   const isCoach = me.role === 'coach';
   const isAthlete = me.role === 'athlete';
   const isAdmin = me.role === 'admin';
-  const displayName = me.athlete?.full_name || me.coach?.full_name || me.username || 'User';
+  const displayName = isCoach
+    ? (me.coach?.full_name || me.username || 'User')
+    : (me.athlete?.full_name || me.username || 'User');
   const initial = displayName.charAt(0);
-  const photoUrl = me.athlete?.photo_url || me.coach?.photo_url || tgUser?.photo_url;
+  const photoUrl = (isCoach ? me.coach?.photo_url : me.athlete?.photo_url) || tgUser?.photo_url;
 
   return (
     <div className="pb-20">
       {/* Settings gear — top right */}
       <div className="flex justify-end px-4 pt-4">
         <button
+          aria-label="Settings"
           onClick={() => setShowSettings(true)}
-          className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-transparent cursor-pointer text-text-disabled active:opacity-70 transition-opacity"
+          className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
         >
           <GearIcon />
         </button>
@@ -142,7 +149,7 @@ export default function Profile() {
 
       {/* Coach profile */}
       {isCoach && me.coach && (
-        <CoachSection me={me} />
+        <CoachSection me={me} mutate={mutate} />
       )}
 
       {/* Admin profile */}
@@ -208,7 +215,6 @@ function AthleteSection({
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
         <InfoRow label="Club" value={athlete.club || '—'} />
         <InfoRow label="City" value={athlete.city} />
-        <InfoRow label="Country" value={athlete.country} />
         <InfoRow label="Weight" value={`${athlete.current_weight} kg`} />
         <InfoRow label="Gender" value={athlete.gender === 'M' ? 'Male' : 'Female'} />
       </div>
@@ -234,7 +240,7 @@ function AthleteSection({
       <div className="px-4 mb-4">
         <button
           onClick={() => setEditing(true)}
-          className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent active:bg-accent-light transition-colors"
+          className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent hover:bg-accent-light active:bg-accent-light transition-colors"
         >
           Edit Profile
         </button>
@@ -246,7 +252,14 @@ function AthleteSection({
           onClose={() => setEditing(false)}
           onSaved={(updated) => {
             setEditing(false);
-            const newMe = { ...me, athlete: { ...me.athlete!, ...updated } };
+            const newMe = {
+              ...me,
+              athlete: { ...me.athlete!, ...updated },
+              // Sync name to coach profile
+              coach: me.coach && updated.full_name
+                ? { ...me.coach, full_name: updated.full_name }
+                : me.coach,
+            };
             mutate(newMe);
             updateMockMe(newMe);
           }}
@@ -258,18 +271,44 @@ function AthleteSection({
 
 /* ---- Coach Section ---- */
 
-function CoachSection({ me }: { me: MeResponse }) {
+function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) => void }) {
   const coach = me.coach!;
-  const { data: athletes, loading: loadingAthletes } = useApi<CoachAthlete[]>(
+  const navigate = useNavigate();
+  const [showInvite, setShowInvite] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const { data: rawAthletes, loading: loadingAthletes } = useApi<CoachAthlete[]>(
     getCoachAthletes,
     mockCoachAthletes,
     [],
   );
-  const { data: entries, loading: loadingEntries } = useApi<CoachEntry[]>(
+  const { data: rawEntries, loading: loadingEntries } = useApi<CoachEntry[]>(
     getCoachEntries,
     mockCoachEntries,
     [],
   );
+
+  // Sync user's own athlete data in the coach's lists
+  const myAthleteId = me.athlete?.id;
+  const athletes = useMemo(() => {
+    const list = rawAthletes || [];
+    if (!myAthleteId || !me.athlete) return list;
+    const a = me.athlete;
+    return list.map((item) =>
+      item.id === myAthleteId
+        ? { ...item, full_name: a.full_name, weight_category: a.weight_category, belt: a.belt, rating_points: a.rating_points, club: a.club }
+        : item,
+    );
+  }, [rawAthletes, myAthleteId, me.athlete]);
+
+  const entries = useMemo(() => {
+    const list = rawEntries || [];
+    if (!myAthleteId || !me.athlete) return list;
+    return list.map((item) =>
+      item.athlete_id === myAthleteId
+        ? { ...item, athlete_name: me.athlete!.full_name }
+        : item,
+    );
+  }, [rawEntries, myAthleteId, me.athlete]);
 
   return (
     <>
@@ -291,10 +330,39 @@ function CoachSection({ me }: { me: MeResponse }) {
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
         <InfoRow label="Club" value={coach.club} />
         <InfoRow label="City" value={coach.city} />
-        <InfoRow label="Country" value={coach.country} />
         <InfoRow label="Qualification" value={coach.qualification} />
         <InfoRow label="Verified" value={coach.is_verified ? 'Yes' : 'Pending'} accent={coach.is_verified} />
       </div>
+
+      {/* Edit button — outlined */}
+      <div className="px-4 mb-4">
+        <button
+          onClick={() => setEditing(true)}
+          className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent hover:bg-accent-light active:bg-accent-light transition-colors"
+        >
+          Edit Profile
+        </button>
+      </div>
+
+      {editing && (
+        <EditCoachForm
+          coach={coach}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => {
+            setEditing(false);
+            const newMe = {
+              ...me,
+              coach: { ...me.coach!, ...updated },
+              // Sync name to athlete profile
+              athlete: me.athlete && updated.full_name
+                ? { ...me.athlete, full_name: updated.full_name }
+                : me.athlete,
+            };
+            mutate(newMe);
+            updateMockMe(newMe);
+          }}
+        />
+      )}
 
       {/* Athletes list */}
       <div className="px-4 mb-4">
@@ -321,7 +389,10 @@ function CoachSection({ me }: { me: MeResponse }) {
             </div>
           ))
         )}
-        <button className="text-sm text-accent border-none bg-transparent cursor-pointer p-0 mt-2 active:opacity-70">
+        <button
+          onClick={() => setShowInvite(true)}
+          className="text-sm text-accent border-none bg-transparent cursor-pointer p-0 mt-2 active:opacity-70"
+        >
           + Add athlete
         </button>
       </div>
@@ -345,11 +416,35 @@ function CoachSection({ me }: { me: MeResponse }) {
                   {e.athlete_name} · {e.weight_category} · {e.status}
                 </p>
               </div>
-              <span className="text-[13px] text-accent shrink-0 ml-2 cursor-pointer">Edit →</span>
+              <button
+                onClick={() => navigate(`/tournament/${e.tournament_id}`)}
+                className="text-[13px] text-accent shrink-0 ml-2 cursor-pointer border-none bg-transparent p-0 active:opacity-70"
+              >
+                Edit →
+              </button>
             </div>
           ))
         )}
       </div>
+
+      {/* Invite athlete sheet */}
+      {showInvite && (
+        <BottomSheet onClose={() => setShowInvite(false)}>
+          <div className="p-4 pt-5 text-center">
+            <h2 className="text-lg font-heading text-text-heading mb-2">Add Athlete</h2>
+            <p className="text-sm text-text-secondary mb-4">
+              Athletes are linked automatically when they register and specify your name as their coach.
+            </p>
+            <div className="bg-bg-secondary rounded-xl p-4 mb-4">
+              <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-1">Your name</p>
+              <p className="text-lg font-medium text-text">{coach.full_name}</p>
+            </div>
+            <p className="text-xs text-text-disabled">
+              Share your name with athletes so they can find you during registration.
+            </p>
+          </div>
+        </BottomSheet>
+      )}
     </>
   );
 }
@@ -398,7 +493,36 @@ function SettingsSheet({
   onClose: () => void;
   onRoleChange: (role: MeResponse['role']) => void;
 }) {
-  const [lang, setLang] = useState(me.language || 'ru');
+  const { showToast } = useToast();
+  const [lang, setLang] = useState(() => localStorage.getItem('app_language') || me.language || 'ru');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  if (showDeleteConfirm) {
+    return (
+      <BottomSheet onClose={onClose}>
+        <div className="p-4 pt-5 text-center">
+          <h2 className="text-lg font-heading text-text-heading mb-1">Delete account?</h2>
+          <p className="text-sm text-text-secondary mb-5">
+            This will permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { onClose(); showToast('Account deletion requested'); }}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 transition-all"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+    );
+  }
 
   return (
     <BottomSheet onClose={onClose}>
@@ -443,7 +567,7 @@ function SettingsSheet({
           {[{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }].map((l) => (
             <button
               key={l.value}
-              onClick={() => setLang(l.value)}
+              onClick={() => { setLang(l.value); localStorage.setItem('app_language', l.value); }}
               className="w-full flex items-center gap-3 py-2.5 border-none bg-transparent cursor-pointer text-left"
             >
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -460,14 +584,21 @@ function SettingsSheet({
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">Account</p>
         <div className="mb-4">
           {['Request coach role', 'Export data', 'About', 'Support'].map((item) => (
-            <div key={item} className="flex items-center justify-between py-2.5 border-b border-border">
+            <button
+              key={item}
+              onClick={() => { onClose(); showToast('Coming soon'); }}
+              className="w-full flex items-center justify-between py-2.5 border-b border-border border-x-0 border-t-0 bg-transparent cursor-pointer text-left active:opacity-70"
+            >
               <span className="text-sm text-text">{item}</span>
               <span className="text-text-disabled text-sm">→</span>
-            </div>
+            </button>
           ))}
         </div>
 
-        <button className="w-full text-center text-sm text-text-disabled border-none bg-transparent cursor-pointer py-2">
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="w-full text-center text-sm text-text-disabled border-none bg-transparent cursor-pointer py-2 active:opacity-70"
+        >
           Delete account
         </button>
 
@@ -510,8 +641,14 @@ function EditProfileForm({
 
   const handleSubmit = async () => {
     setSaving(true);
-    try { await updateMe(form); } catch { }
-    finally { hapticNotification('success'); onSaved(form); }
+    try {
+      await updateMe(form);
+      hapticNotification('success');
+      onSaved(form);
+    } catch {
+      hapticNotification('error');
+      setSaving(false);
+    }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
@@ -604,6 +741,118 @@ function EditProfileForm({
             value={form.club || ''}
             onChange={(e) => update('club', e.target.value)}
             className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+          />
+        </div>
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={saving || !hasChanges}
+          className="w-full py-3.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-40 active:opacity-80 transition-all"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+/* ---- Edit Coach Form ---- */
+
+function EditCoachForm({
+  coach,
+  onClose,
+  onSaved,
+}: {
+  coach: NonNullable<MeResponse['coach']>;
+  onClose: () => void;
+  onSaved: (data: CoachUpdate) => void;
+}) {
+  const [form, setForm] = useState<CoachUpdate>({
+    full_name: coach.full_name,
+    city: coach.city,
+    club: coach.club,
+    qualification: coach.qualification,
+  });
+  const { hapticNotification } = useTelegram();
+  const [saving, setSaving] = useState(false);
+
+  const hasChanges =
+    form.full_name !== coach.full_name ||
+    form.city !== coach.city ||
+    form.club !== coach.club ||
+    form.qualification !== coach.qualification;
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      await updateCoach(form);
+      hapticNotification('success');
+      onSaved(form);
+    } catch {
+      hapticNotification('error');
+      setSaving(false);
+    }
+  };
+
+  const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">Edit Profile</h2>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-4">
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Full Name</span>
+          <input
+            value={form.full_name || ''}
+            onChange={(e) => update('full_name', e.target.value)}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+          />
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">City</span>
+          <select
+            value={form.city || ''}
+            onChange={(e) => update('city', e.target.value)}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
+          >
+            {!CITIES.includes(form.city || '') && form.city && (
+              <option value={form.city}>{form.city}</option>
+            )}
+            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Club</span>
+          <input
+            value={form.club || ''}
+            onChange={(e) => update('club', e.target.value)}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+          />
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Qualification</span>
+          <input
+            value={form.qualification || ''}
+            onChange={(e) => update('qualification', e.target.value)}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+            placeholder="e.g. 4 Dan, International Coach"
           />
         </div>
       </div>

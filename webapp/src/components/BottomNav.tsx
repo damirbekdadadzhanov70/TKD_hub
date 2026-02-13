@@ -49,10 +49,10 @@ function UserIcon({ className }: { className?: string }) {
 }
 
 const tabs = [
-  { path: '/', Icon: TrophyIcon },
-  { path: '/training', Icon: ClipboardIcon },
-  { path: '/rating', Icon: PodiumIcon },
-  { path: '/profile', Icon: null },
+  { path: '/', Icon: TrophyIcon, label: 'Tournaments' },
+  { path: '/training', Icon: ClipboardIcon, label: 'Training' },
+  { path: '/rating', Icon: PodiumIcon, label: 'Rating' },
+  { path: '/profile', Icon: null, label: 'Profile' },
 ];
 
 export default function BottomNav() {
@@ -83,11 +83,12 @@ export default function BottomNav() {
         return (
           <button
             key={tab.path}
+            aria-label={tab.label}
             onClick={() => handleNav(tab.path)}
-            className={`flex-1 flex items-center justify-center h-[60px] transition-transform border-none bg-transparent cursor-pointer active:scale-95 ${
+            className={`flex-1 flex items-center justify-center h-[60px] transition-all border-none bg-transparent cursor-pointer active:scale-95 ${
               isActive && !isProfile
                 ? 'text-accent'
-                : 'text-text-disabled'
+                : 'text-text-disabled hover:text-text-secondary'
             }`}
           >
             {isProfile ? (

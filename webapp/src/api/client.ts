@@ -1,11 +1,15 @@
 import WebApp from '@twa-dev/sdk';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const REAL_API_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = REAL_API_URL || '/api';
 
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  // In demo mode (no API configured), skip network calls
+  if (!REAL_API_URL) return {} as T;
+
   const initData = WebApp.initData || '';
 
   const headers: HeadersInit = {

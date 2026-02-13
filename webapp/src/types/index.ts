@@ -30,7 +30,7 @@ export interface MeResponse {
   telegram_id: number;
   username: string | null;
   language: string;
-  role: 'athlete' | 'coach' | 'admin';
+  role: 'athlete' | 'coach' | 'admin' | 'none';
   athlete: AthleteProfile | null;
   coach: CoachProfile | null;
 }
@@ -44,6 +44,13 @@ export interface AthleteUpdate {
   city?: string;
   club?: string;
   photo_url?: string;
+}
+
+export interface CoachUpdate {
+  full_name?: string;
+  city?: string;
+  club?: string;
+  qualification?: string;
 }
 
 export interface TournamentListItem {
@@ -60,6 +67,7 @@ export interface TournamentListItem {
 
 export interface TournamentEntry {
   id: string;
+  athlete_id?: string;
   athlete_name: string;
   weight_category: string;
   age_category: string;
@@ -140,6 +148,7 @@ export interface RatingEntry {
   rank: number;
   athlete_id: string;
   full_name: string;
+  gender: string;
   country: string;
   city: string;
   club: string | null;
@@ -167,6 +176,20 @@ export interface CoachEntry {
   weight_category: string;
   age_category: string;
   status: string;
+}
+
+export interface AthleteRegistration {
+  full_name: string;
+  weight_category: string;
+  belt: string;
+  city: string;
+}
+
+export interface CoachRegistration {
+  full_name: string;
+  club: string;
+  city: string;
+  qualification: string;
 }
 
 export interface PaginatedResponse<T> {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import BottomSheet from '../components/BottomSheet';
+import PullToRefresh from '../components/PullToRefresh';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -86,7 +87,7 @@ export default function TrainingLogPage() {
   const [actionLog, setActionLog] = useState<TrainingLogType | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const { data: logs, loading, mutate } = useApi<TrainingLogType[]>(
+  const { data: logs, loading, mutate, refetch } = useApi<TrainingLogType[]>(
     () => getTrainingLogs({ month, year }),
     mockTrainingLogs,
     [month, year],
@@ -144,9 +145,10 @@ export default function TrainingLogPage() {
   };
 
   return (
+    <PullToRefresh onRefresh={() => refetch(true)}>
     <div className="relative">
       <div className="px-4 pt-4 pb-2">
-        <h1 className="text-2xl font-bold text-text">
+        <h1 className="text-3xl font-heading text-text-heading">
           Training Log
         </h1>
       </div>
@@ -155,11 +157,11 @@ export default function TrainingLogPage() {
       <div className="px-4">
         <Card>
           <div className="flex items-center justify-between mb-3">
-            <button onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">‹</button>
+            <button aria-label="Previous month" onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">‹</button>
             <span className="font-semibold text-sm text-text">
               {MONTH_NAMES[month - 1]} {year}
             </span>
-            <button onClick={nextMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">›</button>
+            <button aria-label="Next month" onClick={nextMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">›</button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
             {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
@@ -299,8 +301,9 @@ export default function TrainingLogPage() {
 
       {/* FAB */}
       <button
+        aria-label="Add training"
         onClick={() => setShowForm(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 active:scale-95 transition-transform z-40"
+        className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
       >
         +
       </button>
@@ -416,6 +419,7 @@ export default function TrainingLogPage() {
         />
       )}
     </div>
+    </PullToRefresh>
   );
 }
 
@@ -433,8 +437,14 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
 
   const handleSubmit = async () => {
     setSaving(true);
-    try { await createTrainingLog(form); } catch { }
-    finally { hapticNotification('success'); onSaved(form); }
+    try {
+      await createTrainingLog(form);
+      hapticNotification('success');
+      onSaved(form);
+    } catch {
+      hapticNotification('error');
+      setSaving(false);
+    }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
@@ -453,7 +463,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
             type="date"
             value={form.date}
             onChange={(e) => update('date', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           />
         </label>
 
@@ -462,7 +472,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
           <select
             value={form.type}
             onChange={(e) => update('type', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           >
             {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -474,7 +484,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
             type="number"
             value={form.duration_minutes}
             onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           />
         </label>
 
@@ -483,7 +493,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
           <select
             value={form.intensity}
             onChange={(e) => update('intensity', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           >
             {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
           </select>
@@ -496,7 +506,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
             step="0.1"
             value={form.weight ?? ''}
             onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
             placeholder="Optional"
           />
         </label>
@@ -506,7 +516,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
           <textarea
             value={form.notes ?? ''}
             onChange={(e) => update('notes', e.target.value || null)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none resize-none"
             rows={3}
             placeholder="Optional"
           />
@@ -548,8 +558,14 @@ function TrainingEditForm({
 
   const handleSubmit = async () => {
     setSaving(true);
-    try { await updateTrainingLog(log.id, form); } catch { }
-    finally { hapticNotification('success'); onSaved(form); }
+    try {
+      await updateTrainingLog(log.id, form);
+      hapticNotification('success');
+      onSaved(form);
+    } catch {
+      hapticNotification('error');
+      setSaving(false);
+    }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
@@ -568,7 +584,7 @@ function TrainingEditForm({
             type="date"
             value={form.date ?? ''}
             onChange={(e) => update('date', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           />
         </label>
 
@@ -577,7 +593,7 @@ function TrainingEditForm({
           <select
             value={form.type ?? ''}
             onChange={(e) => update('type', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           >
             {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -589,7 +605,7 @@ function TrainingEditForm({
             type="number"
             value={form.duration_minutes ?? 0}
             onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           />
         </label>
 
@@ -598,7 +614,7 @@ function TrainingEditForm({
           <select
             value={form.intensity ?? ''}
             onChange={(e) => update('intensity', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           >
             {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
           </select>
@@ -611,7 +627,7 @@ function TrainingEditForm({
             step="0.1"
             value={form.weight ?? ''}
             onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
             placeholder="Optional"
           />
         </label>
@@ -621,7 +637,7 @@ function TrainingEditForm({
           <textarea
             value={form.notes ?? ''}
             onChange={(e) => update('notes', e.target.value || null)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none resize-none"
             rows={3}
             placeholder="Optional"
           />
