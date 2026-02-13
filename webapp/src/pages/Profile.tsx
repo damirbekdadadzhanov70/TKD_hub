@@ -10,7 +10,14 @@ export default function Profile() {
   const { data: me, loading, refetch } = useApi<MeResponse>(getMe, mockMe, []);
   const [editing, setEditing] = useState(false);
 
-  if (loading || !me) return <LoadingSpinner />;
+  if (loading) return <LoadingSpinner />;
+  if (!me) return (
+    <div className="flex flex-col items-center justify-center pt-20 px-4">
+      <p className="text-sm text-text-secondary text-center">
+        Could not load profile. Please reopen the app from Telegram.
+      </p>
+    </div>
+  );
 
   const isCoach = me.role === 'coach';
   const isAthlete = me.role === 'athlete';
