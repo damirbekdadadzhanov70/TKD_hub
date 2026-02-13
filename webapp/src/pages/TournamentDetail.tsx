@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import BottomSheet from '../components/BottomSheet';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -183,7 +184,7 @@ function InterestButton({ tournamentId }: { tournamentId: string }) {
     <button
       onClick={handleClick}
       disabled={loading || marked}
-      className={`w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 transition-colors ${
+      className={`w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 transition-all active:opacity-80 ${
         marked
           ? 'bg-emerald-50 text-emerald-700'
           : 'bg-accent text-accent-text'
@@ -201,7 +202,7 @@ function EnterAthletesButton({ tournamentId, onDone }: { tournamentId: string; o
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 bg-accent text-accent-text"
+        className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 bg-accent text-accent-text active:opacity-80 transition-all"
       >
         Enter Athletes
       </button>
@@ -254,57 +255,55 @@ function EnterAthletesModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-      <div className="w-full rounded-t-2xl bottom-sheet flex flex-col overflow-hidden bg-white">
-        <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-          <h2 className="text-lg font-bold text-text">Select Athletes</h2>
-          <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
-          {loading ? (
-            <LoadingSpinner />
-          ) : !athletes || athletes.length === 0 ? (
-            <EmptyState title="No athletes" description="You have no linked athletes" />
-          ) : (
-            athletes.map((a) => (
-              <Card
-                key={a.id}
-                onClick={() => toggle(a.id)}
-                className={`!p-3 ${selected.has(a.id) ? 'border-accent bg-accent-light' : ''}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                    selected.has(a.id) ? 'border-accent bg-accent' : 'border-border'
-                  }`}>
-                    {selected.has(a.id) && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-text truncate">{a.full_name}</p>
-                    <p className="text-[11px] text-text-secondary">
-                      {a.weight_category} · {a.belt}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
-        </div>
-
-        <div className="p-4 pt-2 shrink-0 bottom-sheet-footer">
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || selected.size === 0}
-            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60"
-          >
-            {submitting ? 'Entering...' : `Enter ${selected.size} athlete${selected.size !== 1 ? 's' : ''}`}
-          </button>
-        </div>
+    <BottomSheet onClose={onClose}>
+      <div className="flex justify-between items-center p-4 pb-2 shrink-0">
+        <h2 className="text-lg font-bold text-text">Select Athletes</h2>
+        <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
       </div>
-    </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
+        {loading ? (
+          <LoadingSpinner />
+        ) : !athletes || athletes.length === 0 ? (
+          <EmptyState title="No athletes" description="You have no linked athletes" />
+        ) : (
+          athletes.map((a) => (
+            <Card
+              key={a.id}
+              onClick={() => toggle(a.id)}
+              className={`!p-3 ${selected.has(a.id) ? 'border-accent bg-accent-light' : ''}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                  selected.has(a.id) ? 'border-accent bg-accent' : 'border-border'
+                }`}>
+                  {selected.has(a.id) && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-text truncate">{a.full_name}</p>
+                  <p className="text-[11px] text-text-secondary">
+                    {a.weight_category} · {a.belt}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || selected.size === 0}
+          className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
+        >
+          {submitting ? 'Entering...' : `Enter ${selected.size} athlete${selected.size !== 1 ? 's' : ''}`}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }

@@ -18,8 +18,8 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg">
-      <main ref={mainRef} className="flex-1 pb-20 overflow-y-auto">
+    <div className="min-h-screen bg-bg">
+      <main ref={mainRef} className="pb-20">
         <Outlet />
       </main>
       <BottomNav />

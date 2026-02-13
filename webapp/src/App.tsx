@@ -16,19 +16,6 @@ export default function App() {
     expand();
   }, []);
 
-  // Track real viewport height (fixes Telegram Mini App vh issues)
-  useEffect(() => {
-    const updateVh = () => {
-      document.documentElement.style.setProperty(
-        '--app-vh',
-        `${window.innerHeight}px`,
-      );
-    };
-    updateVh();
-    window.addEventListener('resize', updateVh);
-    return () => window.removeEventListener('resize', updateVh);
-  }, []);
-
   return (
     <BrowserRouter>
       <Routes>

@@ -7,6 +7,7 @@ interface UseApiResult<T> {
   error: string | null;
   isDemo: boolean;
   refetch: () => void;
+  mutate: (data: T) => void;
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -57,5 +58,5 @@ export function useApi<T>(
     fetchData();
   }, [fetchData]);
 
-  return { data, loading, error, isDemo, refetch: fetchData };
+  return { data, loading, error, isDemo, refetch: fetchData, mutate: setData };
 }

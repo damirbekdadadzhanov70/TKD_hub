@@ -32,26 +32,13 @@ body {
 
 #root {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
-/* Bottom sheet modal */
-.bottom-sheet {
-  max-height: calc(var(--app-vh, 100vh) * 0.85);
-}
-
-.bottom-sheet-footer {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* Page transition */
+/* Page transition (opacity only — transform breaks position:fixed inside <main>) */
 .page-enter {
   opacity: 0;
-  transform: translateY(8px);
 }
 .page-enter-active {
   opacity: 1;
-  transform: translateY(0);
-  transition: opacity 200ms ease-out, transform 200ms ease-out;
+  transition: opacity 200ms ease-out;
 }

@@ -1,16 +1,22 @@
 import { useMemo, useState } from 'react';
+import BottomSheet from '../components/BottomSheet';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import {
   createTrainingLog,
-  deleteTrainingLog,
   getTrainingLogs,
   getTrainingStats,
   updateTrainingLog,
 } from '../api/endpoints';
-import { mockTrainingLogs, mockTrainingStats } from '../api/mock';
+import {
+  addMockTrainingLog,
+  deleteMockTrainingLog,
+  mockTrainingLogs,
+  mockTrainingStats,
+  updateMockTrainingLog as updateMockLog,
+} from '../api/mock';
 import type {
   TrainingLog as TrainingLogType,
   TrainingLogCreate,
@@ -76,13 +82,13 @@ export default function TrainingLogPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingLog, setEditingLog] = useState<TrainingLogType | null>(null);
 
-  const { data: logs, loading, refetch } = useApi<TrainingLogType[]>(
+  const { data: logs, loading, mutate } = useApi<TrainingLogType[]>(
     () => getTrainingLogs({ month, year }),
     mockTrainingLogs,
     [month, year],
   );
 
-  const { data: stats } = useApi<TrainingLogStats>(
+  const { data: stats, mutate: mutateStats } = useApi<TrainingLogStats>(
     () => getTrainingStats({ month, year }),
     mockTrainingStats,
     [month, year],
@@ -115,17 +121,18 @@ export default function TrainingLogPage() {
     else setMonth(month + 1);
   };
 
-  const handleDelete = async (logId: string) => {
-    try {
-      await deleteTrainingLog(logId);
-      refetch();
-    } catch {
-      // ignore
-    }
+  const refreshFromMock = () => {
+    mutate([...mockTrainingLogs]);
+    mutateStats({ ...mockTrainingStats });
+  };
+
+  const handleDelete = (logId: string) => {
+    deleteMockTrainingLog(logId);
+    refreshFromMock();
   };
 
   return (
-    <div className="relative min-h-screen pb-20">
+    <div className="relative">
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-2xl font-bold text-text">
           Training Log
@@ -267,7 +274,11 @@ export default function TrainingLogPage() {
       {showForm && (
         <TrainingForm
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); refetch(); }}
+          onSaved={(data) => {
+            setShowForm(false);
+            addMockTrainingLog(data);
+            refreshFromMock();
+          }}
         />
       )}
 
@@ -276,14 +287,18 @@ export default function TrainingLogPage() {
         <TrainingEditForm
           log={editingLog}
           onClose={() => setEditingLog(null)}
-          onSaved={() => { setEditingLog(null); refetch(); }}
+          onSaved={(data) => {
+            updateMockLog(editingLog.id, data);
+            setEditingLog(null);
+            refreshFromMock();
+          }}
         />
       )}
     </div>
   );
 }
 
-function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (data: TrainingLogCreate) => void }) {
   const [form, setForm] = useState<TrainingLogCreate>({
     date: new Date().toISOString().slice(0, 10),
     type: 'sparring',
@@ -296,102 +311,96 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 
   const handleSubmit = async () => {
     setSaving(true);
-    try {
-      await createTrainingLog(form);
-      onSaved();
-    } catch {
-      onSaved();
-    }
+    try { await createTrainingLog(form); } catch { }
+    finally { onSaved(form); }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-      <div className="w-full rounded-t-2xl bottom-sheet flex flex-col overflow-hidden bg-white">
-        <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-          <h2 className="text-lg font-bold text-text">Add Training</h2>
-          <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Date</span>
-            <input
-              type="date"
-              value={form.date}
-              onChange={(e) => update('date', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Type</span>
-            <select
-              value={form.type}
-              onChange={(e) => update('type', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            >
-              {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
-            <input
-              type="number"
-              value={form.duration_minutes}
-              onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
-            <select
-              value={form.intensity}
-              onChange={(e) => update('intensity', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            >
-              {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
-            <input
-              type="number"
-              step="0.1"
-              value={form.weight ?? ''}
-              onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-              placeholder="Optional"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Notes</span>
-            <textarea
-              value={form.notes ?? ''}
-              onChange={(e) => update('notes', e.target.value || null)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
-              rows={3}
-              placeholder="Optional"
-            />
-          </label>
-        </div>
-
-        <div className="p-4 pt-2 shrink-0 bottom-sheet-footer">
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
+    <BottomSheet onClose={onClose}>
+      <div className="flex justify-between items-center p-4 pb-2 shrink-0">
+        <h2 className="text-lg font-bold text-text">Add Training</h2>
+        <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
       </div>
-    </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Date</span>
+          <input
+            type="date"
+            value={form.date}
+            onChange={(e) => update('date', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Type</span>
+          <select
+            value={form.type}
+            onChange={(e) => update('type', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          >
+            {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
+          <input
+            type="number"
+            value={form.duration_minutes}
+            onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
+          <select
+            value={form.intensity}
+            onChange={(e) => update('intensity', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          >
+            {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
+          <input
+            type="number"
+            step="0.1"
+            value={form.weight ?? ''}
+            onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            placeholder="Optional"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Notes</span>
+          <textarea
+            value={form.notes ?? ''}
+            onChange={(e) => update('notes', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
+            rows={3}
+            placeholder="Optional"
+          />
+        </label>
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 
@@ -402,7 +411,7 @@ function TrainingEditForm({
 }: {
   log: TrainingLogType;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (data: TrainingLogUpdate) => void;
 }) {
   const [form, setForm] = useState<TrainingLogUpdate>({
     date: log.date,
@@ -416,101 +425,95 @@ function TrainingEditForm({
 
   const handleSubmit = async () => {
     setSaving(true);
-    try {
-      await updateTrainingLog(log.id, form);
-      onSaved();
-    } catch {
-      onSaved();
-    }
+    try { await updateTrainingLog(log.id, form); } catch { }
+    finally { onSaved(form); }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-      <div className="w-full rounded-t-2xl bottom-sheet flex flex-col overflow-hidden bg-white">
-        <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-          <h2 className="text-lg font-bold text-text">Edit Training</h2>
-          <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Date</span>
-            <input
-              type="date"
-              value={form.date ?? ''}
-              onChange={(e) => update('date', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Type</span>
-            <select
-              value={form.type ?? ''}
-              onChange={(e) => update('type', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            >
-              {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
-            <input
-              type="number"
-              value={form.duration_minutes ?? 0}
-              onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
-            <select
-              value={form.intensity ?? ''}
-              onChange={(e) => update('intensity', e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-            >
-              {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
-            <input
-              type="number"
-              step="0.1"
-              value={form.weight ?? ''}
-              onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-              placeholder="Optional"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs mb-1 block text-text-secondary">Notes</span>
-            <textarea
-              value={form.notes ?? ''}
-              onChange={(e) => update('notes', e.target.value || null)}
-              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
-              rows={3}
-              placeholder="Optional"
-            />
-          </label>
-        </div>
-
-        <div className="p-4 pt-2 shrink-0 bottom-sheet-footer">
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
+    <BottomSheet onClose={onClose}>
+      <div className="flex justify-between items-center p-4 pb-2 shrink-0">
+        <h2 className="text-lg font-bold text-text">Edit Training</h2>
+        <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
       </div>
-    </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Date</span>
+          <input
+            type="date"
+            value={form.date ?? ''}
+            onChange={(e) => update('date', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Type</span>
+          <select
+            value={form.type ?? ''}
+            onChange={(e) => update('type', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          >
+            {TRAINING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Duration (min)</span>
+          <input
+            type="number"
+            value={form.duration_minutes ?? 0}
+            onChange={(e) => update('duration_minutes', parseInt(e.target.value) || 0)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Intensity</span>
+          <select
+            value={form.intensity ?? ''}
+            onChange={(e) => update('intensity', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+          >
+            {INTENSITIES.map((i) => <option key={i} value={i}>{i}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Weight (kg)</span>
+          <input
+            type="number"
+            step="0.1"
+            value={form.weight ?? ''}
+            onChange={(e) => update('weight', e.target.value ? parseFloat(e.target.value) : null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            placeholder="Optional"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">Notes</span>
+          <textarea
+            value={form.notes ?? ''}
+            onChange={(e) => update('notes', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none resize-none"
+            rows={3}
+            placeholder="Optional"
+          />
+        </label>
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }

@@ -30,7 +30,7 @@ export interface MeResponse {
   telegram_id: number;
   username: string | null;
   language: string;
-  role: 'athlete' | 'coach' | 'none';
+  role: 'athlete' | 'coach' | 'admin';
   athlete: AthleteProfile | null;
   coach: CoachProfile | null;
 }
@@ -40,6 +40,7 @@ export interface AthleteUpdate {
   weight_category?: string;
   current_weight?: number;
   belt?: string;
+  country?: string;
   city?: string;
   club?: string;
   photo_url?: string;
