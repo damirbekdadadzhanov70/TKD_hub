@@ -10,7 +10,7 @@ TKD Hub — платформа для спортсменов и тренеров
 - **Database:** PostgreSQL + SQLAlchemy (async) + Alembic (миграции)
 - **Frontend (Mini App):** React + TypeScript + Tailwind CSS (или Vue.js)
 - **Frontend (сайт):** тот же фреймворк или отдельный лендинг
-- **Деплой:** Docker, docker-compose
+- **Деплой:** Vercel
 - **Язык интерфейса:** Русский + English (i18n с самого начала)
 
 ---
@@ -361,7 +361,6 @@ reviewed_by: UUID (FK → users.id) — nullable
 
 ```
 TKD_hub/
-├── docker-compose.yml
 ├── .env.example
 ├── PROJECT.md
 ├── README.md
@@ -451,7 +450,7 @@ TKD_hub/
 ## Порядок разработки (фазы)
 
 ### Фаза 1: Фундамент (неделя 1-2)
-- [ ] Настройка проекта: docker-compose (PostgreSQL + bot)
+- [ ] Настройка проекта: PostgreSQL + bot
 - [ ] Модели базы данных + миграции
 - [ ] Бот: /start → выбор языка → выбор роли → регистрация (FSM)
 - [ ] Сохранение профиля в БД

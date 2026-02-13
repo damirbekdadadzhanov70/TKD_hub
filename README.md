@@ -49,7 +49,7 @@
 | **API** | [FastAPI](https://fastapi.tiangolo.com/), Pydantic v2, SlowAPI rate limiting |
 | **Database** | PostgreSQL 16 (prod), SQLite + aiosqlite (dev), [SQLAlchemy 2.0](https://www.sqlalchemy.org/) async, Alembic migrations |
 | **Frontend** | [React 19](https://react.dev/), TypeScript 5.9, [Tailwind CSS 4](https://tailwindcss.com/), Vite 7, [@twa-dev/sdk](https://github.com/nicepkg/twa-dev-sdk) |
-| **Infra** | Docker Compose, GitHub Actions CI |
+| **Infra** | Vercel (frontend + API), GitHub Actions CI |
 
 ---
 
@@ -76,8 +76,6 @@ KukkiDo/
 │       ├── pages/          #   Profile, Tournaments, Rating, TrainingLog
 │       ├── api/            #   API client & endpoints
 │       └── hooks/          #   useApi, custom hooks
-├── docker-compose.yml
-├── Dockerfile
 ├── Makefile
 └── pyproject.toml
 ```
@@ -130,13 +128,6 @@ make webapp     # React dev server on :5173
 make bot        # Telegram bot
 ```
 
-### Docker
-
-```bash
-docker compose up -d
-# API → localhost:8000, PostgreSQL → localhost:5432
-```
-
 ### Running tests
 
 ```bash
@@ -157,8 +148,6 @@ python -m pytest tests/ -v
 | `make all` | Run API + webapp in parallel |
 | `make db-migrate msg="..."` | Create Alembic migration |
 | `make db-upgrade` | Apply pending migrations |
-| `make docker-up` | Start Docker services |
-| `make docker-down` | Stop Docker services |
 
 ---
 

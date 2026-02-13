@@ -1,4 +1,4 @@
-.PHONY: help api webapp bot install install-api install-webapp db-migrate db-upgrade docker-up docker-down all
+.PHONY: help api webapp bot install install-api install-webapp db-migrate db-upgrade all
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -34,14 +34,6 @@ db-migrate: ## Create new Alembic migration (usage: make db-migrate msg="add col
 
 db-upgrade: ## Apply all pending migrations
 	alembic upgrade head
-
-# ── Docker ───────────────────────────────────────────────
-
-docker-up: ## Start all Docker services
-	docker compose up -d
-
-docker-down: ## Stop all Docker services
-	docker compose down
 
 # ── Build ────────────────────────────────────────────────
 
