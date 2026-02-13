@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import BottomSheet from '../components/BottomSheet';
-import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
@@ -14,22 +13,53 @@ const ROLE_LABELS: Record<MeResponse['role'], string> = {
   coach: 'Coach',
   admin: 'Admin',
 };
-const ROLE_ICONS: Record<MeResponse['role'], string> = {
-  athlete: '\u{1F94B}',
-  coach: '\u{1F4CB}',
-  admin: '\u{1F6E1}',
-};
 const ROLE_DESCRIPTIONS: Record<MeResponse['role'], string> = {
   athlete: 'Training logs, tournaments, ratings',
   coach: 'Manage athletes and entries',
   admin: 'Full access to all features',
 };
 
+const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
+const BELTS = ['1 Gup', '1 Dan', '2 Dan', '3 Dan', '4 Dan', '5 Dan'];
+const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Московская область', 'Нижний Новгород', 'Рязань', 'Дагестан', 'Новосибирск', 'Краснодар', 'Владивосток'];
+
+/* ---- Icons ---- */
+
+function GearIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={`transition-transform ${open ? 'rotate-180' : ''}`}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/* ---- Main ---- */
+
 export default function Profile() {
   const { user: tgUser } = useTelegram();
   const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
   const [editing, setEditing] = useState(false);
-  const [showRolePicker, setShowRolePicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   if (loading) return <LoadingSpinner />;
   if (!me) return (
@@ -54,30 +84,35 @@ export default function Profile() {
   const photoUrl = me.athlete?.photo_url || me.coach?.photo_url || tgUser?.photo_url;
 
   return (
-    <div>
-      {/* Switch role button */}
+    <div className="pb-20">
+      {/* Settings gear — top right */}
       <div className="flex justify-end px-4 pt-4">
         <button
-          onClick={() => setShowRolePicker(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-secondary border-none cursor-pointer active:opacity-70 transition-all"
+          onClick={() => setShowSettings(true)}
+          className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-transparent cursor-pointer text-text-disabled active:opacity-70 transition-opacity"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
-            <path d="M16 3l4 4-4 4" /><path d="M20 7H4" /><path d="M8 21l-4-4 4-4" /><path d="M4 17h16" />
-          </svg>
-          <span className="text-xs font-medium text-text-secondary">{ROLE_LABELS[me.role]}</span>
+          <GearIcon />
         </button>
       </div>
 
-      {/* Profile header — centered avatar + name */}
-      <div className="flex flex-col items-center pt-2 pb-4 px-4">
+      {/* Avatar + name */}
+      <div className="flex flex-col items-center pb-4 px-4">
         {photoUrl ? (
-          <img src={photoUrl} alt={displayName} className="w-24 h-24 rounded-full object-cover mb-3" />
+          <img
+            src={photoUrl}
+            alt={displayName}
+            className="w-24 h-24 rounded-full object-cover mb-3"
+            style={{ border: '1px solid var(--color-accent)' }}
+          />
         ) : (
-          <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold bg-accent-light text-accent mb-3">
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-medium bg-accent-light text-accent mb-3"
+            style={{ border: '1px solid var(--color-accent)' }}
+          >
             {initial}
           </div>
         )}
-        <h1 className="text-xl font-bold text-text text-center">
+        <h1 className="text-[22px] font-heading text-text-heading text-center">
           {displayName}
         </h1>
         {isAthlete && me.athlete && (
@@ -87,7 +122,7 @@ export default function Profile() {
         )}
         {isCoach && me.coach && (
           <p className="text-sm text-text-secondary mt-0.5">
-            {me.coach.qualification} · Coach
+            {me.coach.qualification}
           </p>
         )}
         {isAdmin && (
@@ -97,324 +132,353 @@ export default function Profile() {
 
       {/* Athlete profile */}
       {isAthlete && me.athlete && (
-        <>
-          {/* Stats row — 3 cards */}
-          <div className="px-4 grid grid-cols-3 gap-2 mb-3">
-            <div className="bg-white rounded-xl shadow-sm border border-border p-3 text-center">
-              <p className="text-xl font-bold text-accent">{me.athlete.rating_points}</p>
-              <p className="text-[11px] text-text-secondary mt-0.5">Rating</p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-border p-3 text-center">
-              <p className="text-xl font-bold text-accent">—</p>
-              <p className="text-[11px] text-text-secondary mt-0.5">Tournaments</p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-border p-3 text-center">
-              <p className="text-xl font-bold text-accent">—</p>
-              <p className="text-[11px] text-text-secondary mt-0.5">Medals</p>
-            </div>
-          </div>
-
-          {/* Info section */}
-          <div className="px-4">
-            <Card>
-              <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">Information</h3>
-              <div className="space-y-3">
-                <InfoRow icon={<ClubIcon />} label="Club" value={me.athlete.club || '—'} />
-                <InfoRow icon={<LocationIcon />} label="City" value={me.athlete.city} />
-                <InfoRow icon={<FlagIcon />} label="Country" value={me.athlete.country} />
-                <InfoRow icon={<ScaleIcon />} label="Weight" value={`${me.athlete.current_weight} kg`} />
-                <InfoRow icon={<GenderIcon />} label="Gender" value={me.athlete.gender === 'M' ? 'Male' : 'Female'} />
-              </div>
-            </Card>
-          </div>
-
-          {/* Edit button — outlined */}
-          <div className="px-4 mt-1 mb-4">
-            <button
-              onClick={() => setEditing(true)}
-              className="w-full py-3 rounded-xl text-sm font-semibold cursor-pointer bg-transparent text-accent border-2 border-accent active:bg-accent-light transition-colors"
-            >
-              Edit Profile
-            </button>
-          </div>
-
-          {editing && (
-            <EditProfileForm
-              athlete={me.athlete}
-              onClose={() => setEditing(false)}
-              onSaved={(updated) => {
-                setEditing(false);
-                const newMe = { ...me, athlete: { ...me.athlete!, ...updated } };
-                mutate(newMe);
-                updateMockMe(newMe);
-              }}
-            />
-          )}
-        </>
+        <AthleteSection
+          me={me}
+          mutate={mutate}
+          editing={editing}
+          setEditing={setEditing}
+        />
       )}
 
       {/* Coach profile */}
       {isCoach && me.coach && (
-        <>
-          <div className="px-4">
-            <Card>
-              <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">Information</h3>
-              <div className="space-y-3">
-                <InfoRow icon={<ClubIcon />} label="Club" value={me.coach.club} />
-                <InfoRow icon={<LocationIcon />} label="City" value={me.coach.city} />
-                <InfoRow icon={<FlagIcon />} label="Country" value={me.coach.country} />
-                <InfoRow
-                  icon={<VerifiedIcon />}
-                  label="Verified"
-                  value={me.coach.is_verified ? 'Yes' : 'Pending'}
-                />
-              </div>
-            </Card>
-          </div>
-
-          <CoachAthletesList />
-          <CoachEntriesList />
-        </>
+        <CoachSection me={me} />
       )}
 
       {/* Admin profile */}
       {isAdmin && (
         <div className="px-4">
-          <Card>
-            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">Admin Panel</h3>
-            <div className="space-y-3">
-              <InfoRow icon={<VerifiedIcon />} label="Role" value="Administrator" />
-              <InfoRow icon={<ClubIcon />} label="Users" value="7 registered" />
-              <InfoRow icon={<FlagIcon />} label="Tournaments" value="5 total" />
-            </div>
-          </Card>
+          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
+          <InfoRow label="Role" value="Administrator" />
+          <InfoRow label="Users" value="7 registered" />
+          <InfoRow label="Tournaments" value="5 total" />
         </div>
       )}
 
-      {/* Role picker — hidden behind avatar tap */}
-      {showRolePicker && (
-        <BottomSheet onClose={() => setShowRolePicker(false)}>
-          <div className="p-4 pb-2 shrink-0">
-            <h2 className="text-lg font-bold text-text">Switch Role</h2>
-          </div>
-          <div className="px-4 pb-2 space-y-2">
-            {ROLES.map((role) => (
-              <button
-                key={role}
-                onClick={() => { handleRoleChange(role); setShowRolePicker(false); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 ${
-                  me.role === role
-                    ? 'bg-accent text-white'
-                    : 'bg-bg-secondary text-text'
-                }`}
-              >
-                <span className="text-lg">{ROLE_ICONS[role]}</span>
-                <div>
-                  <p className="text-sm font-semibold">{ROLE_LABELS[role]}</p>
-                  <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
-                    {ROLE_DESCRIPTIONS[role]}
-                  </p>
-                </div>
-                {me.role === role && (
-                  <svg className="ml-auto shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-          <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }} />
-        </BottomSheet>
+      {/* Settings */}
+      {showSettings && (
+        <SettingsSheet
+          me={me}
+          onClose={() => setShowSettings(false)}
+          onRoleChange={handleRoleChange}
+        />
       )}
     </div>
   );
 }
 
-/* ---- Info row with icon ---- */
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+/* ---- Athlete Section ---- */
+
+function AthleteSection({
+  me,
+  mutate,
+  editing,
+  setEditing,
+}: {
+  me: MeResponse;
+  mutate: (d: MeResponse) => void;
+  editing: boolean;
+  setEditing: (v: boolean) => void;
+}) {
+  const athlete = me.athlete!;
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-bg-secondary flex items-center justify-center text-text-secondary shrink-0">
-        {icon}
+    <>
+      {/* Stats — 3 columns with vertical dividers */}
+      <div className="flex items-center justify-center mx-4 mb-5 py-3 border-y border-border">
+        <div className="flex-1 text-center">
+          <p className="font-mono text-2xl text-text-heading">{athlete.rating_points}</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Rating</p>
+        </div>
+        <div className="w-px h-10 bg-border" />
+        <div className="flex-1 text-center">
+          <p className="font-mono text-2xl text-text-heading">—</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Tourneys</p>
+        </div>
+        <div className="w-px h-10 bg-border" />
+        <div className="flex-1 text-center">
+          <p className="font-mono text-2xl text-text-heading">—</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Medals</p>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-text-secondary">{label}</p>
-        <p className="text-sm font-medium text-text truncate">{value}</p>
+
+      {/* Information */}
+      <div className="px-4 mb-4">
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
+        <InfoRow label="Club" value={athlete.club || '—'} />
+        <InfoRow label="City" value={athlete.city} />
+        <InfoRow label="Country" value={athlete.country} />
+        <InfoRow label="Weight" value={`${athlete.current_weight} kg`} />
+        <InfoRow label="Gender" value={athlete.gender === 'M' ? 'Male' : 'Female'} />
       </div>
-    </div>
+
+      {/* Tournament History — collapsible */}
+      <div className="px-4 mb-4">
+        <button
+          onClick={() => setHistoryOpen(!historyOpen)}
+          className="flex items-center gap-1.5 border-none bg-transparent cursor-pointer p-0 mb-2"
+        >
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled">Tournament History</span>
+          <ChevronIcon open={historyOpen} />
+        </button>
+        {historyOpen && (
+          <div>
+            <TournamentHistoryRow place={3} name="Первенство Нижнего Новгорода" date="Jan 2026" />
+            <TournamentHistoryRow place={1} name="Турнир Дагестана" date="Dec 2025" />
+          </div>
+        )}
+      </div>
+
+      {/* Edit button — outlined */}
+      <div className="px-4 mb-4">
+        <button
+          onClick={() => setEditing(true)}
+          className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent active:bg-accent-light transition-colors"
+        >
+          Edit Profile
+        </button>
+      </div>
+
+      {editing && (
+        <EditProfileForm
+          athlete={athlete}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => {
+            setEditing(false);
+            const newMe = { ...me, athlete: { ...me.athlete!, ...updated } };
+            mutate(newMe);
+            updateMockMe(newMe);
+          }}
+        />
+      )}
+    </>
   );
 }
 
-/* ---- Inline SVG icons (16x16) ---- */
-function ClubIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /><path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
-    </svg>
-  );
-}
+/* ---- Coach Section ---- */
 
-function LocationIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-    </svg>
-  );
-}
-
-function FlagIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" x2="4" y1="22" y2="15" />
-    </svg>
-  );
-}
-
-function ScaleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
-    </svg>
-  );
-}
-
-function GenderIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="4" /><path d="M16 8V3h5" /><path d="m21 3-5 5" />
-    </svg>
-  );
-}
-
-function VerifiedIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="m9 12 2 2 4-4" />
-    </svg>
-  );
-}
-
-/* ---- Coach athletes ---- */
-function CoachAthletesList() {
-  const { data: athletes, loading } = useApi<CoachAthlete[]>(
+function CoachSection({ me }: { me: MeResponse }) {
+  const coach = me.coach!;
+  const { data: athletes, loading: loadingAthletes } = useApi<CoachAthlete[]>(
     getCoachAthletes,
     mockCoachAthletes,
     [],
   );
-
-  return (
-    <div className="px-4 mt-4 mb-4">
-      <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
-        My Athletes ({athletes?.length || 0})
-      </h2>
-      {loading ? (
-        <LoadingSpinner />
-      ) : !athletes || athletes.length === 0 ? (
-        <Card>
-          <p className="text-sm text-center text-text-secondary">No athletes yet</p>
-        </Card>
-      ) : (
-        <>
-          {/* Horizontal avatar row */}
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-3">
-            {athletes.map((a) => (
-              <div key={a.id} className="flex flex-col items-center shrink-0">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold bg-accent-light text-accent">
-                  {a.full_name.charAt(0)}
-                </div>
-                <p className="text-[11px] text-text mt-1 w-14 text-center truncate">{a.full_name.split(' ').pop()}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Detail cards */}
-          {athletes.map((a) => (
-            <Card key={a.id} className="!p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 bg-accent-light text-accent">
-                  {a.full_name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-text truncate">{a.full_name}</p>
-                  <p className="text-[11px] text-text-secondary">
-                    {a.weight_category} · {a.belt} · {a.rating_points} pts
-                  </p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ---- Coach entries ---- */
-function CoachEntriesList() {
-  const { data: entries, loading } = useApi<CoachEntry[]>(
+  const { data: entries, loading: loadingEntries } = useApi<CoachEntry[]>(
     getCoachEntries,
     mockCoachEntries,
     [],
   );
 
   return (
-    <div className="px-4 mb-4">
-      <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
-        Active Entries ({entries?.length || 0})
-      </h2>
-      {loading ? (
-        <LoadingSpinner />
-      ) : !entries || entries.length === 0 ? (
-        <Card>
-          <p className="text-sm text-center text-text-secondary">No active entries</p>
-        </Card>
-      ) : (
-        entries.map((e) => (
-          <Card key={e.id} className="!p-3">
-            <div className="flex justify-between items-start">
+    <>
+      {/* Stats — 2 columns */}
+      <div className="flex items-center justify-center mx-4 mb-5 py-3 border-y border-border">
+        <div className="flex-1 text-center">
+          <p className="font-mono text-2xl text-text-heading">{athletes?.length || 0}</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Athletes</p>
+        </div>
+        <div className="w-px h-10 bg-border" />
+        <div className="flex-1 text-center">
+          <p className="font-mono text-2xl text-text-heading">{entries?.length || 0}</p>
+          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">Active Entries</p>
+        </div>
+      </div>
+
+      {/* Information */}
+      <div className="px-4 mb-4">
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Information</p>
+        <InfoRow label="Club" value={coach.club} />
+        <InfoRow label="City" value={coach.city} />
+        <InfoRow label="Country" value={coach.country} />
+        <InfoRow label="Qualification" value={coach.qualification} />
+        <InfoRow label="Verified" value={coach.is_verified ? 'Yes' : 'Pending'} accent={coach.is_verified} />
+      </div>
+
+      {/* Athletes list */}
+      <div className="px-4 mb-4">
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Athletes</p>
+        {loadingAthletes ? (
+          <LoadingSpinner />
+        ) : !athletes || athletes.length === 0 ? (
+          <p className="text-sm text-text-secondary">No athletes yet</p>
+        ) : (
+          athletes.map((a, i) => (
+            <div
+              key={a.id}
+              className={`flex items-center gap-3 py-3 ${i < athletes.length - 1 ? 'border-b border-dashed border-border' : ''}`}
+            >
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+                {a.full_name.charAt(0)}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-text truncate">{e.athlete_name}</p>
-                <p className="text-[11px] text-text-secondary">
-                  {e.tournament_name}
-                </p>
-                <p className="text-[11px] text-text-secondary">
-                  {e.weight_category} · {e.age_category}
+                <p className="text-[15px] font-medium text-text truncate">{a.full_name}</p>
+                <p className="text-[13px] text-text-secondary">
+                  {a.weight_category} · {a.belt} · <span className="text-accent">{a.rating_points} pts</span>
                 </p>
               </div>
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ml-2 ${
-                  e.status === 'approved'
-                    ? 'bg-emerald-50/70 text-emerald-700'
-                    : e.status === 'rejected'
-                    ? 'bg-rose-50/70 text-rose-700'
-                    : 'bg-amber-50/70 text-amber-700'
-                }`}
-              >
-                {e.status}
-              </span>
             </div>
-          </Card>
-        ))
-      )}
+          ))
+        )}
+        <button className="text-sm text-accent border-none bg-transparent cursor-pointer p-0 mt-2 active:opacity-70">
+          + Add athlete
+        </button>
+      </div>
+
+      {/* Active entries */}
+      <div className="px-4 mb-4">
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">Active Entries</p>
+        {loadingEntries ? (
+          <LoadingSpinner />
+        ) : !entries || entries.length === 0 ? (
+          <p className="text-sm text-text-secondary">No active entries</p>
+        ) : (
+          entries.map((e, i) => (
+            <div
+              key={e.id}
+              className={`flex items-center justify-between py-3 ${i < entries.length - 1 ? 'border-b border-dashed border-border' : ''}`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-medium text-text truncate">{e.tournament_name}</p>
+                <p className="text-[13px] text-text-secondary">
+                  {e.athlete_name} · {e.weight_category} · {e.status}
+                </p>
+              </div>
+              <span className="text-[13px] text-accent shrink-0 ml-2 cursor-pointer">Edit →</span>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ---- Info Row ---- */
+
+function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex justify-between items-center py-2">
+      <span className="text-[11px] text-text-disabled">{label}</span>
+      <span className={`text-[15px] ${accent ? 'text-accent' : 'text-text'}`}>{value}</span>
     </div>
   );
 }
 
-/* ---- Country → Cities mapping ---- */
-const COUNTRY_CITIES: Record<string, string[]> = {
-  'Kyrgyzstan': ['Bishkek', 'Osh', 'Jalal-Abad', 'Karakol', 'Tokmok', 'Naryn'],
-  'Kazakhstan': ['Almaty', 'Astana', 'Shymkent', 'Karaganda', 'Aktobe', 'Atyrau'],
-  'Uzbekistan': ['Tashkent', 'Samarkand', 'Bukhara', 'Namangan', 'Fergana', 'Andijan'],
-  'Turkmenistan': ['Ashgabat', 'Turkmenabat', 'Mary', 'Dashoguz', 'Balkanabat'],
-  'Tajikistan': ['Dushanbe', 'Khujand', 'Kulob', 'Bokhtar', 'Istaravshan'],
-  'Russia': ['Moscow', 'Saint Petersburg', 'Kazan', 'Novosibirsk', 'Krasnodar', 'Vladivostok'],
-  'South Korea': ['Seoul', 'Busan', 'Incheon', 'Daegu', 'Daejeon', 'Gwangju'],
-  'Iran': ['Tehran', 'Isfahan', 'Mashhad', 'Tabriz', 'Shiraz'],
-  'Turkey': ['Istanbul', 'Ankara', 'Izmir', 'Antalya', 'Bursa'],
-};
-const COUNTRIES = Object.keys(COUNTRY_CITIES);
+/* ---- Tournament History Row ---- */
 
-/* ---- Edit form ---- */
+const MEDAL_COLORS: Record<number, string> = {
+  1: 'text-medal-gold',
+  2: 'text-medal-silver',
+  3: 'text-medal-bronze',
+};
+
+function TournamentHistoryRow({ place, name, date }: { place: number; name: string; date: string }) {
+  return (
+    <div className="flex items-center gap-3 py-2 border-b border-dashed border-border">
+      <span className={`font-mono text-base font-medium w-6 text-center ${MEDAL_COLORS[place] || 'text-text-disabled'}`}>
+        {place}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-text truncate">{name}</p>
+        <p className="text-[11px] text-text-secondary">{date}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Settings Sheet ---- */
+
+function SettingsSheet({
+  me,
+  onClose,
+  onRoleChange,
+}: {
+  me: MeResponse;
+  onClose: () => void;
+  onRoleChange: (role: MeResponse['role']) => void;
+}) {
+  const [lang, setLang] = useState(me.language || 'ru');
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">Settings</h2>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+        {/* Role */}
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-3">Role</p>
+        <div className="space-y-1.5 mb-4">
+          {ROLES.map((role) => (
+            <button
+              key={role}
+              onClick={() => onRoleChange(role)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 ${
+                me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
+              }`}
+            >
+              <div>
+                <p className="text-sm font-medium">{ROLE_LABELS[role]}</p>
+                <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
+                  {ROLE_DESCRIPTIONS[role]}
+                </p>
+              </div>
+              {me.role === role && <CheckIcon />}
+            </button>
+          ))}
+        </div>
+
+        {/* Language */}
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">Language</p>
+        <div className="space-y-1 mb-4">
+          {[{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }].map((l) => (
+            <button
+              key={l.value}
+              onClick={() => setLang(l.value)}
+              className="w-full flex items-center gap-3 py-2.5 border-none bg-transparent cursor-pointer text-left"
+            >
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                lang === l.value ? 'border-accent' : 'border-text-disabled'
+              }`}>
+                {lang === l.value && <div className="w-2.5 h-2.5 rounded-full bg-accent" />}
+              </div>
+              <span className="text-sm text-text">{l.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Account links */}
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">Account</p>
+        <div className="mb-4">
+          {['Request coach role', 'Export data', 'About', 'Support'].map((item) => (
+            <div key={item} className="flex items-center justify-between py-2.5 border-b border-border">
+              <span className="text-sm text-text">{item}</span>
+              <span className="text-text-disabled text-sm">→</span>
+            </div>
+          ))}
+        </div>
+
+        <button className="w-full text-center text-sm text-text-disabled border-none bg-transparent cursor-pointer py-2">
+          Delete account
+        </button>
+
+        <p className="text-center font-mono text-[11px] text-text-disabled mt-4">v0.1.0</p>
+      </div>
+    </BottomSheet>
+  );
+}
+
+/* ---- Edit Profile Form ---- */
+
 function EditProfileForm({
   athlete,
   onClose,
@@ -433,120 +497,122 @@ function EditProfileForm({
     city: athlete.city,
     club: athlete.club || '',
   });
+  const { hapticNotification } = useTelegram();
   const [saving, setSaving] = useState(false);
 
-  const cities = COUNTRY_CITIES[form.country || ''] || [];
+  const hasChanges =
+    form.full_name !== athlete.full_name ||
+    form.weight_category !== athlete.weight_category ||
+    form.current_weight !== athlete.current_weight ||
+    form.belt !== athlete.belt ||
+    form.city !== athlete.city ||
+    form.club !== (athlete.club || '');
 
   const handleSubmit = async () => {
     setSaving(true);
-    try {
-      await updateMe(form);
-    } catch {
-      // API may not be available in mock mode — that's ok
-    } finally {
-      onSaved(form);
-    }
+    try { await updateMe(form); } catch { }
+    finally { hapticNotification('success'); onSaved(form); }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
 
-  const handleCountryChange = (country: string) => {
-    const countryCities = COUNTRY_CITIES[country] || [];
-    setForm((f) => ({ ...f, country, city: countryCities[0] || '' }));
-  };
-
   return (
     <BottomSheet onClose={onClose}>
-      <div className="flex justify-between items-center p-4 pb-2 shrink-0">
-        <h2 className="text-lg font-bold text-text">Edit Profile</h2>
-        <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">Edit Profile</h2>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Full Name</span>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-4">
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Full Name</span>
           <input
             value={form.full_name || ''}
             onChange={(e) => update('full_name', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
           />
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Weight Category</span>
-          <input
-            value={form.weight_category || ''}
-            onChange={(e) => update('weight_category', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-          />
-        </label>
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Weight Category</span>
+          <div className="flex flex-wrap gap-1.5">
+            {WEIGHT_CATEGORIES.map((w) => (
+              <button
+                key={w}
+                onClick={() => update('weight_category', w)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                  form.weight_category === w
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-transparent text-text-disabled border-text-disabled'
+                }`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Current Weight (kg)</span>
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Current Weight (kg)</span>
           <input
             type="number"
             step="0.1"
             value={form.current_weight ?? ''}
             onChange={(e) => update('current_weight', parseFloat(e.target.value) || 0)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
           />
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Belt</span>
-          <input
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Belt</span>
+          <select
             value={form.belt || ''}
             onChange={(e) => update('belt', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Country</span>
-          <select
-            value={form.country || ''}
-            onChange={(e) => handleCountryChange(e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
           >
-            {!COUNTRIES.includes(form.country || '') && form.country && (
-              <option value={form.country}>{form.country}</option>
+            {!BELTS.includes(form.belt || '') && form.belt && (
+              <option value={form.belt}>{form.belt}</option>
             )}
-            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {BELTS.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">City</span>
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">City</span>
           <select
             value={form.city || ''}
             onChange={(e) => update('city', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
           >
-            {cities.length === 0 && form.city && (
+            {!CITIES.includes(form.city || '') && form.city && (
               <option value={form.city}>{form.city}</option>
             )}
-            {!cities.includes(form.city || '') && form.city && cities.length > 0 && (
-              <option value={form.city}>{form.city}</option>
-            )}
-            {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">Club</span>
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">Club</span>
           <input
             value={form.club || ''}
             onChange={(e) => update('club', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-white text-text outline-none"
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
           />
-        </label>
+        </div>
       </div>
 
       <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
         <button
           onClick={handleSubmit}
-          disabled={saving}
-          className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
+          disabled={saving || !hasChanges}
+          className="w-full py-3.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-40 active:opacity-80 transition-all"
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </button>

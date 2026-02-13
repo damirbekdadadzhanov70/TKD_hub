@@ -4,6 +4,7 @@ import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
+import { useTelegram } from '../hooks/useTelegram';
 import {
   createTrainingLog,
   getTrainingLogs,
@@ -81,6 +82,9 @@ export default function TrainingLogPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [showForm, setShowForm] = useState(false);
   const [editingLog, setEditingLog] = useState<TrainingLogType | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'edit' | 'delete'; log: TrainingLogType } | null>(null);
+  const [actionLog, setActionLog] = useState<TrainingLogType | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const { data: logs, loading, mutate } = useApi<TrainingLogType[]>(
     () => getTrainingLogs({ month, year }),
@@ -107,16 +111,24 @@ export default function TrainingLogPage() {
     return set;
   }, [logs, year, month]);
 
+  const selectedDayLogs = useMemo(() => {
+    if (selectedDay === null || !logs) return [];
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+    return logs.filter((l) => l.date === dateStr);
+  }, [logs, selectedDay, year, month]);
+
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = getFirstDayOfWeek(year, month);
   const today = now.getDate();
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
   const prevMonth = () => {
+    setSelectedDay(null);
     if (month === 1) { setMonth(12); setYear(year - 1); }
     else setMonth(month - 1);
   };
   const nextMonth = () => {
+    setSelectedDay(null);
     if (month === 12) { setMonth(1); setYear(year + 1); }
     else setMonth(month + 1);
   };
@@ -160,18 +172,24 @@ export default function TrainingLogPage() {
               const day = i + 1;
               const hasLog = logDates.has(day);
               const isToday = isCurrentMonth && day === today;
+              const isSelected = selectedDay === day;
               return (
                 <div
                   key={day}
-                  className={`py-1.5 rounded-lg relative text-xs ${
-                    isToday ? 'bg-accent text-white font-bold' : 'text-text'
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`py-1.5 rounded-lg relative text-xs cursor-pointer transition-colors ${
+                    isSelected
+                      ? 'bg-accent/20 text-accent font-bold'
+                      : isToday
+                        ? 'bg-accent text-white font-bold'
+                        : 'text-text'
                   }`}
                 >
                   {day}
                   {hasLog && (
                     <div
                       className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
-                        isToday ? 'bg-white' : 'bg-accent'
+                        isSelected ? 'bg-accent' : isToday ? 'bg-white' : 'bg-accent'
                       }`}
                     />
                   )}
@@ -179,6 +197,37 @@ export default function TrainingLogPage() {
               );
             })}
           </div>
+
+          {/* Selected day details */}
+          {selectedDay !== null && (
+            <div className="mt-3 pt-3 border-t border-dashed border-border">
+              <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
+                {selectedDay} {MONTH_NAMES[month - 1]}
+              </p>
+              {selectedDayLogs.length === 0 ? (
+                <p className="text-sm text-text-secondary py-2">No training this day</p>
+              ) : (
+                selectedDayLogs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
+                        <TrainingTypeIcon type={log.type} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold capitalize text-text">{log.type}</p>
+                        <p className="text-[11px] text-text-secondary">
+                          {log.duration_minutes} min · {INTENSITY_LABELS[log.intensity] || log.intensity}
+                        </p>
+                      </div>
+                    </div>
+                    {log.weight && (
+                      <span className="text-xs font-mono text-text-secondary shrink-0 ml-2">{log.weight} kg</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -214,7 +263,7 @@ export default function TrainingLogPage() {
           <EmptyState title="No training logs" description="Tap + to add your first entry" />
         ) : (
           logs.map((log) => (
-            <Card key={log.id}>
+            <Card key={log.id} onClick={() => setActionLog(log)}>
               <div className="flex justify-between items-start">
                 <div className="flex items-start gap-3">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
@@ -229,25 +278,11 @@ export default function TrainingLogPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {log.weight && (
-                    <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
-                      {log.weight} kg
-                    </span>
-                  )}
-                  <button
-                    onClick={() => setEditingLog(log)}
-                    className="text-xs border-none bg-transparent cursor-pointer text-accent px-1"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(log.id)}
-                    className="text-xs border-none bg-transparent cursor-pointer text-rose-500 px-1"
-                  >
-                    Del
-                  </button>
-                </div>
+                {log.weight && (
+                  <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
+                    {log.weight} kg
+                  </span>
+                )}
               </div>
               {log.notes && (
                 <p className="text-xs mt-2 text-text ml-12">{log.notes}</p>
@@ -269,6 +304,92 @@ export default function TrainingLogPage() {
       >
         +
       </button>
+
+      {/* Action sheet */}
+      {actionLog && (
+        <BottomSheet onClose={() => setActionLog(null)}>
+          <div className="p-4 pt-5">
+            <p className="text-sm text-text-secondary text-center mb-1">
+              <span className="capitalize font-semibold text-text">{actionLog.type}</span> · {actionLog.date}
+            </p>
+            {actionLog.notes && (
+              <p className="text-xs text-text-disabled text-center mb-3 truncate">{actionLog.notes}</p>
+            )}
+            <div className="space-y-2 mt-3">
+              <button
+                onClick={() => {
+                  const log = actionLog;
+                  setActionLog(null);
+                  setConfirmAction({ type: 'edit', log });
+                }}
+                className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 transition-all"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  const log = actionLog;
+                  setActionLog(null);
+                  setConfirmAction({ type: 'delete', log });
+                }}
+                className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 transition-all"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setActionLog(null)}
+                className="w-full py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text-secondary active:opacity-80 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* Confirmation popup */}
+      {confirmAction && (
+        <BottomSheet onClose={() => setConfirmAction(null)}>
+          <div className="p-4 pt-5 text-center">
+            <h2 className="text-lg font-bold text-text mb-1">
+              {confirmAction.type === 'delete' ? 'Delete session?' : 'Edit session?'}
+            </h2>
+            <p className="text-sm text-text-secondary mb-1">
+              <span className="capitalize font-medium">{confirmAction.log.type}</span> · {confirmAction.log.date}
+            </p>
+            <p className="text-xs text-text-disabled mb-5">
+              {confirmAction.type === 'delete'
+                ? 'This action cannot be undone.'
+                : 'You will be able to modify the session details.'}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmAction.type === 'delete') {
+                    handleDelete(confirmAction.log.id);
+                  } else {
+                    setEditingLog(confirmAction.log);
+                  }
+                  setConfirmAction(null);
+                }}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer active:opacity-80 transition-all ${
+                  confirmAction.type === 'delete'
+                    ? 'bg-rose-500 text-white'
+                    : 'bg-accent text-accent-text'
+                }`}
+              >
+                {confirmAction.type === 'delete' ? 'Delete' : 'Edit'}
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+      )}
 
       {/* Add form modal */}
       {showForm && (
@@ -299,6 +420,7 @@ export default function TrainingLogPage() {
 }
 
 function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (data: TrainingLogCreate) => void }) {
+  const { hapticNotification } = useTelegram();
   const [form, setForm] = useState<TrainingLogCreate>({
     date: new Date().toISOString().slice(0, 10),
     type: 'sparring',
@@ -312,7 +434,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
   const handleSubmit = async () => {
     setSaving(true);
     try { await createTrainingLog(form); } catch { }
-    finally { onSaved(form); }
+    finally { hapticNotification('success'); onSaved(form); }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
@@ -413,6 +535,7 @@ function TrainingEditForm({
   onClose: () => void;
   onSaved: (data: TrainingLogUpdate) => void;
 }) {
+  const { hapticNotification } = useTelegram();
   const [form, setForm] = useState<TrainingLogUpdate>({
     date: log.date,
     type: log.type,
@@ -426,7 +549,7 @@ function TrainingEditForm({
   const handleSubmit = async () => {
     setSaving(true);
     try { await updateTrainingLog(log.id, form); } catch { }
-    finally { onSaved(form); }
+    finally { hapticNotification('success'); onSaved(form); }
   };
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));

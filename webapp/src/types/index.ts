@@ -86,6 +86,14 @@ export interface TournamentDetail {
   entries: TournamentEntry[];
 }
 
+export interface TournamentResult {
+  place: number;
+  athlete_name: string;
+  city: string;
+  weight_category: string;
+  age_category: string;
+}
+
 export interface TournamentInterestResponse {
   tournament_id: string;
   athlete_id: string;

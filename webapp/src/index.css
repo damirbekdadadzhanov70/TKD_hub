@@ -1,17 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #FFFFFF;
-  --color-bg-secondary: #F9FAFB;
-  --color-text: #111827;
-  --color-text-secondary: #6B7280;
-  --color-accent: #2563EB;
-  --color-accent-light: #EFF6FF;
+  /* Фоны */
+  --color-bg: #FAFAF9;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-divider: #E7E5E4;
+
+  /* Текст */
+  --color-text: #1C1917;
+  --color-text-heading: #0C0A09;
+  --color-text-secondary: #78716C;
+  --color-text-disabled: #A8A29E;
+
+  /* Акцент — золото */
+  --color-accent: #D4AF37;
+  --color-accent-dark: #B8972E;
+  --color-accent-light: #FBF5E0;
   --color-accent-text: #FFFFFF;
-  --color-border: #CBD5E1;
-  --color-success: #22C55E;
-  --color-warning: #F59E0B;
-  --color-muted: #9CA3AF;
+
+  /* Медали */
+  --color-medal-gold: #D4AF37;
+  --color-medal-silver: #78716C;
+  --color-medal-bronze: #92400E;
+
+  /* Статусы */
+  --color-status-active: #D4AF37;
+  --color-status-pending: #78716C;
+  --color-status-completed: #A8A29E;
+
+  /* Совместимость */
+  --color-border: #E7E5E4;
+  --color-muted: #A8A29E;
+
+  /* Шрифты */
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
 }
 
 * {
@@ -20,25 +44,72 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-body);
   background-color: var(--color-bg);
   color: var(--color-text);
   min-height: 100vh;
-  max-width: 480px;
+  max-width: 420px;
   margin-left: auto;
   margin-right: auto;
+  box-shadow: -1px 0 0 #E7E5E4, 1px 0 0 #E7E5E4;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Page transition (opacity only — transform breaks position:fixed inside <main>) */
-.page-enter {
+/* Page transitions */
+.page-fade-enter {
   opacity: 0;
 }
-.page-enter-active {
+.page-fade-enter-active {
   opacity: 1;
-  transition: opacity 200ms ease-out;
+  transition: opacity 150ms ease-out;
+}
+
+.page-slide-enter {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.page-slide-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+/* Skeleton pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { background-color: #E7E5E4; }
+  50% { background-color: #F5F5F4; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* Podium grow animation */
+@keyframes podium-grow {
+  from {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+  to {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+}
+
+.podium-bar {
+  animation: podium-grow 300ms ease-out both;
+}
+
+/* Podium text fade-in after bars */
+@keyframes podium-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.podium-text {
+  animation: podium-fade 200ms ease-out both;
 }

@@ -9,11 +9,13 @@ import Profile from './pages/Profile';
 import { useTelegram } from './hooks/useTelegram';
 
 export default function App() {
-  const { ready, expand } = useTelegram();
+  const { ready, expand, setHeaderColor, setBackgroundColor } = useTelegram();
 
   useEffect(() => {
     ready();
     expand();
+    setHeaderColor('#FAFAF9');
+    setBackgroundColor('#FAFAF9');
   }, []);
 
   return (

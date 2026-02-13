@@ -5,6 +5,7 @@ import type {
   RatingEntry,
   TournamentDetail,
   TournamentListItem,
+  TournamentResult,
   TrainingLog,
   TrainingLogCreate,
   TrainingLogStats,
@@ -43,8 +44,8 @@ const defaultMe: MeResponse = {
     weight_category: '-68kg',
     current_weight: 67.5,
     belt: '2 Dan',
-    country: 'Kyrgyzstan',
-    city: 'Bishkek',
+    country: 'Россия',
+    city: 'Москва',
     club: 'TKD Academy',
     photo_url: null,
     rating_points: 1250,
@@ -54,8 +55,8 @@ const defaultMe: MeResponse = {
     full_name: 'Alikhanov Damir',
     date_of_birth: '2000-05-15',
     gender: 'M',
-    country: 'Kyrgyzstan',
-    city: 'Bishkek',
+    country: 'Россия',
+    city: 'Москва',
     club: 'TKD Academy',
     qualification: '4 Dan, International Coach',
     photo_url: null,
@@ -75,55 +76,55 @@ export function updateMockMe(data: MeResponse) {
 export const mockTournaments: TournamentListItem[] = [
   {
     id: '00000000-0000-0000-0000-000000000010',
-    name: 'Central Asian Open Championship 2026',
+    name: 'Кубок России по тхэквондо 2026',
     start_date: '2026-04-15',
     end_date: '2026-04-17',
-    city: 'Almaty',
-    country: 'Kazakhstan',
+    city: 'Москва',
+    country: 'Россия',
     status: 'upcoming',
     importance_level: 3,
     entry_count: 148,
   },
   {
     id: '00000000-0000-0000-0000-000000000011',
-    name: 'Bishkek Cup 2026',
+    name: 'Открытый турнир Санкт-Петербурга',
     start_date: '2026-03-10',
     end_date: '2026-03-11',
-    city: 'Bishkek',
-    country: 'Kyrgyzstan',
+    city: 'Санкт-Петербург',
+    country: 'Россия',
     status: 'upcoming',
     importance_level: 2,
     entry_count: 72,
   },
   {
     id: '00000000-0000-0000-0000-000000000013',
-    name: 'Silk Road Taekwondo Open',
+    name: 'Кубок Казани',
     start_date: '2026-02-20',
     end_date: '2026-02-22',
-    city: 'Tashkent',
-    country: 'Uzbekistan',
+    city: 'Казань',
+    country: 'Россия',
     status: 'ongoing',
     importance_level: 3,
     entry_count: 186,
   },
   {
     id: '00000000-0000-0000-0000-000000000012',
-    name: 'Tashkent International',
+    name: 'Первенство Нижнего Новгорода',
     start_date: '2026-01-18',
     end_date: '2026-01-20',
-    city: 'Tashkent',
-    country: 'Uzbekistan',
+    city: 'Нижний Новгород',
+    country: 'Россия',
     status: 'completed',
     importance_level: 3,
     entry_count: 210,
   },
   {
     id: '00000000-0000-0000-0000-000000000014',
-    name: 'Ashgabat National Cup',
+    name: 'Турнир Дагестана',
     start_date: '2025-12-05',
     end_date: '2025-12-06',
-    city: 'Ashgabat',
-    country: 'Turkmenistan',
+    city: 'Дагестан',
+    country: 'Россия',
     status: 'completed',
     importance_level: 1,
     entry_count: 54,
@@ -132,14 +133,14 @@ export const mockTournaments: TournamentListItem[] = [
 
 export const mockTournamentDetail: TournamentDetail = {
   ...mockTournaments[0],
-  description: 'The premier annual Central Asian Open Championship featuring athletes from 10+ countries across all age and weight categories.',
-  venue: 'Almaty Arena',
+  description: 'Ежегодный Кубок России по тхэквондо среди всех возрастных и весовых категорий.',
+  venue: 'Дворец единоборств',
   age_categories: ['Cadets (12-14)', 'Juniors (15-17)', 'Seniors (18+)'],
   weight_categories: ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'],
-  entry_fee: 50,
-  currency: 'USD',
+  entry_fee: 3000,
+  currency: 'RUB',
   registration_deadline: '2026-04-01',
-  organizer_contact: 'info@centralasiatkd.org',
+  organizer_contact: 'info@russiantkd.ru',
   entries: [
     { id: '00000000-0000-0000-0000-000000000020', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
     { id: '00000000-0000-0000-0000-000000000021', athlete_name: 'Asanov Timur', weight_category: '-74kg', age_category: 'Seniors', status: 'pending' },
@@ -147,6 +148,19 @@ export const mockTournamentDetail: TournamentDetail = {
     { id: '00000000-0000-0000-0000-000000000023', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'approved' },
   ],
 };
+
+// ── Tournament Results ───────────────────────────────────────
+
+export const mockTournamentResults: TournamentResult[] = [
+  { place: 1, athlete_name: 'Ким Сергей', city: 'Москва', weight_category: '-68kg', age_category: 'Seniors' },
+  { place: 2, athlete_name: 'Рахимов Отабек', city: 'Казань', weight_category: '-68kg', age_category: 'Seniors' },
+  { place: 3, athlete_name: 'Alikhanov Damir', city: 'Москва', weight_category: '-68kg', age_category: 'Seniors' },
+  { place: 1, athlete_name: 'Ibraimova Asel', city: 'Москва', weight_category: '-57kg', age_category: 'Seniors' },
+  { place: 2, athlete_name: 'Низамова Алия', city: 'Казань', weight_category: '-57kg', age_category: 'Seniors' },
+  { place: 3, athlete_name: 'Омарова Динара', city: 'Санкт-Петербург', weight_category: '-57kg', age_category: 'Seniors' },
+  { place: 1, athlete_name: 'Магомедов Адилет', city: 'Дагестан', weight_category: '-74kg', age_category: 'Juniors' },
+  { place: 2, athlete_name: 'Беков Азамат', city: 'Москва', weight_category: '-74kg', age_category: 'Juniors' },
+];
 
 // ── Training Logs ───────────────────────────────────────────
 
@@ -207,13 +221,13 @@ export function deleteMockTrainingLog(id: string) {
 // ── Ratings ─────────────────────────────────────────────────
 
 export const mockRatings: RatingEntry[] = [
-  { rank: 1, athlete_id: '00000000-0000-0000-0000-000000000040', full_name: 'Kim Sergei', country: 'Kazakhstan', city: 'Almaty', club: 'Tiger Dojang', weight_category: '-68kg', belt: '3 Dan', rating_points: 2100, photo_url: null },
-  { rank: 2, athlete_id: '00000000-0000-0000-0000-000000000041', full_name: 'Rakhimov Otabek', country: 'Uzbekistan', city: 'Tashkent', club: 'Samarkand TKD', weight_category: '-68kg', belt: '2 Dan', rating_points: 1800, photo_url: null },
-  { rank: 3, athlete_id: '00000000-0000-0000-0000-000000000001', full_name: 'Alikhanov Damir', country: 'Kyrgyzstan', city: 'Bishkek', club: 'TKD Academy', weight_category: '-68kg', belt: '2 Dan', rating_points: 1250, photo_url: null },
-  { rank: 4, athlete_id: '00000000-0000-0000-0000-000000000042', full_name: 'Niyazov Ruslan', country: 'Turkmenistan', city: 'Ashgabat', club: 'Turkmen Fighters', weight_category: '-68kg', belt: '1 Dan', rating_points: 950, photo_url: null },
-  { rank: 5, athlete_id: '00000000-0000-0000-0000-000000000043', full_name: 'Toktosunov Adilet', country: 'Kyrgyzstan', city: 'Osh', club: 'Osh Warriors', weight_category: '-68kg', belt: '1 Dan', rating_points: 820, photo_url: null },
-  { rank: 6, athlete_id: '00000000-0000-0000-0000-000000000044', full_name: 'Omarov Beibit', country: 'Kazakhstan', city: 'Astana', club: 'Nomad TKD', weight_category: '-68kg', belt: '2 Dan', rating_points: 740, photo_url: null },
-  { rank: 7, athlete_id: '00000000-0000-0000-0000-000000000045', full_name: 'Ismoilov Farrukh', country: 'Uzbekistan', city: 'Bukhara', club: null, weight_category: '-68kg', belt: '1 Dan', rating_points: 680, photo_url: null },
+  { rank: 1, athlete_id: '00000000-0000-0000-0000-000000000040', full_name: 'Ким Сергей', country: 'Россия', city: 'Москва', club: 'Tiger Dojang', weight_category: '-68kg', belt: '3 Dan', rating_points: 2100, photo_url: null },
+  { rank: 2, athlete_id: '00000000-0000-0000-0000-000000000041', full_name: 'Рахимов Отабек', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-68kg', belt: '2 Dan', rating_points: 1800, photo_url: null },
+  { rank: 3, athlete_id: '00000000-0000-0000-0000-000000000001', full_name: 'Alikhanov Damir', country: 'Россия', city: 'Москва', club: 'TKD Academy', weight_category: '-68kg', belt: '2 Dan', rating_points: 1250, photo_url: null },
+  { rank: 4, athlete_id: '00000000-0000-0000-0000-000000000042', full_name: 'Низамов Руслан', country: 'Россия', city: 'Нижний Новгород', club: 'Волга TKD', weight_category: '-68kg', belt: '1 Dan', rating_points: 950, photo_url: null },
+  { rank: 5, athlete_id: '00000000-0000-0000-0000-000000000043', full_name: 'Магомедов Адилет', country: 'Россия', city: 'Дагестан', club: 'Дагестан Warriors', weight_category: '-68kg', belt: '1 Dan', rating_points: 820, photo_url: null },
+  { rank: 6, athlete_id: '00000000-0000-0000-0000-000000000044', full_name: 'Омаров Бейбит', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-68kg', belt: '2 Dan', rating_points: 740, photo_url: null },
+  { rank: 7, athlete_id: '00000000-0000-0000-0000-000000000045', full_name: 'Исмоилов Фаррух', country: 'Россия', city: 'Рязань', club: null, weight_category: '-68kg', belt: '1 Dan', rating_points: 680, photo_url: null },
 ];
 
 // ── Coach ───────────────────────────────────────────────────
@@ -225,6 +239,6 @@ export const mockCoachAthletes: CoachAthlete[] = [
 ];
 
 export const mockCoachEntries: CoachEntry[] = [
-  { id: '00000000-0000-0000-0000-000000000050', tournament_id: '00000000-0000-0000-0000-000000000010', tournament_name: 'Central Asian Open Championship 2026', athlete_id: '00000000-0000-0000-0000-000000000001', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
-  { id: '00000000-0000-0000-0000-000000000051', tournament_id: '00000000-0000-0000-0000-000000000010', tournament_name: 'Central Asian Open Championship 2026', athlete_id: '00000000-0000-0000-0000-000000000046', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'pending' },
+  { id: '00000000-0000-0000-0000-000000000050', tournament_id: '00000000-0000-0000-0000-000000000010', tournament_name: 'Кубок России по тхэквондо 2026', athlete_id: '00000000-0000-0000-0000-000000000001', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
+  { id: '00000000-0000-0000-0000-000000000051', tournament_id: '00000000-0000-0000-0000-000000000010', tournament_name: 'Кубок России по тхэквондо 2026', athlete_id: '00000000-0000-0000-0000-000000000046', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'pending' },
 ];
