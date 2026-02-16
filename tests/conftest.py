@@ -2,7 +2,6 @@ import hashlib
 import hmac
 import json
 import time
-import uuid
 from datetime import date, timedelta
 from urllib.parse import urlencode
 

@@ -20,7 +20,6 @@ from api.utils.pagination import paginate_query
 from bot.config import settings
 from db.models import (
     Athlete,
-    Coach,
     CoachAthlete,
     Tournament,
     TournamentEntry,

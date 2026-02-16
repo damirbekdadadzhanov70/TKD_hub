@@ -1,10 +1,9 @@
 from datetime import date
 from decimal import Decimal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
-
 from sqlalchemy import select
 
 from api.dependencies import AuthContext, get_current_user

@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Add project root to path so imports work
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-import db.models  # noqa: E402, F401 — import all models so metadata is populated
-from db.base import Base, DATABASE_URL  # noqa: E402
+import db.models  # noqa: E402, F401, I001 — import all models so metadata is populated
+from db.base import Base, DATABASE_URL  # noqa: E402, I001
 
 config = context.config
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

@@ -7,12 +7,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards.registration import (
+    RANK_LABELS,
     city_keyboard,
     club_skip_keyboard,
     gender_keyboard,
     photo_skip_keyboard,
     rank_keyboard,
-    RANK_LABELS,
     weight_category_keyboard,
 )
 from bot.states.registration import AthleteRegistration, CoachRegistration
