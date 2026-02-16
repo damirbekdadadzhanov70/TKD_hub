@@ -24,9 +24,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("tournament_id", sa.Uuid(), nullable=False),
         sa.Column("athlete_id", sa.Uuid(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-        sa.ForeignKeyConstraint(["athlete_id"], ["athletes.id"]),
-        sa.ForeignKeyConstraint(["tournament_id"], ["tournaments.id"]),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.ForeignKeyConstraint(["athlete_id"], ["athletes.id"], name="fk_ti_athlete_id"),
+        sa.ForeignKeyConstraint(["tournament_id"], ["tournaments.id"], name="fk_ti_tournament_id"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("tournament_id", "athlete_id"),
     )

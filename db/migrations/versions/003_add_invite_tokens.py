@@ -24,9 +24,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("token", sa.String(24), nullable=False),
         sa.Column("coach_id", sa.Uuid(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("used", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.ForeignKeyConstraint(["coach_id"], ["coaches.id"], ondelete="CASCADE"),

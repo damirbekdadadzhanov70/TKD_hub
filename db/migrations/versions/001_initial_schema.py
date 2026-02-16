@@ -34,7 +34,7 @@ def upgrade() -> None:
     op.create_table(
         "athletes",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False, unique=True),
+        sa.Column("user_id", sa.Uuid(), nullable=False, unique=True),
         sa.Column("full_name", sa.String(255), nullable=False),
         sa.Column("date_of_birth", sa.Date(), nullable=False),
         sa.Column("gender", sa.String(1), nullable=False),
@@ -46,16 +46,17 @@ def upgrade() -> None:
         sa.Column("club", sa.String(255), nullable=True),
         sa.Column("photo_url", sa.String(500), nullable=True),
         sa.Column("rating_points", sa.Integer(), server_default="0"),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("1")),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_athletes_user_id"),
     )
 
     # coaches
     op.create_table(
         "coaches",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False, unique=True),
+        sa.Column("user_id", sa.Uuid(), nullable=False, unique=True),
         sa.Column("full_name", sa.String(255), nullable=False),
         sa.Column("date_of_birth", sa.Date(), nullable=False),
         sa.Column("gender", sa.String(1), nullable=False),
@@ -64,22 +65,25 @@ def upgrade() -> None:
         sa.Column("club", sa.String(255), nullable=False),
         sa.Column("qualification", sa.String(255), nullable=False),
         sa.Column("photo_url", sa.String(500), nullable=True),
-        sa.Column("is_verified", sa.Boolean(), server_default=sa.text("0")),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("1")),
+        sa.Column("is_verified", sa.Boolean(), server_default=sa.text("false")),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_coaches_user_id"),
     )
 
     # coach_athletes
     op.create_table(
         "coach_athletes",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("coach_id", sa.Uuid(), sa.ForeignKey("coaches.id"), nullable=False),
-        sa.Column("athlete_id", sa.Uuid(), sa.ForeignKey("athletes.id"), nullable=False),
+        sa.Column("coach_id", sa.Uuid(), nullable=False),
+        sa.Column("athlete_id", sa.Uuid(), nullable=False),
         sa.Column("status", sa.String(20), server_default="pending"),
         sa.Column("invited_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("accepted_at", sa.DateTime(), nullable=True),
         sa.UniqueConstraint("coach_id", "athlete_id"),
+        sa.ForeignKeyConstraint(["coach_id"], ["coaches.id"], name="fk_coach_athletes_coach_id"),
+        sa.ForeignKeyConstraint(["athlete_id"], ["athletes.id"], name="fk_coach_athletes_athlete_id"),
     )
 
     # tournaments
@@ -101,44 +105,50 @@ def upgrade() -> None:
         sa.Column("organizer_contact", sa.String(255), nullable=True),
         sa.Column("status", sa.String(20), server_default="upcoming"),
         sa.Column("importance_level", sa.Integer(), server_default="1"),
-        sa.Column("created_by", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("created_by", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["created_by"], ["users.id"], name="fk_tournaments_created_by"),
     )
 
     # tournament_entries
     op.create_table(
         "tournament_entries",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("tournament_id", sa.Uuid(), sa.ForeignKey("tournaments.id"), nullable=False),
-        sa.Column("athlete_id", sa.Uuid(), sa.ForeignKey("athletes.id"), nullable=False),
-        sa.Column("coach_id", sa.Uuid(), sa.ForeignKey("coaches.id"), nullable=False),
+        sa.Column("tournament_id", sa.Uuid(), nullable=False),
+        sa.Column("athlete_id", sa.Uuid(), nullable=False),
+        sa.Column("coach_id", sa.Uuid(), nullable=False),
         sa.Column("weight_category", sa.String(50), nullable=False),
         sa.Column("age_category", sa.String(50), nullable=False),
         sa.Column("status", sa.String(20), server_default="pending"),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
         sa.UniqueConstraint("tournament_id", "athlete_id"),
+        sa.ForeignKeyConstraint(["tournament_id"], ["tournaments.id"], name="fk_te_tournament_id"),
+        sa.ForeignKeyConstraint(["athlete_id"], ["athletes.id"], name="fk_te_athlete_id"),
+        sa.ForeignKeyConstraint(["coach_id"], ["coaches.id"], name="fk_te_coach_id"),
     )
 
     # tournament_results
     op.create_table(
         "tournament_results",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("tournament_id", sa.Uuid(), sa.ForeignKey("tournaments.id"), nullable=False),
-        sa.Column("athlete_id", sa.Uuid(), sa.ForeignKey("athletes.id"), nullable=False),
+        sa.Column("tournament_id", sa.Uuid(), nullable=False),
+        sa.Column("athlete_id", sa.Uuid(), nullable=False),
         sa.Column("weight_category", sa.String(50), nullable=False),
         sa.Column("age_category", sa.String(50), nullable=False),
         sa.Column("place", sa.Integer(), nullable=False),
         sa.Column("rating_points_earned", sa.Integer(), server_default="0"),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["tournament_id"], ["tournaments.id"], name="fk_tr_tournament_id"),
+        sa.ForeignKeyConstraint(["athlete_id"], ["athletes.id"], name="fk_tr_athlete_id"),
     )
 
     # training_log
     op.create_table(
         "training_log",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("athlete_id", sa.Uuid(), sa.ForeignKey("athletes.id"), nullable=False),
+        sa.Column("athlete_id", sa.Uuid(), nullable=False),
         sa.Column("date", sa.Date(), nullable=False),
         sa.Column("type", sa.String(50), nullable=False),
         sa.Column("duration_minutes", sa.Integer(), nullable=False),
@@ -148,19 +158,22 @@ def upgrade() -> None:
         sa.Column("coach_comment", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["athlete_id"], ["athletes.id"], name="fk_training_log_athlete_id"),
     )
 
     # role_requests
     op.create_table(
         "role_requests",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("requested_role", sa.String(20), nullable=False),
         sa.Column("status", sa.String(20), server_default="pending"),
         sa.Column("admin_comment", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
         sa.Column("reviewed_at", sa.DateTime(), nullable=True),
-        sa.Column("reviewed_by", sa.Uuid(), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("reviewed_by", sa.Uuid(), nullable=True),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_role_requests_user_id"),
+        sa.ForeignKeyConstraint(["reviewed_by"], ["users.id"], name="fk_role_requests_reviewed_by"),
     )
 
 
