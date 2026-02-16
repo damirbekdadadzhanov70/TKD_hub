@@ -12,7 +12,10 @@ export default function BottomSheet({
   const [visible, setVisible] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   // Viewport resize + enter animation
   useEffect(() => {

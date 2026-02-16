@@ -132,13 +132,15 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
     }
   }, [step, showBackButton]);
 
-  // Adjust day when month/year changes
-  useEffect(() => {
-    if (dobDay && dobMonth && dobYear) {
-      const maxDay = daysInMonth(Number(dobMonth), Number(dobYear));
-      if (Number(dobDay) > maxDay) setDobDay(String(maxDay));
+  // Clamp day when month/year changes
+  const clampDay = (day: string, month: string, year: string) => {
+    if (day && month && year) {
+      const maxDay = daysInMonth(Number(month), Number(year));
+      if (Number(day) > maxDay) setDobDay(String(maxDay));
     }
-  }, [dobMonth, dobYear, dobDay]);
+  };
+  const handleDobMonth = (m: string) => { setDobMonth(m); clampDay(dobDay, m, dobYear); };
+  const handleDobYear = (y: string) => { setDobYear(y); clampDay(dobDay, dobMonth, y); };
 
   const handleRoleSelect = (r: SelectedRole) => {
     hapticFeedback('light');
@@ -301,7 +303,7 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
             </select>
             <select
               value={dobMonth}
-              onChange={(e) => setDobMonth(e.target.value)}
+              onChange={(e) => handleDobMonth(e.target.value)}
               className={selectClass}
             >
               <option value="" disabled>{t('onboarding.month')}</option>
@@ -311,7 +313,7 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
             </select>
             <select
               value={dobYear}
-              onChange={(e) => setDobYear(e.target.value)}
+              onChange={(e) => handleDobYear(e.target.value)}
               className={selectClass}
             >
               <option value="" disabled>{t('onboarding.year')}</option>
