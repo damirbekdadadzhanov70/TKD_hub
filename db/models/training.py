@@ -12,7 +12,7 @@ class TrainingLog(Base):
     __tablename__ = "training_log"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id"), nullable=False)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -34,7 +34,7 @@ export function updateMe(data: AthleteUpdate): Promise<MeResponse> {
 }
 
 export function updateCoach(data: CoachUpdate): Promise<MeResponse> {
-  return apiRequest<MeResponse>('/me', {
+  return apiRequest<MeResponse>('/me/coach', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
@@ -53,11 +53,11 @@ export function registerProfile(payload: {
 // --- Tournaments ---
 
 export async function getTournaments(params?: {
-  country?: string;
+  city?: string;
   status?: string;
 }): Promise<TournamentListItem[]> {
   const searchParams = new URLSearchParams();
-  if (params?.country) searchParams.set('country', params.country);
+  if (params?.city) searchParams.set('city', params.city);
   if (params?.status) searchParams.set('status', params.status);
   const qs = searchParams.toString();
   const res = await apiRequest<PaginatedResponse<TournamentListItem>>(`/tournaments${qs ? `?${qs}` : ''}`);
@@ -68,6 +68,12 @@ export function createTournament(data: TournamentCreate): Promise<TournamentList
   return apiRequest<TournamentListItem>('/tournaments', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+export function deleteTournament(id: string): Promise<void> {
+  return apiRequest<void>(`/tournaments/${id}`, {
+    method: 'DELETE',
   });
 }
 
@@ -84,16 +90,29 @@ export function markInterest(tournamentId: string): Promise<TournamentInterestRe
 export function enterTournament(
   tournamentId: string,
   athleteIds: string[],
+  ageCategory: string,
 ): Promise<TournamentEntry[]> {
   return apiRequest<TournamentEntry[]>(`/tournaments/${tournamentId}/enter`, {
     method: 'POST',
-    body: JSON.stringify({ athlete_ids: athleteIds }),
+    body: JSON.stringify({ athlete_ids: athleteIds, age_category: ageCategory }),
   });
 }
 
-export function removeEntry(tournamentId: string, athleteId: string): Promise<void> {
-  return apiRequest<void>(`/tournaments/${tournamentId}/entries/${athleteId}`, {
+export function removeEntry(tournamentId: string, entryId: string): Promise<void> {
+  return apiRequest<void>(`/tournaments/${tournamentId}/entries/${entryId}`, {
     method: 'DELETE',
+  });
+}
+
+export function approveCoachEntries(tournamentId: string, coachId: string): Promise<void> {
+  return apiRequest<void>(`/tournaments/${tournamentId}/coaches/${coachId}/approve`, {
+    method: 'POST',
+  });
+}
+
+export function rejectCoachEntries(tournamentId: string, coachId: string): Promise<void> {
+  return apiRequest<void>(`/tournaments/${tournamentId}/coaches/${coachId}/reject`, {
+    method: 'POST',
   });
 }
 

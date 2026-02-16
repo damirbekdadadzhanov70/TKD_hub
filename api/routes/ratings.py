@@ -38,7 +38,7 @@ async def get_ratings(
             city=a.city,
             club=a.club,
             weight_category=a.weight_category,
-            belt=a.belt,
+            sport_rank=a.sport_rank,
             rating_points=a.rating_points,
             photo_url=a.photo_url,
         )

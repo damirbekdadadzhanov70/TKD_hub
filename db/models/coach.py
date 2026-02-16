@@ -11,7 +11,7 @@ class Coach(Base):
     __tablename__ = "coaches"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
     gender: Mapped[str] = mapped_column(String(1), nullable=False)
@@ -34,8 +34,8 @@ class CoachAthlete(Base):
     __table_args__ = (UniqueConstraint("coach_id", "athlete_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    coach_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("coaches.id"), nullable=False)
-    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id"), nullable=False)
+    coach_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("coaches.id", ondelete="CASCADE"), nullable=False)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     invited_at: Mapped[datetime] = mapped_column(server_default=func.now())
     accepted_at: Mapped[datetime | None] = mapped_column()

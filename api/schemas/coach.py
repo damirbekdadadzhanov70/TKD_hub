@@ -20,11 +20,18 @@ class CoachRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CoachUpdate(BaseModel):
+    full_name: Optional[str] = None
+    city: Optional[str] = None
+    club: Optional[str] = None
+    qualification: Optional[str] = None
+
+
 class CoachAthleteRead(BaseModel):
     id: uuid.UUID
     full_name: str
     weight_category: str
-    belt: str
+    sport_rank: str
     rating_points: int = 0
     club: Optional[str] = None
 

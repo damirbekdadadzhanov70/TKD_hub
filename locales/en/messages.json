@@ -1,5 +1,6 @@
 {
   "welcome": "🥋 Welcome to TKD Hub!\nChoose language / Выберите язык:",
+  "welcome_webapp": "🥋 Welcome to KukkiDo!\nTap the button below to open the app.",
   "choose_role": "Choose your role:",
   "role_athlete": "🥋 Athlete",
   "role_coach": "🎓 Coach",
@@ -12,8 +13,10 @@
   "choose_weight_category": "Choose weight category:",
   "enter_current_weight": "Enter your current weight (kg):",
   "invalid_weight": "Invalid weight format. Enter a number, e.g.: 65.5",
-  "choose_belt": "Choose belt:",
+  "choose_rank": "Choose sport rank:",
+  "choose_city": "Choose city:",
   "choose_country": "Choose country:",
+  "enter_country": "Enter country name:",
   "enter_city": "Enter your city:",
   "enter_club": "Enter club name (or press the button):",
   "no_club": "No club",
@@ -22,8 +25,8 @@
   "profile_created": "✅ Profile created!",
   "coach_request_sent": "⏳ Coach role request has been sent for review. We will notify you!",
   "enter_qualification": "Enter your qualification (e.g. \"4th dan, Master of Sport\"):",
-  "other_country": "Other",
-  "enter_country": "Enter country name:",
+  "other_city": "Other city",
+  "enter_city_custom": "Enter city name:",
   "already_registered": "You are already registered!",
 
   "approve": "✅ Approve",
@@ -59,7 +62,7 @@
   "your_athletes": "Your athletes:",
   "no_athletes": "You have no linked athletes yet.",
   "athlete_not_found": "Athlete not found.",
-  "athlete_card": "👤 <b>{name}</b>\n📅 Date of birth: {dob}\n⚧ Gender: {gender}\n⚖️ Category: {weight_cat}\n🏋️ Weight: {weight} kg\n🥋 Belt: {belt}\n🌍 Country: {country}\n🏙 City: {city}\n🏫 Club: {club}",
+  "athlete_card": "👤 <b>{name}</b>\n📅 Date of birth: {dob}\n⚧ Gender: {gender}\n⚖️ Category: {weight_cat}\n🏋️ Weight: {weight} kg\n🏅 Rank: {sport_rank}\n🏙 City: {city}\n🏫 Club: {club}",
   "unlink_athlete": "🔗 Unlink",
   "athlete_unlinked": "✅ Athlete unlinked.",
   "athlete_unlinked_empty": "✅ Athlete unlinked. You have no more linked athletes.",
@@ -154,5 +157,9 @@
   "deadline_reminder": "⏰ Reminder: the registration deadline for <b>{tournament}</b> ({deadline}) is in 3 days!\n\nYou have {count} unregistered athletes.",
 
   "invalid_age_category": "⚠️ Invalid age category for this tournament.",
-  "invalid_weight_category": "⚠️ Athlete {name} has weight category {category} which is not allowed in this tournament. Skipped."
+  "invalid_weight_category": "⚠️ Athlete {name} has weight category {category} which is not allowed in this tournament. Skipped.",
+
+  "new_entry_admin_notification": "📋 New tournament entry for <b>{tournament}</b>\n\nCoach: {coach}\nAthletes: {count}",
+  "entry_approved_notification": "✅ Entry approved!\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}",
+  "entry_rejected_notification": "❌ Entry rejected.\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}"
 }

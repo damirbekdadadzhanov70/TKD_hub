@@ -33,7 +33,7 @@ async def test_ratings_filter_by_country(auth_client: AsyncClient, db_session: A
         gender="M",
         weight_category="74kg",
         current_weight=74,
-        belt="Red",
+        sport_rank="КМС",
         country="KZ",
         city="Almaty",
         rating_points=100,

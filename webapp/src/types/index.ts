@@ -5,7 +5,7 @@ export interface AthleteProfile {
   gender: string;
   weight_category: string;
   current_weight: number;
-  belt: string;
+  sport_rank: string;
   country: string;
   city: string;
   club: string | null;
@@ -39,8 +39,7 @@ export interface AthleteUpdate {
   full_name?: string;
   weight_category?: string;
   current_weight?: number;
-  belt?: string;
-  country?: string;
+  sport_rank?: string;
   city?: string;
   club?: string;
   photo_url?: string;
@@ -68,6 +67,8 @@ export interface TournamentListItem {
 export interface TournamentEntry {
   id: string;
   athlete_id?: string;
+  coach_id?: string;
+  coach_name?: string;
   athlete_name: string;
   weight_category: string;
   age_category: string;
@@ -166,7 +167,7 @@ export interface RatingEntry {
   city: string;
   club: string | null;
   weight_category: string;
-  belt: string;
+  sport_rank: string;
   rating_points: number;
   photo_url: string | null;
 }
@@ -175,7 +176,7 @@ export interface CoachAthlete {
   id: string;
   full_name: string;
   weight_category: string;
-  belt: string;
+  sport_rank: string;
   rating_points: number;
   club: string | null;
 }
@@ -193,16 +194,22 @@ export interface CoachEntry {
 
 export interface AthleteRegistration {
   full_name: string;
+  date_of_birth: string;
+  gender: 'M' | 'F';
   weight_category: string;
-  belt: string;
+  current_weight: number;
+  sport_rank: string;
   city: string;
+  club?: string;
 }
 
 export interface CoachRegistration {
   full_name: string;
-  club: string;
+  date_of_birth: string;
+  gender: 'M' | 'F';
+  sport_rank: string;
   city: string;
-  qualification: string;
+  club: string;
 }
 
 export interface PaginatedResponse<T> {

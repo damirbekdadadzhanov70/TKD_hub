@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import WebApp from '@twa-dev/sdk';
 
 interface UseApiResult<T> {
@@ -15,7 +15,7 @@ const hasApi = !!API_URL;
 
 export function useApi<T>(
   fetcher: () => Promise<T>,
-  mockData: T,
+  mockData: T | null,
   deps: unknown[] = [],
 ): UseApiResult<T> {
   const [data, setData] = useState<T | null>(null);
@@ -25,6 +25,12 @@ export function useApi<T>(
 
   const isTelegram = !!WebApp.initData;
 
+  // Use refs to avoid stale closures for values not in deps
+  const mockDataRef = useRef(mockData);
+  mockDataRef.current = mockData;
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
@@ -33,21 +39,19 @@ export function useApi<T>(
     // Use mock data when: not in Telegram, or no API URL configured
     if (!isTelegram || !hasApi) {
       await new Promise((r) => setTimeout(r, 300));
-      setData(mockData);
+      setData(mockDataRef.current);
       setIsDemo(isTelegram && !hasApi);
       setLoading(false);
       return;
     }
 
     try {
-      const result = await fetcher();
+      const result = await fetcherRef.current();
       setData(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error('API error:', message);
-      // Fall back to mock data instead of showing error
-      setData(mockData);
-      setIsDemo(true);
+      setError(message);
     } finally {
       setLoading(false);
     }

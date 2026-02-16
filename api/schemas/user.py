@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -10,6 +10,6 @@ class MeResponse(BaseModel):
     telegram_id: int
     username: Optional[str] = None
     language: str
-    role: str  # "athlete", "coach", or "none"
+    role: Literal["athlete", "coach", "none"]
     athlete: Optional[AthleteRead] = None
     coach: Optional[CoachRead] = None

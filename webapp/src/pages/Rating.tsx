@@ -239,7 +239,7 @@ function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: (
           )}
           <h3 className="text-[22px] font-heading text-text-heading">{athlete.full_name}</h3>
           <p className="text-sm text-text-secondary mt-0.5">
-            {athlete.belt} · {athlete.weight_category}
+            {athlete.sport_rank} · {athlete.weight_category}
           </p>
         </div>
 
@@ -256,8 +256,8 @@ function AthleteProfile({ athlete, onClose }: { athlete: RatingEntry; onClose: (
           </div>
           <div className="w-px h-10 bg-border" />
           <div className="flex-1 text-center">
-            <p className="font-mono text-2xl text-text-heading">{athlete.belt.split(' ')[0]}</p>
-            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('rating.dan')}</p>
+            <p className="font-mono text-2xl text-text-heading">{athlete.sport_rank}</p>
+            <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('rating.sportRank')}</p>
           </div>
         </div>
 
@@ -319,7 +319,7 @@ export default function Rating() {
       const a = me.athlete;
       raw = raw.map((e) =>
         e.athlete_id === myAthleteId
-          ? { ...e, full_name: a.full_name, city: a.city, club: a.club, weight_category: a.weight_category, belt: a.belt, rating_points: a.rating_points }
+          ? { ...e, full_name: a.full_name, city: a.city, club: a.club, weight_category: a.weight_category, sport_rank: a.sport_rank, rating_points: a.rating_points }
           : e,
       );
     }

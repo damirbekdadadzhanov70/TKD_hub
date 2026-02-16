@@ -38,7 +38,7 @@ async def list_coach_athletes(
             id=link.athlete.id,
             full_name=link.athlete.full_name,
             weight_category=link.athlete.weight_category,
-            belt=link.athlete.belt,
+            sport_rank=link.athlete.sport_rank,
             rating_points=link.athlete.rating_points,
             club=link.athlete.club,
         )

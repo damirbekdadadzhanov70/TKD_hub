@@ -2,7 +2,8 @@ import hashlib
 import hmac
 import json
 import time
-from datetime import date
+import uuid
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 import pytest_asyncio
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from bot.config import settings
 from db.base import Base, get_session
-from db.models import Athlete, Coach, CoachAthlete, User
+from db.models import Athlete, Coach, CoachAthlete, Tournament, User
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -68,7 +69,7 @@ async def test_user(db_session: AsyncSession) -> User:
         gender="M",
         weight_category="68kg",
         current_weight=68,
-        belt="Black 1 Dan",
+        sport_rank="Black 1 Dan",
         country="KG",
         city="Bishkek",
         club="TKD Club",
@@ -106,7 +107,6 @@ async def coach_user(db_session: AsyncSession) -> User:
 @pytest_asyncio.fixture
 async def coach_with_athlete(db_session: AsyncSession, test_user: User, coach_user: User) -> tuple[User, User]:
     """Coach linked to athlete. Returns (coach_user, athlete_user)."""
-    # Load coach and athlete from their users
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
@@ -156,3 +156,133 @@ async def coach_client(client: AsyncClient, coach_user: User):
     init_data = make_init_data(telegram_id=coach_user.telegram_id)
     client.headers["Authorization"] = f"tma {init_data}"
     return client
+
+
+# ── New fixtures ──────────────────────────────────────────────
+
+
+ADMIN_TELEGRAM_ID = 111111111
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession, monkeypatch) -> User:
+    """Create a user recognized as admin via settings.admin_ids."""
+    monkeypatch.setattr(settings, "ADMIN_IDS", str(ADMIN_TELEGRAM_ID))
+
+    user = User(telegram_id=ADMIN_TELEGRAM_ID, username="admin", language="en")
+    db_session.add(user)
+    await db_session.flush()
+
+    athlete = Athlete(
+        user_id=user.id,
+        full_name="Admin User",
+        date_of_birth=date(1990, 1, 1),
+        gender="M",
+        weight_category="80kg",
+        current_weight=80,
+        sport_rank="Black 3 Dan",
+        country="RU",
+        city="Moscow",
+        club="Admin Club",
+    )
+    db_session.add(athlete)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def admin_client(client: AsyncClient, admin_user: User):
+    """Client authenticated as admin."""
+    init_data = make_init_data(telegram_id=admin_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+    return client
+
+
+@pytest_asyncio.fixture
+async def bare_user(db_session: AsyncSession) -> User:
+    """User WITHOUT athlete or coach profile (for registration tests)."""
+    user = User(telegram_id=555555555, username="bareuser", language="en")
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def bare_client(client: AsyncClient, bare_user: User):
+    """Client authenticated as bare user (no profiles)."""
+    init_data = make_init_data(telegram_id=bare_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+    return client
+
+
+@pytest_asyncio.fixture
+async def dual_profile_user(db_session: AsyncSession) -> User:
+    """User with BOTH athlete and coach profiles (for name sync tests)."""
+    user = User(telegram_id=777777777, username="dualuser", language="en")
+    db_session.add(user)
+    await db_session.flush()
+
+    athlete = Athlete(
+        user_id=user.id,
+        full_name="Dual User",
+        date_of_birth=date(1995, 6, 15),
+        gender="M",
+        weight_category="74kg",
+        current_weight=74,
+        sport_rank="Black 2 Dan",
+        country="RU",
+        city="Kazan",
+        club="Dual Club",
+    )
+    db_session.add(athlete)
+
+    coach = Coach(
+        user_id=user.id,
+        full_name="Dual User",
+        date_of_birth=date(1995, 6, 15),
+        gender="M",
+        country="RU",
+        city="Kazan",
+        club="Dual Club",
+        qualification="Master of Sport",
+        is_verified=True,
+    )
+    db_session.add(coach)
+
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def dual_client(client: AsyncClient, dual_profile_user: User):
+    """Client authenticated as dual-profile user."""
+    init_data = make_init_data(telegram_id=dual_profile_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+    return client
+
+
+async def create_tournament(db_session: AsyncSession, user: User, **overrides) -> Tournament:
+    """Helper to create a tournament with sensible defaults."""
+    defaults = dict(
+        name="Test Tournament",
+        start_date=date.today() + timedelta(days=30),
+        end_date=date.today() + timedelta(days=32),
+        city="Bishkek",
+        country="KG",
+        venue="Sports Hall",
+        registration_deadline=date.today() + timedelta(days=20),
+        status="upcoming",
+        importance_level=1,
+        created_by=user.id,
+        age_categories=["Seniors"],
+        weight_categories=["68kg", "74kg"],
+    )
+    defaults.update(overrides)
+    t = Tournament(**defaults)
+    db_session.add(t)
+    await db_session.commit()
+    await db_session.refresh(t)
+    return t

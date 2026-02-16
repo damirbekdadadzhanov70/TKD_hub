@@ -85,7 +85,15 @@ async def handle_invite_deep_link(message: Message, state: FSMContext, args: str
         )
         invite = result.scalar_one_or_none()
 
-    if not invite or invite.expires_at < datetime.now(timezone.utc):
+    if not invite:
+        await message.answer(t("invite_expired", lang))
+        return
+
+    # Normalize timezone for comparison (SQLite may return naive datetimes)
+    expires = invite.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
         await message.answer(t("invite_expired", lang))
         return
 
@@ -178,7 +186,7 @@ async def on_invite_accept(callback: CallbackQuery):
         link = CoachAthlete(
             coach_id=coach_id,
             athlete_id=user.athlete.id,
-            status="active",
+            status="accepted",
             accepted_at=datetime.now(timezone.utc),
         )
         session.add(link)

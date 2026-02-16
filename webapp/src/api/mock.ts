@@ -7,6 +7,7 @@ import type {
   RatingEntry,
   TournamentCreate,
   TournamentDetail,
+  TournamentEntry,
   TournamentListItem,
   TournamentResult,
   TrainingLog,
@@ -38,7 +39,7 @@ const defaultMe: MeResponse = {
   telegram_id: 123456789,
   username: 'damir_tkd',
   language: 'ru',
-  role: 'athlete',
+  role: 'admin',
   athlete: {
     id: '00000000-0000-0000-0000-000000000001',
     full_name: 'Alikhanov Damir',
@@ -46,7 +47,7 @@ const defaultMe: MeResponse = {
     gender: 'M',
     weight_category: '-68kg',
     current_weight: 67.5,
-    belt: '2 Dan',
+    sport_rank: 'КМС',
     country: 'Россия',
     city: 'Москва',
     club: 'TKD Academy',
@@ -103,14 +104,14 @@ export function registerMockProfile(
     const athlete = {
       id: '00000000-0000-0000-0000-000000000001',
       full_name: reg.full_name,
-      date_of_birth: '2000-01-01',
-      gender: 'M',
+      date_of_birth: reg.date_of_birth,
+      gender: reg.gender,
       weight_category: reg.weight_category,
-      current_weight: 70,
-      belt: reg.belt,
+      current_weight: reg.current_weight,
+      sport_rank: reg.sport_rank,
       country: 'Россия',
       city: reg.city,
-      club: null,
+      club: reg.club || null,
       photo_url: null,
       rating_points: 0,
     };
@@ -123,12 +124,12 @@ export function registerMockProfile(
   const coach = {
     id: '00000000-0000-0000-0000-000000000002',
     full_name: reg.full_name,
-    date_of_birth: '2000-01-01',
-    gender: 'M',
+    date_of_birth: reg.date_of_birth,
+    gender: reg.gender,
     country: 'Россия',
     city: reg.city,
     club: reg.club,
-    qualification: reg.qualification,
+    qualification: reg.sport_rank,
     photo_url: null,
     is_verified: false,
   };
@@ -197,23 +198,11 @@ export const mockTournaments: TournamentListItem[] = [
   },
 ];
 
-export function addMockTournament(data: TournamentCreate): TournamentListItem {
-  const item: TournamentListItem = {
-    id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: data.name,
-    start_date: data.start_date,
-    end_date: data.end_date,
-    city: data.city,
-    country: 'Россия',
-    status: 'upcoming',
-    importance_level: data.importance_level,
-    entry_count: 0,
-  };
-  mockTournaments.unshift(item);
-  return item;
-}
+// Map of tournament ID → TournamentDetail for full detail views
+const mockTournamentDetailsMap = new Map<string, TournamentDetail>();
 
-export const mockTournamentDetail: TournamentDetail = {
+// Pre-populate first tournament with rich detail
+mockTournamentDetailsMap.set('00000000-0000-0000-0000-000000000010', {
   ...mockTournaments[0],
   description: 'Ежегодный Кубок России по тхэквондо среди всех возрастных и весовых категорий.',
   venue: 'Дворец единоборств',
@@ -224,12 +213,75 @@ export const mockTournamentDetail: TournamentDetail = {
   registration_deadline: '2026-04-01',
   organizer_contact: 'info@russiantkd.ru',
   entries: [
-    { id: '00000000-0000-0000-0000-000000000020', athlete_id: '00000000-0000-0000-0000-000000000001', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
-    { id: '00000000-0000-0000-0000-000000000021', athlete_name: 'Asanov Timur', weight_category: '-74kg', age_category: 'Seniors', status: 'pending' },
-    { id: '00000000-0000-0000-0000-000000000022', athlete_name: 'Kim Sergei', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
-    { id: '00000000-0000-0000-0000-000000000023', athlete_id: '00000000-0000-0000-0000-000000000046', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'approved' },
+    { id: '00000000-0000-0000-0000-000000000020', athlete_id: '00000000-0000-0000-0000-000000000001', coach_id: '00000000-0000-0000-0000-000000000002', coach_name: 'Alikhanov Damir', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
+    { id: '00000000-0000-0000-0000-000000000023', athlete_id: '00000000-0000-0000-0000-000000000046', coach_id: '00000000-0000-0000-0000-000000000002', coach_name: 'Alikhanov Damir', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'approved' },
+    { id: '00000000-0000-0000-0000-000000000021', athlete_name: 'Asanov Timur', coach_id: '00000000-0000-0000-0000-000000000099', coach_name: 'Petrov Ivan', weight_category: '-74kg', age_category: 'Seniors', status: 'pending' },
+    { id: '00000000-0000-0000-0000-000000000022', athlete_name: 'Kim Sergei', coach_id: '00000000-0000-0000-0000-000000000099', coach_name: 'Petrov Ivan', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
   ],
-};
+});
+
+/** Returns mock detail for a given tournament ID. Creates a stub from list item if not in map. Returns null if not found. */
+export function getMockTournamentDetail(id: string): TournamentDetail | null {
+  const cached = mockTournamentDetailsMap.get(id);
+  if (cached) return cached;
+
+  // Build detail from list item
+  const listItem = mockTournaments.find((t) => t.id === id);
+  if (!listItem) return null;
+
+  const detail: TournamentDetail = {
+    ...listItem,
+    description: null,
+    venue: '',
+    age_categories: [],
+    weight_categories: [],
+    entry_fee: null,
+    currency: 'RUB',
+    registration_deadline: listItem.start_date,
+    organizer_contact: null,
+    entries: [],
+  };
+  mockTournamentDetailsMap.set(id, detail);
+  return detail;
+}
+
+export function addMockTournament(data: TournamentCreate): TournamentListItem {
+  const id = `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const item: TournamentListItem = {
+    id,
+    name: data.name,
+    start_date: data.start_date,
+    end_date: data.end_date,
+    city: data.city,
+    country: 'Россия',
+    status: 'upcoming',
+    importance_level: data.importance_level,
+    entry_count: 0,
+  };
+  mockTournaments.unshift(item);
+
+  // Also create full detail record
+  mockTournamentDetailsMap.set(id, {
+    ...item,
+    description: data.description,
+    venue: data.venue,
+    age_categories: [],
+    weight_categories: [],
+    entry_fee: data.entry_fee,
+    currency: data.currency,
+    registration_deadline: data.registration_deadline,
+    organizer_contact: null,
+    entries: [],
+  });
+
+  return item;
+}
+
+export function deleteMockTournament(id: string) {
+  const idx = mockTournaments.findIndex((t) => t.id === id);
+  if (idx !== -1) mockTournaments.splice(idx, 1);
+  mockTournamentDetailsMap.delete(id);
+}
 
 // ── Tournament Results ───────────────────────────────────────
 
@@ -304,38 +356,140 @@ export function deleteMockTrainingLog(id: string) {
 
 export const mockRatings: RatingEntry[] = [
   // -68kg мужчины
-  { rank: 1, athlete_id: '00000000-0000-0000-0000-000000000040', full_name: 'Ким Сергей', gender: 'M', country: 'Россия', city: 'Москва', club: 'Tiger Dojang', weight_category: '-68kg', belt: '3 Dan', rating_points: 2100, photo_url: null },
-  { rank: 2, athlete_id: '00000000-0000-0000-0000-000000000041', full_name: 'Рахимов Отабек', gender: 'M', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-68kg', belt: '2 Dan', rating_points: 1800, photo_url: null },
-  { rank: 3, athlete_id: '00000000-0000-0000-0000-000000000001', full_name: 'Alikhanov Damir', gender: 'M', country: 'Россия', city: 'Москва', club: 'TKD Academy', weight_category: '-68kg', belt: '2 Dan', rating_points: 1250, photo_url: null },
-  { rank: 4, athlete_id: '00000000-0000-0000-0000-000000000042', full_name: 'Низамов Руслан', gender: 'M', country: 'Россия', city: 'Нижний Новгород', club: 'Волга TKD', weight_category: '-68kg', belt: '1 Dan', rating_points: 950, photo_url: null },
-  { rank: 5, athlete_id: '00000000-0000-0000-0000-000000000043', full_name: 'Магомедов Адилет', gender: 'M', country: 'Россия', city: 'Махачкала', club: 'Дагестан Warriors', weight_category: '-68kg', belt: '1 Dan', rating_points: 820, photo_url: null },
-  { rank: 6, athlete_id: '00000000-0000-0000-0000-000000000044', full_name: 'Омаров Бейбит', gender: 'M', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-68kg', belt: '2 Dan', rating_points: 740, photo_url: null },
-  { rank: 7, athlete_id: '00000000-0000-0000-0000-000000000045', full_name: 'Исмоилов Фаррух', gender: 'M', country: 'Россия', city: 'Рязань', club: null, weight_category: '-68kg', belt: '1 Dan', rating_points: 680, photo_url: null },
+  { rank: 1, athlete_id: '00000000-0000-0000-0000-000000000040', full_name: 'Ким Сергей', gender: 'M', country: 'Россия', city: 'Москва', club: 'Tiger Dojang', weight_category: '-68kg', sport_rank: 'МС', rating_points: 2100, photo_url: null },
+  { rank: 2, athlete_id: '00000000-0000-0000-0000-000000000041', full_name: 'Рахимов Отабек', gender: 'M', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-68kg', sport_rank: 'КМС', rating_points: 1800, photo_url: null },
+  { rank: 3, athlete_id: '00000000-0000-0000-0000-000000000001', full_name: 'Alikhanov Damir', gender: 'M', country: 'Россия', city: 'Москва', club: 'TKD Academy', weight_category: '-68kg', sport_rank: 'КМС', rating_points: 1250, photo_url: null },
+  { rank: 4, athlete_id: '00000000-0000-0000-0000-000000000042', full_name: 'Низамов Руслан', gender: 'M', country: 'Россия', city: 'Нижний Новгород', club: 'Волга TKD', weight_category: '-68kg', sport_rank: '1 разряд', rating_points: 950, photo_url: null },
+  { rank: 5, athlete_id: '00000000-0000-0000-0000-000000000043', full_name: 'Магомедов Адилет', gender: 'M', country: 'Россия', city: 'Махачкала', club: 'Дагестан Warriors', weight_category: '-68kg', sport_rank: '1 разряд', rating_points: 820, photo_url: null },
+  { rank: 6, athlete_id: '00000000-0000-0000-0000-000000000044', full_name: 'Омаров Бейбит', gender: 'M', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-68kg', sport_rank: 'КМС', rating_points: 740, photo_url: null },
+  { rank: 7, athlete_id: '00000000-0000-0000-0000-000000000045', full_name: 'Исмоилов Фаррух', gender: 'M', country: 'Россия', city: 'Рязань', club: null, weight_category: '-68kg', sport_rank: '1 разряд', rating_points: 680, photo_url: null },
   // -57kg женщины
-  { rank: 8, athlete_id: '00000000-0000-0000-0000-000000000046', full_name: 'Ибраимова Асель', gender: 'F', country: 'Россия', city: 'Москва', club: 'TKD Academy', weight_category: '-57kg', belt: '1 Dan', rating_points: 1600, photo_url: null },
-  { rank: 9, athlete_id: '00000000-0000-0000-0000-000000000060', full_name: 'Низамова Алия', gender: 'F', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-57kg', belt: '2 Dan', rating_points: 1350, photo_url: null },
-  { rank: 10, athlete_id: '00000000-0000-0000-0000-000000000061', full_name: 'Омарова Динара', gender: 'F', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-57kg', belt: '1 Dan', rating_points: 1100, photo_url: null },
+  { rank: 8, athlete_id: '00000000-0000-0000-0000-000000000046', full_name: 'Ибраимова Асель', gender: 'F', country: 'Россия', city: 'Москва', club: 'TKD Academy', weight_category: '-57kg', sport_rank: '1 разряд', rating_points: 1600, photo_url: null },
+  { rank: 9, athlete_id: '00000000-0000-0000-0000-000000000060', full_name: 'Низамова Алия', gender: 'F', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-57kg', sport_rank: 'КМС', rating_points: 1350, photo_url: null },
+  { rank: 10, athlete_id: '00000000-0000-0000-0000-000000000061', full_name: 'Омарова Динара', gender: 'F', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-57kg', sport_rank: '1 разряд', rating_points: 1100, photo_url: null },
   // -74kg мужчины
-  { rank: 11, athlete_id: '00000000-0000-0000-0000-000000000062', full_name: 'Асанов Тимур', gender: 'M', country: 'Россия', city: 'Москва', club: 'Tiger Dojang', weight_category: '-74kg', belt: '2 Dan', rating_points: 1900, photo_url: null },
-  { rank: 12, athlete_id: '00000000-0000-0000-0000-000000000063', full_name: 'Беков Азамат', gender: 'M', country: 'Россия', city: 'Краснодар', club: 'Кубань TKD', weight_category: '-74kg', belt: '1 Dan', rating_points: 1450, photo_url: null },
-  { rank: 13, athlete_id: '00000000-0000-0000-0000-000000000064', full_name: 'Тагиров Шамиль', gender: 'M', country: 'Россия', city: 'Махачкала', club: 'Дагестан Warriors', weight_category: '-74kg', belt: '1 Dan', rating_points: 980, photo_url: null },
+  { rank: 11, athlete_id: '00000000-0000-0000-0000-000000000062', full_name: 'Асанов Тимур', gender: 'M', country: 'Россия', city: 'Москва', club: 'Tiger Dojang', weight_category: '-74kg', sport_rank: 'КМС', rating_points: 1900, photo_url: null },
+  { rank: 12, athlete_id: '00000000-0000-0000-0000-000000000063', full_name: 'Беков Азамат', gender: 'M', country: 'Россия', city: 'Краснодар', club: 'Кубань TKD', weight_category: '-74kg', sport_rank: '1 разряд', rating_points: 1450, photo_url: null },
+  { rank: 13, athlete_id: '00000000-0000-0000-0000-000000000064', full_name: 'Тагиров Шамиль', gender: 'M', country: 'Россия', city: 'Махачкала', club: 'Дагестан Warriors', weight_category: '-74kg', sport_rank: '1 разряд', rating_points: 980, photo_url: null },
   // -63kg женщины
-  { rank: 14, athlete_id: '00000000-0000-0000-0000-000000000065', full_name: 'Петрова Анна', gender: 'F', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-63kg', belt: '2 Dan', rating_points: 1550, photo_url: null },
-  { rank: 15, athlete_id: '00000000-0000-0000-0000-000000000066', full_name: 'Каримова Лейла', gender: 'F', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-63kg', belt: '1 Gup', rating_points: 720, photo_url: null },
+  { rank: 14, athlete_id: '00000000-0000-0000-0000-000000000065', full_name: 'Петрова Анна', gender: 'F', country: 'Россия', city: 'Санкт-Петербург', club: 'Нева TKD', weight_category: '-63kg', sport_rank: 'КМС', rating_points: 1550, photo_url: null },
+  { rank: 15, athlete_id: '00000000-0000-0000-0000-000000000066', full_name: 'Каримова Лейла', gender: 'F', country: 'Россия', city: 'Казань', club: 'Казань TKD', weight_category: '-63kg', sport_rank: '2 разряд', rating_points: 720, photo_url: null },
   // -80kg мужчины
-  { rank: 16, athlete_id: '00000000-0000-0000-0000-000000000067', full_name: 'Волков Дмитрий', gender: 'M', country: 'Россия', city: 'Екатеринбург', club: 'Урал TKD', weight_category: '-80kg', belt: '3 Dan', rating_points: 2050, photo_url: null },
-  { rank: 17, athlete_id: '00000000-0000-0000-0000-000000000068', full_name: 'Салимов Артур', gender: 'M', country: 'Россия', city: 'Нижний Новгород', club: 'Волга TKD', weight_category: '-80kg', belt: '1 Dan', rating_points: 890, photo_url: null },
+  { rank: 16, athlete_id: '00000000-0000-0000-0000-000000000067', full_name: 'Волков Дмитрий', gender: 'M', country: 'Россия', city: 'Екатеринбург', club: 'Урал TKD', weight_category: '-80kg', sport_rank: 'МС', rating_points: 2050, photo_url: null },
+  { rank: 17, athlete_id: '00000000-0000-0000-0000-000000000068', full_name: 'Салимов Артур', gender: 'M', country: 'Россия', city: 'Нижний Новгород', club: 'Волга TKD', weight_category: '-80kg', sport_rank: '1 разряд', rating_points: 890, photo_url: null },
 ];
 
 // ── Coach ───────────────────────────────────────────────────
 
 export const mockCoachAthletes: CoachAthlete[] = [
-  { id: '00000000-0000-0000-0000-000000000001', full_name: 'Alikhanov Damir', weight_category: '-68kg', belt: '2 Dan', rating_points: 1250, club: 'TKD Academy' },
-  { id: '00000000-0000-0000-0000-000000000046', full_name: 'Ibraimova Asel', weight_category: '-57kg', belt: '1 Dan', rating_points: 780, club: 'TKD Academy' },
-  { id: '00000000-0000-0000-0000-000000000047', full_name: 'Bekov Azamat', weight_category: '-63kg', belt: '1 Gup', rating_points: 340, club: 'TKD Academy' },
+  { id: '00000000-0000-0000-0000-000000000001', full_name: 'Alikhanov Damir', weight_category: '-68kg', sport_rank: 'КМС', rating_points: 1250, club: 'TKD Academy' },
+  { id: '00000000-0000-0000-0000-000000000046', full_name: 'Ibraimova Asel', weight_category: '-57kg', sport_rank: '1 разряд', rating_points: 780, club: 'TKD Academy' },
+  { id: '00000000-0000-0000-0000-000000000047', full_name: 'Bekov Azamat', weight_category: '-63kg', sport_rank: '2 разряд', rating_points: 340, club: 'TKD Academy' },
 ];
 
-export const mockCoachEntries: CoachEntry[] = [
+export let mockCoachEntries: CoachEntry[] = [
   { id: '00000000-0000-0000-0000-000000000050', tournament_id: '00000000-0000-0000-0000-000000000010', tournament_name: 'Кубок России по тхэквондо 2026', athlete_id: '00000000-0000-0000-0000-000000000001', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
   { id: '00000000-0000-0000-0000-000000000051', tournament_id: '00000000-0000-0000-0000-000000000010', tournament_name: 'Кубок России по тхэквондо 2026', athlete_id: '00000000-0000-0000-0000-000000000046', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'pending' },
 ];
+
+let nextEntryId = 200;
+
+/** Coach enters selected athletes into a tournament. Returns a NEW detail object for React state update. */
+export function enterMockAthletes(
+  tournamentId: string,
+  athleteIds: string[],
+): TournamentDetail | null {
+  const detail = mockTournamentDetailsMap.get(tournamentId);
+  if (!detail) return null;
+
+  const newEntries: TournamentEntry[] = [];
+
+  for (const athleteId of athleteIds) {
+    // Skip if already entered
+    if (detail.entries.some((e) => e.athlete_id === athleteId)) continue;
+
+    const athlete = mockCoachAthletes.find((a) => a.id === athleteId);
+    if (!athlete) continue;
+
+    const entryId = `mock-entry-${Date.now()}-${nextEntryId++}`;
+    const coachId = mockMe.coach?.id || '';
+    const coachName = mockMe.coach?.full_name || '';
+    const entry: TournamentEntry = {
+      id: entryId,
+      athlete_id: athleteId,
+      coach_id: coachId,
+      coach_name: coachName,
+      athlete_name: athlete.full_name,
+      weight_category: athlete.weight_category,
+      age_category: detail.age_categories[0] || 'Seniors',
+      status: 'pending',
+    };
+    newEntries.push(entry);
+
+    // Also add to coach entries
+    mockCoachEntries = [
+      ...mockCoachEntries,
+      {
+        id: entryId,
+        tournament_id: tournamentId,
+        tournament_name: detail.name,
+        athlete_id: athleteId,
+        athlete_name: athlete.full_name,
+        weight_category: athlete.weight_category,
+        age_category: entry.age_category,
+        status: 'pending',
+      },
+    ];
+  }
+
+  detail.entries = [...detail.entries, ...newEntries];
+
+  // Update entry_count on the list item
+  if (newEntries.length > 0) {
+    const listItem = mockTournaments.find((t) => t.id === tournamentId);
+    if (listItem) listItem.entry_count += newEntries.length;
+  }
+
+  // Return a NEW object so React detects the state change
+  return { ...detail };
+}
+
+/** Approve all entries from a coach (by coach_id). */
+export function approveMockCoachEntries(tournamentId: string, coachId: string): TournamentDetail | null {
+  const detail = mockTournamentDetailsMap.get(tournamentId);
+  if (detail) {
+    detail.entries = detail.entries.map((e) =>
+      e.coach_id === coachId ? { ...e, status: 'approved' } : e,
+    );
+  }
+  mockCoachEntries = mockCoachEntries.map((e) =>
+    e.tournament_id === tournamentId && mockMe.coach?.id === coachId ? { ...e, status: 'approved' } : e,
+  );
+  return detail ? { ...detail } : null;
+}
+
+/** Reject all entries from a coach (by coach_id). */
+export function rejectMockCoachEntries(tournamentId: string, coachId: string): TournamentDetail | null {
+  const detail = mockTournamentDetailsMap.get(tournamentId);
+  if (detail) {
+    detail.entries = detail.entries.map((e) =>
+      e.coach_id === coachId ? { ...e, status: 'rejected' } : e,
+    );
+  }
+  mockCoachEntries = mockCoachEntries.map((e) =>
+    e.tournament_id === tournamentId && mockMe.coach?.id === coachId ? { ...e, status: 'rejected' } : e,
+  );
+  return detail ? { ...detail } : null;
+}
+
+/** Remove a single athlete from a coach's entry. */
+export function removeMockEntryAthlete(tournamentId: string, entryId: string): TournamentDetail | null {
+  const detail = mockTournamentDetailsMap.get(tournamentId);
+  if (detail) {
+    detail.entries = detail.entries.filter((e) => e.id !== entryId);
+    const listItem = mockTournaments.find((t) => t.id === tournamentId);
+    if (listItem) listItem.entry_count = Math.max(0, listItem.entry_count - 1);
+  }
+  mockCoachEntries = mockCoachEntries.filter((e) => e.id !== entryId);
+  return detail ? { ...detail } : null;
+}

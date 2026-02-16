@@ -4,11 +4,13 @@ import PullToRefresh from '../components/PullToRefresh';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useToast } from '../components/Toast';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 import {
   createTrainingLog,
+  deleteTrainingLog,
   getTrainingLogs,
   getTrainingStats,
   updateTrainingLog,
@@ -70,6 +72,8 @@ function getFirstDayOfWeek(year: number, month: number) {
 
 export default function TrainingLogPage() {
   const { t, tArray } = useI18n();
+  const { showToast } = useToast();
+  const { hapticNotification } = useTelegram();
   const MONTH_NAMES = tArray('training.months');
   const WEEKDAYS = tArray('training.weekdays');
   const INTENSITY_LABELS: Record<string, string> = {
@@ -139,9 +143,16 @@ export default function TrainingLogPage() {
     mutateStats({ ...mockTrainingStats });
   };
 
-  const handleDelete = (logId: string) => {
-    deleteMockTrainingLog(logId);
-    refreshFromMock();
+  const handleDelete = async (logId: string) => {
+    try {
+      await deleteTrainingLog(logId);
+      hapticNotification('success');
+      deleteMockTrainingLog(logId);
+      refreshFromMock();
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+    }
   };
 
   return (
@@ -426,6 +437,7 @@ export default function TrainingLogPage() {
 function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (data: TrainingLogCreate) => void }) {
   const { hapticNotification } = useTelegram();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const [form, setForm] = useState<TrainingLogCreate>({
     date: new Date().toISOString().slice(0, 10),
     type: 'sparring',
@@ -442,8 +454,9 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
       await createTrainingLog(form);
       hapticNotification('success');
       onSaved(form);
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSaving(false);
     }
   };
@@ -548,6 +561,7 @@ function TrainingEditForm({
 }) {
   const { hapticNotification } = useTelegram();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const [form, setForm] = useState<TrainingLogUpdate>({
     date: log.date,
     type: log.type,
@@ -564,8 +578,9 @@ function TrainingEditForm({
       await updateTrainingLog(log.id, form);
       hapticNotification('success');
       onSaved(form);
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSaving(false);
     }
   };

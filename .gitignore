@@ -8,3 +8,15 @@ build/
 webapp/node_modules/
 webapp/dist/
 *.db
+
+# Testing & coverage
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+
+# Linting cache
+.ruff_cache/

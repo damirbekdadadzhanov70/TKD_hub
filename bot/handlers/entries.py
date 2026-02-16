@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import date
 
 from aiogram import F, Router
@@ -29,6 +30,11 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 
+def _to_uuid(value) -> uuid.UUID:
+    """Convert string or UUID to uuid.UUID safely."""
+    return value if isinstance(value, uuid.UUID) else uuid.UUID(value)
+
+
 async def _get_coach_and_lang(telegram_id: int):
     async with async_session() as session:
         result = await session.execute(
@@ -50,7 +56,7 @@ async def _get_coach_athletes(coach_id):
             select(CoachAthlete)
             .where(
                 CoachAthlete.coach_id == coach_id,
-                CoachAthlete.status == "active",
+                CoachAthlete.status == "accepted",
             )
             .options(selectinload(CoachAthlete.athlete))
         )
@@ -132,7 +138,7 @@ async def on_toggle_athlete(callback: CallbackQuery, state: FSMContext):
 
     await state.update_data(selected_athletes=list(selected))
 
-    coach_id = data["entry_coach_id"]
+    coach_id = _to_uuid(data["entry_coach_id"])
     athletes = await _get_coach_athletes(coach_id)
 
     await callback.message.edit_reply_markup(reply_markup=athlete_checkbox_keyboard(athletes, selected, lang))
@@ -149,7 +155,7 @@ async def on_confirm_selection(callback: CallbackQuery, state: FSMContext):
         await callback.answer(t("select_at_least_one", lang), show_alert=True)
         return
 
-    tid = data["entry_tid"]
+    tid = _to_uuid(data["entry_tid"])
 
     async with async_session() as session:
         result = await session.execute(select(Tournament).where(Tournament.id == tid))
@@ -188,7 +194,7 @@ async def on_age_category(callback: CallbackQuery, state: FSMContext):
         result = await session.execute(select(Athlete).where(Athlete.id.in_(selected)))
         athletes = result.scalars().all()
 
-        t_result = await session.execute(select(Tournament).where(Tournament.id == data["entry_tid"]))
+        t_result = await session.execute(select(Tournament).where(Tournament.id == _to_uuid(data["entry_tid"])))
         tournament = t_result.scalar_one_or_none()
 
     names = [f"• {a.full_name} ({a.weight_category})" for a in athletes]
@@ -209,8 +215,8 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
     selected = data.get("selected_athletes", [])
-    tid = data["entry_tid"]
-    coach_id = data["entry_coach_id"]
+    tid = _to_uuid(data["entry_tid"])
+    coach_id = _to_uuid(data["entry_coach_id"])
     age_cat = data["entry_age_category"]
 
     async with async_session() as session:
@@ -247,7 +253,7 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
                 coach_id=coach_id,
                 weight_category=athlete.weight_category,
                 age_category=age_cat,
-                status="registered",
+                status="pending",
             )
             session.add(entry)
             created += 1
@@ -415,7 +421,7 @@ async def on_withdraw_entry(callback: CallbackQuery):
             await callback.answer(t("cannot_withdraw_deadline", lang), show_alert=True)
             return
 
-        tid = str(entry.tournament_id)
+        tid = entry.tournament_id
         t_name = entry.tournament.name
         athlete_user = entry.athlete.user if entry.athlete else None
 

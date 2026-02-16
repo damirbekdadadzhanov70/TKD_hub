@@ -22,6 +22,9 @@ class TournamentListItem(BaseModel):
 
 class TournamentEntryRead(BaseModel):
     id: uuid.UUID
+    athlete_id: uuid.UUID
+    coach_id: Optional[uuid.UUID] = None
+    coach_name: Optional[str] = None
     athlete_name: str
     weight_category: str
     age_category: str
@@ -52,12 +55,6 @@ class TournamentRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class TournamentEntryCreate(BaseModel):
-    athlete_id: uuid.UUID
-    weight_category: str
-    age_category: str
-
-
 class TournamentBatchEnter(BaseModel):
     athlete_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=50)
     age_category: str = Field(..., min_length=1, max_length=50)
@@ -67,3 +64,25 @@ class TournamentInterestResponse(BaseModel):
     tournament_id: uuid.UUID
     athlete_id: uuid.UUID
     created: bool
+
+
+class TournamentResultRead(BaseModel):
+    id: uuid.UUID
+    tournament_id: uuid.UUID
+    athlete_id: uuid.UUID
+    athlete_name: str
+    city: str
+    weight_category: str
+    age_category: str
+    place: int
+    rating_points_earned: int
+
+    model_config = {"from_attributes": True}
+
+
+class TournamentResultCreate(BaseModel):
+    athlete_id: uuid.UUID
+    weight_category: str = Field(..., min_length=1, max_length=50)
+    age_category: str = Field(..., min_length=1, max_length=50)
+    place: int = Field(..., ge=1)
+    rating_points_earned: int = Field(0, ge=0)

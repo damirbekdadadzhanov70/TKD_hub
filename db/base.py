@@ -1,8 +1,10 @@
+import os
+
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from bot.config import settings
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./tkd_hub.db")
 
 
 class Base(DeclarativeBase):
@@ -12,7 +14,7 @@ class Base(DeclarativeBase):
 connect_args = {}
 engine_kwargs = {}
 
-if settings.DATABASE_URL.startswith("sqlite"):
+if DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
 else:
     # PostgreSQL connection pool tuning
@@ -24,7 +26,7 @@ else:
     )
 
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    DATABASE_URL,
     echo=False,
     connect_args=connect_args,
     **engine_kwargs,
@@ -35,7 +37,7 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 # Enable foreign keys for SQLite
 @event.listens_for(engine.sync_engine, "connect")
 def _set_sqlite_pragma(dbapi_conn, connection_record):
-    if settings.DATABASE_URL.startswith("sqlite"):
+    if DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -43,4 +45,9 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 
 async def get_session() -> AsyncSession:
     async with async_session() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

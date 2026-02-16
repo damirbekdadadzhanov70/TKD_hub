@@ -5,17 +5,22 @@ import BottomSheet from '../components/BottomSheet';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useToast } from '../components/Toast';
 import { useApi } from '../hooks/useApi';
 import { useI18n } from '../i18n/I18nProvider';
 import {
+  approveCoachEntries,
+  deleteTournament,
   enterTournament,
   getCoachAthletes,
   getMe,
   getTournament,
   markInterest,
+  rejectCoachEntries,
+  removeEntry,
 } from '../api/endpoints';
-import { mockCoachAthletes, mockMe, mockTournamentDetail, mockTournamentResults } from '../api/mock';
-import type { CoachAthlete, MeResponse, TournamentDetail as TournamentDetailType, TournamentResult } from '../types';
+import { approveMockCoachEntries, deleteMockTournament, enterMockAthletes, getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults, rejectMockCoachEntries, removeMockEntryAthlete } from '../api/mock';
+import type { CoachAthlete, MeResponse, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentResult } from '../types';
 
 const MEDAL_COLORS: Record<number, string> = {
   1: 'text-medal-gold',
@@ -26,19 +31,31 @@ const MEDAL_COLORS: Record<number, string> = {
 export default function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { showBackButton, isTelegram } = useTelegram();
+  const { showBackButton, isTelegram, hapticNotification } = useTelegram();
+  const { showToast } = useToast();
   const { t } = useI18n();
   const [tab, setTab] = useState<'details' | 'results'>('details');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     return showBackButton(() => navigate(-1));
   }, []);
 
-  const { data: tournament, loading, refetch } = useApi<TournamentDetailType>(
+  const mockDetail = getMockTournamentDetail(id!);
+  const { data: tournament, loading, error, refetch, mutate } = useApi<TournamentDetailType>(
     () => getTournament(id!),
-    mockTournamentDetail,
+    mockDetail,
     [id],
   );
+
+  // If tournament not found (deleted / 404), show toast and redirect to list
+  useEffect(() => {
+    if (!loading && (error || (!tournament && !mockDetail))) {
+      showToast(t('tournamentDetail.tournamentDeleted'));
+      navigate('/', { replace: true });
+    }
+  }, [loading, error, tournament]);
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
 
@@ -58,12 +75,28 @@ export default function TournamentDetail() {
   }, [tournament, myAthleteId, me?.athlete]);
 
   if (loading) return <LoadingSpinner />;
-  if (!syncedTournament) return <EmptyState title={t('tournamentDetail.notFound')} />;
+  if (!syncedTournament) return null;
 
+  const isAdmin = me?.role === 'admin';
   const isAthlete = me?.role === 'athlete';
   const isCoach = me?.role === 'coach';
-  const isOpen = syncedTournament.status === 'upcoming' || syncedTournament.status === 'registration_open';
+  const isOpen = syncedTournament.status === 'upcoming' || syncedTournament.status === 'registration_open' || syncedTournament.status === 'ongoing';
   const isCompleted = syncedTournament.status === 'completed';
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteTournament(syncedTournament.id);
+      hapticNotification('success');
+      deleteMockTournament(syncedTournament.id);
+      showToast(t('tournamentDetail.tournamentDeleted'));
+      navigate('/', { replace: true });
+    } catch {
+      hapticNotification('error');
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   return (
     <div>
@@ -185,41 +218,24 @@ export default function TournamentDetail() {
             <InterestButton tournamentId={syncedTournament.id} />
           )}
           {isOpen && isCoach && (
-            <EnterAthletesButton tournamentId={syncedTournament.id} onDone={refetch} />
+            <EnterAthletesButton
+              tournamentId={syncedTournament.id}
+              existingEntries={syncedTournament.entries}
+              ageCategories={syncedTournament.age_categories}
+              myCoachId={me?.coach?.id}
+              onDone={(updated) => { if (updated) mutate(updated); else refetch(); }}
+            />
           )}
 
-          <div className="mt-4">
-            <h2 className="text-lg font-semibold mb-3 text-text">
-              {t('tournamentDetail.entries')} ({syncedTournament.entries.length})
-            </h2>
-            {syncedTournament.entries.length === 0 ? (
-              <EmptyState title={t('tournamentDetail.noEntries')} />
-            ) : (
-              syncedTournament.entries.map((entry) => (
-                <Card key={entry.id}>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-sm text-text">
-                        {entry.athlete_name}
-                      </p>
-                      <p className="text-xs text-text-secondary">
-                        {entry.weight_category} · {entry.age_category}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                        entry.status === 'approved'
-                          ? 'bg-accent-light text-accent'
-                          : 'bg-bg-divider text-text-disabled'
-                      }`}
-                    >
-                      {entry.status}
-                    </span>
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
+          <EntriesSection
+            tournament={syncedTournament}
+            tournamentId={syncedTournament.id}
+            isAdmin={isAdmin}
+            isCoach={isCoach}
+            myCoachId={me?.coach?.id}
+            mutate={mutate}
+            refetch={refetch}
+          />
         </div>
       )}
 
@@ -227,7 +243,284 @@ export default function TournamentDetail() {
       {tab === 'results' && (
         <ResultsTab />
       )}
+
+      {/* Admin delete button */}
+      {isAdmin && (
+        <div className="px-4 mt-6 mb-8">
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
+          >
+            {t('tournamentDetail.deleteTournament')}
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <BottomSheet onClose={() => setShowDeleteConfirm(false)}>
+          <div className="p-4 pt-5 text-center">
+            <h2 className="text-lg font-bold text-text mb-1">
+              {t('tournamentDetail.deleteTournament')}
+            </h2>
+            <p className="text-sm text-text-secondary mb-1">
+              {syncedTournament.name}
+            </p>
+            <p className="text-xs text-text-disabled mb-5">
+              {t('tournamentDetail.deleteTournamentDesc')}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 disabled:opacity-60 transition-all"
+              >
+                {deleting ? t('tournamentDetail.deleting') : t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+      )}
     </div>
+  );
+}
+
+/* ---- Status badge config ---- */
+
+const STATUS_CONFIG: Record<string, string> = {
+  approved: 'bg-accent-light text-accent',
+  pending: 'bg-bg-divider text-text-disabled',
+  rejected: 'bg-rose-500/10 text-rose-500',
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
+  const labels: Record<string, string> = {
+    approved: t('common.approved'),
+    pending: t('common.pending'),
+    rejected: t('common.rejected'),
+  };
+  return (
+    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_CONFIG[status] || 'bg-bg-divider text-text-disabled'}`}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
+/* ---- Grouped entries helpers ---- */
+
+interface CoachGroup {
+  coachId: string;
+  coachName: string;
+  status: string; // take from first entry (all same coach → same status)
+  entries: TournamentEntry[];
+}
+
+function groupEntriesByCoach(entries: TournamentEntry[]): CoachGroup[] {
+  const map = new Map<string, CoachGroup>();
+  for (const e of entries) {
+    const key = e.coach_id || `individual-${e.id}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        coachId: e.coach_id || '',
+        coachName: e.coach_name || e.athlete_name,
+        status: e.status,
+        entries: [],
+      });
+    }
+    map.get(key)!.entries.push(e);
+  }
+  return Array.from(map.values());
+}
+
+/* ---- Entries section ---- */
+
+function EntriesSection({
+  tournament,
+  tournamentId,
+  isAdmin,
+  isCoach,
+  myCoachId,
+  mutate,
+  refetch,
+}: {
+  tournament: TournamentDetailType;
+  tournamentId: string;
+  isAdmin: boolean;
+  isCoach?: boolean;
+  myCoachId?: string;
+  mutate: (d: TournamentDetailType) => void;
+  refetch: (silent?: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const groups = useMemo(() => groupEntriesByCoach(tournament.entries), [tournament.entries]);
+  const pendingGroups = groups.filter((g) => g.status === 'pending').length;
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-lg font-semibold text-text">
+          {t('tournamentDetail.entries')} ({groups.length})
+        </h2>
+        {isAdmin && pendingGroups > 0 && (
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-bg-divider text-text-disabled">
+            {pendingGroups} {t('tournamentDetail.pendingCount')}
+          </span>
+        )}
+      </div>
+      {groups.length === 0 ? (
+        <EmptyState title={t('tournamentDetail.noEntries')} />
+      ) : (
+        groups.map((group) => (
+          <CoachEntryCard
+            key={group.coachId || group.entries[0].id}
+            group={group}
+            tournamentId={tournamentId}
+            isAdmin={isAdmin}
+            isMyEntry={isCoach === true && group.coachId === myCoachId}
+            mutate={mutate}
+            refetch={refetch}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+/* ---- Coach entry card (grouped) ---- */
+
+function CoachEntryCard({
+  group,
+  tournamentId,
+  isAdmin,
+  isMyEntry,
+  mutate,
+  refetch,
+}: {
+  group: CoachGroup;
+  tournamentId: string;
+  isAdmin: boolean;
+  isMyEntry: boolean;
+  mutate: (d: TournamentDetailType) => void;
+  refetch: (silent?: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
+  const [processing, setProcessing] = useState(false);
+
+  const handleApprove = async () => {
+    setProcessing(true);
+    try {
+      await approveCoachEntries(tournamentId, group.coachId);
+      const updated = approveMockCoachEntries(tournamentId, group.coachId);
+      hapticNotification('success');
+      showToast(t('tournamentDetail.entryApproved'));
+      if (updated) mutate(updated); else refetch(true);
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+      setProcessing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    setProcessing(true);
+    try {
+      await rejectCoachEntries(tournamentId, group.coachId);
+      const updated = rejectMockCoachEntries(tournamentId, group.coachId);
+      hapticNotification('success');
+      showToast(t('tournamentDetail.entryRejected'));
+      if (updated) mutate(updated); else refetch(true);
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+      setProcessing(false);
+    }
+  };
+
+  const handleRemoveAthlete = async (entryId: string) => {
+    try {
+      await removeEntry(tournamentId, entryId);
+      const updated = removeMockEntryAthlete(tournamentId, entryId);
+      hapticNotification('success');
+      showToast(t('tournamentDetail.athleteRemoved'));
+      if (updated) mutate(updated); else refetch(true);
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+    }
+  };
+
+  const count = group.entries.length;
+  const athleteWord = count === 1
+    ? t('tournamentDetail.athlete')
+    : count >= 2 && count <= 4
+      ? t('tournamentDetail.athletesGen')
+      : t('tournamentDetail.athletes');
+
+  return (
+    <Card>
+      <div className="flex justify-between items-center mb-2">
+        <div>
+          <p className="font-medium text-sm text-text">
+            {t('tournamentDetail.coachEntry')} {group.coachName}
+          </p>
+          <p className="text-xs text-text-secondary">
+            {count} {athleteWord}
+          </p>
+        </div>
+        <StatusBadge status={group.status} />
+      </div>
+
+      {/* Athletes list */}
+      <div className="border-t border-border pt-2 space-y-1.5">
+        {group.entries.map((entry) => (
+          <div key={entry.id} className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] text-text truncate">{entry.athlete_name}</p>
+              <p className="text-[11px] text-text-secondary">
+                {entry.weight_category} · {entry.age_category}
+              </p>
+            </div>
+            {isMyEntry && group.status === 'pending' && (
+              <button
+                onClick={() => handleRemoveAthlete(entry.id)}
+                className="text-[11px] text-rose-500 border-none bg-transparent cursor-pointer px-2 py-1 rounded hover:bg-rose-500/10 active:opacity-80 transition-all shrink-0"
+              >
+                {t('tournamentDetail.removeAthlete')}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Admin approve/reject */}
+      {isAdmin && group.status === 'pending' && (
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={handleApprove}
+            disabled={processing}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all hover:opacity-90"
+          >
+            {t('tournamentDetail.approve')}
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={processing}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 disabled:opacity-40 transition-all hover:bg-rose-500/20"
+          >
+            {t('tournamentDetail.reject')}
+          </button>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -326,23 +619,44 @@ function InterestButton({ tournamentId }: { tournamentId: string }) {
 
 /* ---- Enter athletes button + modal ---- */
 
-function EnterAthletesButton({ tournamentId, onDone }: { tournamentId: string; onDone: () => void }) {
+function EnterAthletesButton({
+  tournamentId,
+  existingEntries,
+  ageCategories,
+  myCoachId,
+  onDone,
+}: {
+  tournamentId: string;
+  existingEntries: TournamentEntry[];
+  ageCategories: string[];
+  myCoachId?: string;
+  onDone: (updated?: TournamentDetailType) => void;
+}) {
   const { t } = useI18n();
   const [showModal, setShowModal] = useState(false);
+
+  const myEntries = existingEntries.filter((e) => e.coach_id === myCoachId);
+  const hasEntry = myEntries.length > 0;
 
   return (
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 bg-accent text-accent-text active:opacity-80 transition-all"
+        className={`w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer mb-3 active:opacity-80 transition-all ${
+          hasEntry
+            ? 'bg-accent-light text-accent'
+            : 'bg-accent text-accent-text'
+        }`}
       >
-        {t('tournamentDetail.enterAthletes')}
+        {hasEntry ? t('tournamentDetail.editEntry') : t('tournamentDetail.enterAthletes')}
       </button>
       {showModal && (
         <EnterAthletesModal
           tournamentId={tournamentId}
+          ageCategories={ageCategories}
+          existingAthleteIds={new Set(myEntries.map((e) => e.athlete_id).filter(Boolean) as string[])}
           onClose={() => setShowModal(false)}
-          onDone={() => { setShowModal(false); onDone(); }}
+          onDone={(updated) => { setShowModal(false); onDone(updated); }}
         />
       )}
     </>
@@ -351,14 +665,19 @@ function EnterAthletesButton({ tournamentId, onDone }: { tournamentId: string; o
 
 function EnterAthletesModal({
   tournamentId,
+  ageCategories,
+  existingAthleteIds,
   onClose,
   onDone,
 }: {
   tournamentId: string;
+  ageCategories: string[];
+  existingAthleteIds: Set<string>;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (updated?: TournamentDetailType) => void;
 }) {
   const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
   const { t } = useI18n();
   const { data: athletes, loading } = useApi<CoachAthlete[]>(
     getCoachAthletes,
@@ -366,9 +685,11 @@ function EnterAthletesModal({
     [],
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedAge, setSelectedAge] = useState(ageCategories[0] || 'Seniors');
   const [submitting, setSubmitting] = useState(false);
 
   const toggle = (id: string) => {
+    if (existingAthleteIds.has(id)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -381,9 +702,11 @@ function EnterAthletesModal({
     if (selected.size === 0) return;
     setSubmitting(true);
     try {
-      await enterTournament(tournamentId, Array.from(selected));
+      await enterTournament(tournamentId, Array.from(selected), selectedAge);
+      const updated = enterMockAthletes(tournamentId, Array.from(selected));
       hapticNotification('success');
-      onDone();
+      showToast(t('tournamentDetail.entriesSubmitted'));
+      onDone(updated || undefined);
     } catch {
       hapticNotification('error');
       setSubmitting(false);
@@ -403,34 +726,69 @@ function EnterAthletesModal({
         ) : !athletes || athletes.length === 0 ? (
           <EmptyState title={t('tournamentDetail.noAthletes')} description={t('tournamentDetail.noLinkedAthletes')} />
         ) : (
-          athletes.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => toggle(a.id)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl mb-1.5 border-none cursor-pointer text-left transition-all active:opacity-80 ${
-                selected.has(a.id) ? 'bg-accent-light' : 'bg-bg-secondary'
-              }`}
-            >
-              {/* Radio circle */}
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                selected.has(a.id) ? 'border-accent bg-accent' : 'border-text-disabled'
-              }`}>
-                {selected.has(a.id) && (
-                  <div className="w-2 h-2 rounded-full bg-white" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-text truncate">{a.full_name}</p>
-                <p className="text-[11px] text-text-secondary">
-                  {a.weight_category} · {a.belt}
-                </p>
-              </div>
-            </button>
-          ))
+          athletes.map((a) => {
+            const alreadyAdded = existingAthleteIds.has(a.id);
+            const isSelected = selected.has(a.id);
+            return (
+              <button
+                key={a.id}
+                onClick={() => toggle(a.id)}
+                disabled={alreadyAdded}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl mb-1.5 border-none cursor-pointer text-left transition-all active:opacity-80 disabled:cursor-default disabled:opacity-50 ${
+                  alreadyAdded
+                    ? 'bg-bg-divider'
+                    : isSelected
+                      ? 'bg-accent-light'
+                      : 'bg-bg-secondary'
+                }`}
+              >
+                {/* Radio circle */}
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                  alreadyAdded
+                    ? 'border-accent bg-accent'
+                    : isSelected
+                      ? 'border-accent bg-accent'
+                      : 'border-text-disabled'
+                }`}>
+                  {(alreadyAdded || isSelected) && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-text truncate">{a.full_name}</p>
+                  <p className="text-[11px] text-text-secondary">
+                    {a.weight_category} · {a.sport_rank}
+                    {alreadyAdded && <span className="ml-1.5 text-text-disabled">· {t('tournamentDetail.alreadyAdded')}</span>}
+                  </p>
+                </div>
+              </button>
+            );
+          })
         )}
       </div>
 
       <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        {/* Age category selector */}
+        {ageCategories.length > 1 && (
+          <div className="mb-3">
+            <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-1.5">{t('tournamentDetail.ageCategory')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ageCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedAge(cat)}
+                  className={`text-xs px-3 py-1.5 rounded-full border-none cursor-pointer transition-all active:opacity-80 ${
+                    selectedAge === cat
+                      ? 'bg-accent text-accent-text'
+                      : 'bg-bg-secondary text-text-secondary hover:bg-accent-light'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <button
           onClick={handleSubmit}
           disabled={submitting || selected.size === 0}

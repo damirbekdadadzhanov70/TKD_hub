@@ -13,7 +13,7 @@ import type { AthleteUpdate, CoachAthlete, CoachEntry, CoachUpdate, MeResponse }
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
 
 const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
-const BELTS = ['1 Gup', '1 Dan', '2 Dan', '3 Dan', '4 Dan', '5 Dan'];
+const RANKS = ['Без разряда', '3 разряд', '2 разряд', '1 разряд', 'КМС', 'МС', 'МСМК', 'ЗМС'];
 const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Рязань', 'Махачкала', 'Новосибирск', 'Краснодар', 'Владивосток'];
 
 /* ---- Icons ---- */
@@ -114,7 +114,7 @@ export default function Profile() {
         </h1>
         {isAthlete && me.athlete && (
           <p className="text-sm text-text-secondary mt-0.5">
-            {me.athlete.belt} · {me.athlete.weight_category}
+            {me.athlete.sport_rank} · {me.athlete.weight_category}
           </p>
         )}
         {isCoach && me.coach && (
@@ -287,7 +287,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
     const a = me.athlete;
     return list.map((item) =>
       item.id === myAthleteId
-        ? { ...item, full_name: a.full_name, weight_category: a.weight_category, belt: a.belt, rating_points: a.rating_points, club: a.club }
+        ? { ...item, full_name: a.full_name, weight_category: a.weight_category, sport_rank: a.sport_rank, rating_points: a.rating_points, club: a.club }
         : item,
     );
   }, [rawAthletes, myAthleteId, me.athlete]);
@@ -322,7 +322,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
         <InfoRow label={t('profile.club')} value={coach.club} />
         <InfoRow label={t('profile.city')} value={coach.city} />
-        <InfoRow label={t('profile.qualification')} value={coach.qualification} />
+        <InfoRow label={t('profile.sportRank')} value={coach.qualification} />
         <InfoRow label={t('profile.verifiedLabel')} value={coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} accent={coach.is_verified} />
       </div>
 
@@ -375,7 +375,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
               <div className="flex-1 min-w-0">
                 <p className="text-[15px] font-medium text-text truncate">{a.full_name}</p>
                 <p className="text-[13px] text-text-secondary">
-                  {a.weight_category} · {a.belt} · <span className="text-accent">{a.rating_points} pts</span>
+                  {a.weight_category} · {a.sport_rank} · <span className="text-accent">{a.rating_points} pts</span>
                 </p>
               </div>
             </div>
@@ -405,15 +405,18 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
               <div className="flex-1 min-w-0">
                 <p className="text-[15px] font-medium text-text truncate">{e.tournament_name}</p>
                 <p className="text-[13px] text-text-secondary">
-                  {e.athlete_name} · {e.weight_category} · {e.status}
+                  {e.athlete_name} · {e.weight_category}
                 </p>
               </div>
-              <button
-                onClick={() => navigate(`/tournament/${e.tournament_id}`)}
-                className="text-[13px] text-accent shrink-0 ml-2 cursor-pointer border-none bg-transparent p-0 active:opacity-70"
-              >
-                {t('profile.editArrow')}
-              </button>
+              <div className="flex items-center gap-2 shrink-0 ml-2">
+                <EntryStatusBadge status={e.status} />
+                <button
+                  onClick={() => navigate(`/tournament/${e.tournament_id}`)}
+                  className="text-[13px] text-accent cursor-pointer border-none bg-transparent p-0 active:opacity-70"
+                >
+                  {t('profile.editArrow')}
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -438,6 +441,28 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
         </BottomSheet>
       )}
     </>
+  );
+}
+
+/* ---- Entry Status Badge ---- */
+
+const ENTRY_STATUS_CONFIG: Record<string, string> = {
+  approved: 'bg-accent-light text-accent',
+  pending: 'bg-bg-divider text-text-disabled',
+  rejected: 'bg-rose-500/10 text-rose-500',
+};
+
+function EntryStatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
+  const labels: Record<string, string> = {
+    approved: t('common.approved'),
+    pending: t('common.pending'),
+    rejected: t('common.rejected'),
+  };
+  return (
+    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ENTRY_STATUS_CONFIG[status] || 'bg-bg-divider text-text-disabled'}`}>
+      {labels[status] || status}
+    </span>
   );
 }
 
@@ -488,6 +513,10 @@ function SettingsSheet({
   const { showToast } = useToast();
   const { t, lang, setLang } = useI18n();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAdminAuth, setShowAdminAuth] = useState(false);
+  const [adminLogin, setAdminLogin] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [authError, setAuthError] = useState(false);
 
   const ROLE_LABELS: Record<MeResponse['role'], string> = {
     athlete: t('profile.roleAthlete'),
@@ -500,6 +529,26 @@ function SettingsSheet({
     coach: t('profile.roleCoachDesc'),
     admin: t('profile.roleAdminDesc'),
     none: '',
+  };
+
+  const handleRoleClick = (role: MeResponse['role']) => {
+    if (role === 'admin' && me.role !== 'admin') {
+      setShowAdminAuth(true);
+      setAuthError(false);
+      setAdminLogin('');
+      setAdminPassword('');
+    } else {
+      onRoleChange(role);
+    }
+  };
+
+  const handleAdminAuth = () => {
+    if (adminLogin === 'admin' && adminPassword === '123') {
+      setShowAdminAuth(false);
+      onRoleChange('admin');
+    } else {
+      setAuthError(true);
+    }
   };
 
   if (showDeleteConfirm) {
@@ -550,7 +599,7 @@ function SettingsSheet({
           {ROLES.map((role) => (
             <button
               key={role}
-              onClick={() => onRoleChange(role)}
+              onClick={() => handleRoleClick(role)}
               className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 ${
                 me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
               }`}
@@ -565,6 +614,46 @@ function SettingsSheet({
             </button>
           ))}
         </div>
+
+        {/* Admin auth modal */}
+        {showAdminAuth && (
+          <div className="mb-4 p-4 rounded-xl bg-bg-secondary border border-border">
+            <p className="text-sm font-medium text-text mb-3">{t('profile.adminAuth')}</p>
+            <input
+              type="text"
+              placeholder={t('profile.login')}
+              value={adminLogin}
+              onChange={(e) => { setAdminLogin(e.target.value); setAuthError(false); }}
+              className="w-full mb-2 px-3 py-2.5 rounded-lg text-sm bg-bg border border-border text-text outline-none focus:border-accent transition-colors"
+            />
+            <input
+              type="password"
+              placeholder={t('profile.password')}
+              value={adminPassword}
+              onChange={(e) => { setAdminPassword(e.target.value); setAuthError(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAdminAuth(); }}
+              className="w-full mb-2 px-3 py-2.5 rounded-lg text-sm bg-bg border border-border text-text outline-none focus:border-accent transition-colors"
+            />
+            {authError && (
+              <p className="text-[11px] text-rose-500 mb-2">{t('profile.wrongCredentials')}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAdminAuth(false)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleAdminAuth}
+                disabled={!adminLogin || !adminPassword}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all"
+              >
+                {t('profile.enter')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Language */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.language')}</p>
@@ -630,12 +719,12 @@ function EditProfileForm({
   onSaved: (data: AthleteUpdate) => void;
 }) {
   const { t } = useI18n();
+  const { showToast } = useToast();
   const [form, setForm] = useState<AthleteUpdate>({
     full_name: athlete.full_name,
     weight_category: athlete.weight_category,
     current_weight: athlete.current_weight,
-    belt: athlete.belt,
-    country: athlete.country,
+    sport_rank: athlete.sport_rank,
     city: athlete.city,
     club: athlete.club || '',
   });
@@ -646,7 +735,7 @@ function EditProfileForm({
     form.full_name !== athlete.full_name ||
     form.weight_category !== athlete.weight_category ||
     form.current_weight !== athlete.current_weight ||
-    form.belt !== athlete.belt ||
+    form.sport_rank !== athlete.sport_rank ||
     form.city !== athlete.city ||
     form.club !== (athlete.club || '');
 
@@ -656,8 +745,9 @@ function EditProfileForm({
       await updateMe(form);
       hapticNotification('success');
       onSaved(form);
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSaving(false);
     }
   };
@@ -719,17 +809,22 @@ function EditProfileForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.belt')}</span>
-          <select
-            value={form.belt || ''}
-            onChange={(e) => update('belt', e.target.value)}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
-          >
-            {!BELTS.includes(form.belt || '') && form.belt && (
-              <option value={form.belt}>{form.belt}</option>
-            )}
-            {BELTS.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.sportRank')}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {RANKS.map((r) => (
+              <button
+                key={r}
+                onClick={() => update('sport_rank', r)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                  form.sport_rank === r
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-transparent text-text-disabled border-text-disabled'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -859,13 +954,22 @@ function EditCoachForm({
         </div>
 
         <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.qualification')}</span>
-          <input
-            value={form.qualification || ''}
-            onChange={(e) => update('qualification', e.target.value)}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
-            placeholder={t('onboarding.qualificationPlaceholder')}
-          />
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.sportRank')}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {RANKS.map((r) => (
+              <button
+                key={r}
+                onClick={() => update('qualification', r)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                  form.qualification === r
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-transparent text-text-disabled border-text-disabled'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

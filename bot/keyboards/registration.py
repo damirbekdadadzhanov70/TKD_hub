@@ -75,34 +75,26 @@ def weight_category_keyboard(gender: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-BELTS = [
-    ("10 гып (белый)", "white"),
-    ("9 гып", "yellow_stripe"),
-    ("8 гып (жёлтый)", "yellow"),
-    ("7 гып", "green_stripe"),
-    ("6 гып (зелёный)", "green"),
-    ("5 гып", "blue_stripe"),
-    ("4 гып (синий)", "blue"),
-    ("3 гып", "red_stripe"),
-    ("2 гып (красный)", "red"),
-    ("1 гып", "red_black"),
-    ("1 дан", "black_1dan"),
-    ("2 дан", "black_2dan"),
-    ("3 дан", "black_3dan"),
-    ("4 дан", "black_4dan"),
-    ("5 дан", "black_5dan"),
-    ("6 дан", "black_6dan"),
-    ("7 дан", "black_7dan"),
-    ("8 дан", "black_8dan"),
-    ("9 дан", "black_9dan"),
+RANKS = [
+    ("Без разряда", "none"),
+    ("3 разряд", "3rd"),
+    ("2 разряд", "2nd"),
+    ("1 разряд", "1st"),
+    ("КМС", "kms"),
+    ("МС", "ms"),
+    ("МСМК", "msmk"),
+    ("ЗМС", "zms"),
 ]
 
+# Reverse mapping: callback value → display label
+RANK_LABELS = {value: label for label, value in RANKS}
 
-def belt_keyboard() -> InlineKeyboardMarkup:
+
+def rank_keyboard() -> InlineKeyboardMarkup:
     buttons = []
     row = []
-    for label, value in BELTS:
-        row.append(InlineKeyboardButton(text=label, callback_data=f"belt:{value}"))
+    for label, value in RANKS:
+        row.append(InlineKeyboardButton(text=label, callback_data=f"rank:{value}"))
         if len(row) == 2:
             buttons.append(row)
             row = []
@@ -111,11 +103,39 @@ def belt_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+CITIES = [
+    ("Москва", "Москва"),
+    ("Санкт-Петербург", "Санкт-Петербург"),
+    ("Казань", "Казань"),
+    ("Екатеринбург", "Екатеринбург"),
+    ("Нижний Новгород", "Нижний Новгород"),
+    ("Рязань", "Рязань"),
+    ("Махачкала", "Махачкала"),
+    ("Новосибирск", "Новосибирск"),
+    ("Краснодар", "Краснодар"),
+    ("Владивосток", "Владивосток"),
+]
+
+
+def city_keyboard(lang: str) -> InlineKeyboardMarkup:
+    buttons = []
+    row = []
+    for label, value in CITIES:
+        row.append(InlineKeyboardButton(text=label, callback_data=f"city:{value}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(text=t("other_city", lang), callback_data="city:other")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 COUNTRIES = [
+    ("🇷🇺 Россия", "Россия"),
     ("🇰🇬 Кыргызстан", "Кыргызстан"),
     ("🇰🇿 Казахстан", "Казахстан"),
     ("🇺🇿 Узбекистан", "Узбекистан"),
-    ("🇷🇺 Россия", "Россия"),
     ("🇹🇯 Таджикистан", "Таджикистан"),
     ("🇹🇲 Туркменистан", "Туркменистан"),
     ("🇬🇪 Грузия", "Грузия"),
@@ -135,7 +155,7 @@ def country_keyboard(lang: str) -> InlineKeyboardMarkup:
             row = []
     if row:
         buttons.append(row)
-    buttons.append([InlineKeyboardButton(text=t("other_country", lang), callback_data="country:other")])
+    buttons.append([InlineKeyboardButton(text=t("other_city", lang), callback_data="country:other")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

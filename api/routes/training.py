@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import extract, select
+from sqlalchemy import case, extract, func, select
 
 from api.dependencies import AuthContext, get_current_user
 from api.schemas.pagination import PaginatedResponse
@@ -87,16 +87,29 @@ async def get_training_stats(
             detail="Only athletes have training stats",
         )
 
-    query = select(TrainingLog).where(TrainingLog.athlete_id == ctx.user.athlete.id)
+    filters = [TrainingLog.athlete_id == ctx.user.athlete.id]
     if month:
-        query = query.where(extract("month", TrainingLog.date) == month)
+        filters.append(extract("month", TrainingLog.date) == month)
     if year:
-        query = query.where(extract("year", TrainingLog.date) == year)
+        filters.append(extract("year", TrainingLog.date) == year)
+
+    intensity_score = case(
+        (TrainingLog.intensity == "low", 1),
+        (TrainingLog.intensity == "high", 3),
+        else_=2,
+    )
+
+    query = select(
+        func.count().label("total_sessions"),
+        func.coalesce(func.sum(TrainingLog.duration_minutes), 0).label("total_minutes"),
+        func.count(func.distinct(TrainingLog.date)).label("training_days"),
+        func.avg(intensity_score).label("avg_intensity_num"),
+    ).where(*filters)
 
     result = await ctx.session.execute(query)
-    logs = result.scalars().all()
+    row = result.one()
 
-    if not logs:
+    if row.total_sessions == 0:
         return TrainingLogStats(
             total_sessions=0,
             total_minutes=0,
@@ -104,12 +117,7 @@ async def get_training_stats(
             training_days=0,
         )
 
-    total_sessions = len(logs)
-    total_minutes = sum(log.duration_minutes for log in logs)
-    training_days = len({log.date for log in logs})
-
-    intensity_map = {"low": 1, "medium": 2, "high": 3}
-    avg_num = sum(intensity_map.get(log.intensity, 2) for log in logs) / total_sessions
+    avg_num = row.avg_intensity_num or 2
     if avg_num < 1.5:
         avg_intensity = "low"
     elif avg_num > 2.5:
@@ -118,10 +126,10 @@ async def get_training_stats(
         avg_intensity = "medium"
 
     return TrainingLogStats(
-        total_sessions=total_sessions,
-        total_minutes=total_minutes,
+        total_sessions=row.total_sessions,
+        total_minutes=row.total_minutes,
         avg_intensity=avg_intensity,
-        training_days=training_days,
+        training_days=row.training_days,
     )
 
 

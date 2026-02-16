@@ -130,5 +130,5 @@ async def test_coach_remove_entry(
     db_session.add(entry)
     await db_session.commit()
 
-    response = await coach_client.delete(f"/api/tournaments/{t.id}/entries/{athlete_u.athlete.id}")
+    response = await coach_client.delete(f"/api/tournaments/{t.id}/entries/{entry.id}")
     assert response.status_code == 204

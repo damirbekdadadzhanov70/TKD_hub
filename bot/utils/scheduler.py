@@ -63,7 +63,7 @@ async def check_deadline_reminders(bot: Bot) -> None:
             if key in _notified_today:
                 continue
 
-            athlete_ids = {link.athlete_id for link in coach.athlete_links if link.status == "active"}
+            athlete_ids = {link.athlete_id for link in coach.athlete_links if link.status == "accepted"}
             if not athlete_ids:
                 continue
 

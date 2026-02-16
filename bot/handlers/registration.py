@@ -1,3 +1,4 @@
+import html
 import uuid
 from datetime import datetime
 
@@ -6,11 +7,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards.registration import (
-    belt_keyboard,
+    city_keyboard,
     club_skip_keyboard,
-    country_keyboard,
     gender_keyboard,
     photo_skip_keyboard,
+    rank_keyboard,
+    RANK_LABELS,
     weight_category_keyboard,
 )
 from bot.states.registration import AthleteRegistration, CoachRegistration
@@ -33,7 +35,7 @@ router = Router()
 async def athlete_full_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(full_name=message.text.strip())
+    await state.update_data(full_name=html.escape(message.text.strip()))
     await message.answer(t("enter_dob", lang))
     await state.set_state(AthleteRegistration.date_of_birth)
 
@@ -105,64 +107,59 @@ async def athlete_current_weight(message: Message, state: FSMContext):
         return
 
     await state.update_data(current_weight=weight)
-    await message.answer(t("choose_belt", lang), reply_markup=belt_keyboard())
-    await state.set_state(AthleteRegistration.belt)
+    await message.answer(t("choose_rank", lang), reply_markup=rank_keyboard())
+    await state.set_state(AthleteRegistration.sport_rank)
 
 
-@router.callback_query(AthleteRegistration.belt, F.data.startswith("belt:"))
-async def athlete_belt(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(AthleteRegistration.sport_rank, F.data.startswith("rank:"))
+async def athlete_rank(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "belt")
+        parts = parse_callback(callback.data, "rank")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    belt = parts[1]
+    rank_value = parts[1]
+    rank_label = RANK_LABELS.get(rank_value, rank_value)
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(belt=belt)
+    await state.update_data(sport_rank=rank_label)
 
     await callback.message.edit_text(
-        t("choose_country", lang),
-        reply_markup=country_keyboard(lang),
+        t("choose_city", lang),
+        reply_markup=city_keyboard(lang),
     )
-    await state.set_state(AthleteRegistration.country)
+    await state.set_state(AthleteRegistration.city)
     await callback.answer()
 
 
-@router.callback_query(AthleteRegistration.country, F.data.startswith("country:"))
-async def athlete_country(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(AthleteRegistration.city, F.data.startswith("city:"))
+async def athlete_city_callback(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "country")
+        parts = parse_callback(callback.data, "city")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    country = parts[1]
+    city = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
 
-    if country == "other":
-        await callback.message.edit_text(t("enter_country", lang))
-        await state.set_state(AthleteRegistration.country_custom)
+    if city == "other":
+        await callback.message.edit_text(t("enter_city", lang))
+        await state.set_state(AthleteRegistration.city_custom)
         await callback.answer()
         return
 
-    await state.update_data(country=country)
-    await callback.message.edit_text(t("enter_city", lang))
-    await state.set_state(AthleteRegistration.city)
+    await state.update_data(city=city)
+    await callback.message.edit_text(
+        t("enter_club", lang),
+        reply_markup=club_skip_keyboard(lang),
+    )
+    await state.set_state(AthleteRegistration.club)
     await callback.answer()
 
 
-@router.message(AthleteRegistration.country_custom)
-async def athlete_country_custom(message: Message, state: FSMContext):
-    data = await state.get_data()
-    lang = data.get("language", "ru")
-    await state.update_data(country=message.text.strip())
-    await message.answer(t("enter_city", lang))
-    await state.set_state(AthleteRegistration.city)
-
-
-@router.message(AthleteRegistration.city)
-async def athlete_city(message: Message, state: FSMContext):
+@router.message(AthleteRegistration.city_custom)
+async def athlete_city_custom(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(city=message.text.strip())
@@ -226,8 +223,8 @@ async def _save_athlete(message: Message, state: FSMContext):
             gender=data["gender"],
             weight_category=data["weight_category"],
             current_weight=data["current_weight"],
-            belt=data["belt"],
-            country=data["country"],
+            sport_rank=data["sport_rank"],
+            country="Россия",
             city=data["city"],
             club=data.get("club"),
             photo_url=data.get("photo_url"),
@@ -248,7 +245,7 @@ async def _save_athlete(message: Message, state: FSMContext):
 async def coach_full_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(full_name=message.text.strip())
+    await state.update_data(full_name=html.escape(message.text.strip()))
     await message.answer(t("enter_dob", lang))
     await state.set_state(CoachRegistration.date_of_birth)
 
@@ -282,47 +279,59 @@ async def coach_gender(callback: CallbackQuery, state: FSMContext):
     await state.update_data(gender=gender)
 
     await callback.message.edit_text(
-        t("choose_country", lang),
-        reply_markup=country_keyboard(lang),
+        t("choose_rank", lang),
+        reply_markup=rank_keyboard(),
     )
-    await state.set_state(CoachRegistration.country)
+    await state.set_state(CoachRegistration.sport_rank)
     await callback.answer()
 
 
-@router.callback_query(CoachRegistration.country, F.data.startswith("country:"))
-async def coach_country(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(CoachRegistration.sport_rank, F.data.startswith("rank:"))
+async def coach_rank(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "country")
+        parts = parse_callback(callback.data, "rank")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    country = parts[1]
+    rank_value = parts[1]
+    rank_label = RANK_LABELS.get(rank_value, rank_value)
     data = await state.get_data()
     lang = data.get("language", "ru")
+    await state.update_data(sport_rank=rank_label)
 
-    if country == "other":
-        await callback.message.edit_text(t("enter_country", lang))
-        await state.set_state(CoachRegistration.country_custom)
-        await callback.answer()
-        return
-
-    await state.update_data(country=country)
-    await callback.message.edit_text(t("enter_city", lang))
+    await callback.message.edit_text(
+        t("choose_city", lang),
+        reply_markup=city_keyboard(lang),
+    )
     await state.set_state(CoachRegistration.city)
     await callback.answer()
 
 
-@router.message(CoachRegistration.country_custom)
-async def coach_country_custom(message: Message, state: FSMContext):
+@router.callback_query(CoachRegistration.city, F.data.startswith("city:"))
+async def coach_city_callback(callback: CallbackQuery, state: FSMContext):
+    try:
+        parts = parse_callback(callback.data, "city")
+    except CallbackParseError:
+        await callback.answer("Error")
+        return
+    city = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(country=message.text.strip())
-    await message.answer(t("enter_city", lang))
-    await state.set_state(CoachRegistration.city)
+
+    if city == "other":
+        await callback.message.edit_text(t("enter_city", lang))
+        await state.set_state(CoachRegistration.city_custom)
+        await callback.answer()
+        return
+
+    await state.update_data(city=city)
+    await callback.message.edit_text(t("enter_club", lang))
+    await state.set_state(CoachRegistration.club)
+    await callback.answer()
 
 
-@router.message(CoachRegistration.city)
-async def coach_city(message: Message, state: FSMContext):
+@router.message(CoachRegistration.city_custom)
+async def coach_city_custom(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(city=message.text.strip())
@@ -335,15 +344,6 @@ async def coach_club(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(club=message.text.strip())
-    await message.answer(t("enter_qualification", lang))
-    await state.set_state(CoachRegistration.qualification)
-
-
-@router.message(CoachRegistration.qualification)
-async def coach_qualification(message: Message, state: FSMContext):
-    data = await state.get_data()
-    lang = data.get("language", "ru")
-    await state.update_data(qualification=message.text.strip())
     await message.answer(
         t("send_photo", lang),
         reply_markup=photo_skip_keyboard(lang),
@@ -377,10 +377,10 @@ async def _save_coach(message: Message, state: FSMContext):
             full_name=data["full_name"],
             date_of_birth=datetime.fromisoformat(data["date_of_birth"]).date(),
             gender=data["gender"],
-            country=data["country"],
+            country="Россия",
             city=data["city"],
             club=data["club"],
-            qualification=data["qualification"],
+            qualification=data["sport_rank"],
             photo_url=data.get("photo_url"),
             is_verified=False,
         )

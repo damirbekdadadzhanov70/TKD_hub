@@ -38,7 +38,7 @@ async def _build_athletes_list(coach_id):
             select(CoachAthlete)
             .where(
                 CoachAthlete.coach_id == coach_id,
-                CoachAthlete.status == "active",
+                CoachAthlete.status == "accepted",
             )
             .options(selectinload(CoachAthlete.athlete))
         )
@@ -96,8 +96,7 @@ async def on_view_athlete(callback: CallbackQuery):
         gender=t("gender_male", lang) if athlete.gender == "M" else t("gender_female", lang),
         weight_cat=athlete.weight_category,
         weight=athlete.current_weight,
-        belt=athlete.belt,
-        country=athlete.country,
+        sport_rank=athlete.sport_rank,
         city=athlete.city,
         club=athlete.club or "—",
     )

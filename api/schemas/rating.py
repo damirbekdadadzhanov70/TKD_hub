@@ -12,6 +12,6 @@ class RatingEntry(BaseModel):
     city: str
     club: Optional[str] = None
     weight_category: str
-    belt: str
+    sport_rank: str
     rating_points: int
     photo_url: Optional[str] = None

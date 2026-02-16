@@ -12,13 +12,13 @@ class Athlete(Base):
     __tablename__ = "athletes"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
     gender: Mapped[str] = mapped_column(String(1), nullable=False)
     weight_category: Mapped[str] = mapped_column(String(50), nullable=False)
     current_weight: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
-    belt: Mapped[str] = mapped_column(String(50), nullable=False)
+    sport_rank: Mapped[str] = mapped_column(String(50), nullable=False)
     country: Mapped[str] = mapped_column(String(100), nullable=False)
     city: Mapped[str] = mapped_column(String(100), nullable=False)
     club: Mapped[str | None] = mapped_column(String(255))

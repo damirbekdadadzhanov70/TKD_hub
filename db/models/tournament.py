@@ -19,15 +19,15 @@ class Tournament(Base):
     city: Mapped[str] = mapped_column(String(100), nullable=False)
     country: Mapped[str] = mapped_column(String(100), nullable=False)
     venue: Mapped[str] = mapped_column(String(255), nullable=False)
-    age_categories: Mapped[dict] = mapped_column(JSON, default=list)
-    weight_categories: Mapped[dict] = mapped_column(JSON, default=list)
+    age_categories: Mapped[list] = mapped_column(JSON, default=list)
+    weight_categories: Mapped[list] = mapped_column(JSON, default=list)
     entry_fee: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     registration_deadline: Mapped[date] = mapped_column(Date, nullable=False)
     organizer_contact: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), default="upcoming")
     importance_level: Mapped[int] = mapped_column(Integer, default=1)
-    created_by: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
@@ -66,6 +66,9 @@ class TournamentEntry(Base):
 
 class TournamentResult(Base):
     __tablename__ = "tournament_results"
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "athlete_id", "weight_category", "age_category"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tournament_id: Mapped[uuid.UUID] = mapped_column(

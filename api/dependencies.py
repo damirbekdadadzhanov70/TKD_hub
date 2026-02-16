@@ -17,7 +17,7 @@ from db.models import User
 
 logger = logging.getLogger(__name__)
 
-INIT_DATA_MAX_AGE = 86400  # 24 hours
+INIT_DATA_MAX_AGE = 14400  # 4 hours
 
 
 @dataclass

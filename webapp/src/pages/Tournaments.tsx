@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PullToRefresh from '../components/PullToRefresh';
 import BottomSheet from '../components/BottomSheet';
@@ -8,9 +8,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
-import { createTournament, getMe, getTournaments } from '../api/endpoints';
-import { addMockTournament, mockMe, mockTournaments } from '../api/mock';
-import type { MeResponse, TournamentCreate, TournamentListItem } from '../types';
+import { createTournament, getCoachEntries, getMe, getTournaments } from '../api/endpoints';
+import { addMockTournament, mockCoachEntries, mockMe, mockTournaments } from '../api/mock';
+import type { CoachEntry, MeResponse, TournamentCreate, TournamentListItem } from '../types';
 
 function statusBadge(status: string, t: (key: string) => string) {
   const styles: Record<string, string> = {
@@ -53,6 +53,9 @@ const CITIES = [
   'Нижний Новгород',
   'Рязань',
   'Махачкала',
+  'Новосибирск',
+  'Краснодар',
+  'Владивосток',
 ];
 
 function CheckIcon() {
@@ -79,6 +82,24 @@ export default function Tournaments() {
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
+  const isCoach = me?.role === 'coach';
+
+  // Load coach entries to show "joined" indicators on tournament cards
+  const { data: coachEntries } = useApi<CoachEntry[]>(
+    getCoachEntries,
+    isCoach ? mockCoachEntries : [],
+    [isCoach],
+  );
+
+  // Map tournament_id → count of coach's entries for that tournament
+  const coachEntriesByTournament = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!isCoach || !coachEntries) return map;
+    for (const e of coachEntries) {
+      map.set(e.tournament_id, (map.get(e.tournament_id) || 0) + 1);
+    }
+    return map;
+  }, [isCoach, coachEntries]);
 
   const STATUSES = STATUS_VALUES.map((v) => ({
     value: v,
@@ -89,17 +110,13 @@ export default function Tournaments() {
   }));
   const [showCityPicker, setShowCityPicker] = useState(false);
 
-  const { data: tournaments, loading, refetch, mutate } = useApi<TournamentListItem[]>(
-    () => getTournaments({ country: city || undefined, status: status || undefined }),
+  const { data: tournaments, loading, refetch } = useApi<TournamentListItem[]>(
+    () => getTournaments({ city: city || undefined, status: status || undefined }),
     mockTournaments,
     [city, status],
   );
 
-  const filtered = (tournaments || []).filter((tr) => {
-    if (status && tr.status !== status) return false;
-    if (city && tr.city !== city) return false;
-    return true;
-  });
+  const filtered = tournaments || [];
 
   return (
     <PullToRefresh onRefresh={() => refetch(true)}>
@@ -211,27 +228,40 @@ export default function Tournaments() {
         ) : filtered.length === 0 ? (
           <EmptyState title={t('tournaments.noTournaments')} description={t('tournaments.noTournamentsDesc')} />
         ) : (
-          filtered.map((tr) => (
-            <Card
-              key={tr.id}
-              onClick={() => navigate(`/tournament/${tr.id}`)}
-              className={tr.status === 'completed' ? 'opacity-50' : ''}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-semibold text-base flex-1 mr-2 text-text">
-                  {tr.name}
-                </h3>
-                {statusBadge(tr.status, t)}
-              </div>
-              <p className="text-[13px] text-text-secondary">
-                {tr.city} · {tr.start_date}
-              </p>
-              <div className="flex items-center gap-3 mt-2">
-                <ImportanceDots level={tr.importance_level} />
-                <span className="text-[13px] font-mono text-text-secondary">{tr.entry_count} {t('common.entries')}</span>
-              </div>
-            </Card>
-          ))
+          filtered.map((tr) => {
+            const myCount = coachEntriesByTournament.get(tr.id) || 0;
+            return (
+              <Card
+                key={tr.id}
+                onClick={() => navigate(`/tournament/${tr.id}`)}
+                className={tr.status === 'completed' ? 'opacity-50' : ''}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-semibold text-base flex-1 mr-2 text-text">
+                    {tr.name}
+                  </h3>
+                  {statusBadge(tr.status, t)}
+                </div>
+                <p className="text-[13px] text-text-secondary">
+                  {tr.city} · {tr.start_date}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <ImportanceDots level={tr.importance_level} />
+                  <span className="text-[13px] font-mono text-text-secondary">{tr.entry_count} {t('common.entries')}</span>
+                </div>
+                {isCoach && myCount > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-dashed border-border">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className="text-[13px] text-accent font-medium">
+                      {t('tournaments.yourEntries')} · {myCount} {t('tournamentDetail.athletes')}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            );
+          })
         )}
       </div>
 
@@ -239,9 +269,9 @@ export default function Tournaments() {
       {showCreateForm && (
         <CreateTournamentForm
           onClose={() => setShowCreateForm(false)}
-          onSaved={(item) => {
+          onSaved={() => {
             setShowCreateForm(false);
-            mutate([item, ...(tournaments || [])]);
+            refetch(true);
           }}
         />
       )}
@@ -252,7 +282,7 @@ export default function Tournaments() {
 
 const IMPORTANCE_LEVELS = [1, 2, 3];
 
-function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSaved: (item: TournamentListItem) => void }) {
+function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { hapticNotification } = useTelegram();
   const { t } = useI18n();
   const today = new Date().toISOString().slice(0, 10);
@@ -278,8 +308,8 @@ function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSav
     try {
       await createTournament(form);
       hapticNotification('success');
-      const item = addMockTournament(form);
-      onSaved(item);
+      addMockTournament(form);
+      onSaved();
     } catch {
       hapticNotification('error');
       setSaving(false);
