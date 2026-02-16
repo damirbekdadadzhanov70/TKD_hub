@@ -633,7 +633,7 @@ async def test_start_new_user(db_session):
 
     msg.answer.assert_called_once()
     call_text = msg.answer.call_args[0][0]
-    assert "TKD Hub" in call_text
+    assert "KukkiDo" in call_text
 
     # User should be created in DB
     async with TestSession() as session:
@@ -656,7 +656,7 @@ async def test_start_existing_user(db_session, test_user):
 
     msg.answer.assert_called_once()
     call_text = msg.answer.call_args[0][0]
-    assert "TKD Hub" in call_text
+    assert "KukkiDo" in call_text
 
 
 @pytest.mark.asyncio
