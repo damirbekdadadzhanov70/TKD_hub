@@ -65,7 +65,7 @@ function AppRoutes() {
         path="/onboarding"
         element={
           isNone
-            ? <Onboarding onComplete={(result) => mutate(result)} />
+            ? <Onboarding onComplete={(result: MeResponse) => mutate(result)} />
             : <Navigate to="/" replace />
         }
       />

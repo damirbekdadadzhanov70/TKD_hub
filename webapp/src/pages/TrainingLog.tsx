@@ -175,7 +175,7 @@ export default function TrainingLogPage() {
             <button aria-label={t('training.nextMonth')} onClick={nextMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">›</button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {WEEKDAYS.map((d) => (
+            {WEEKDAYS.map((d: string) => (
               <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
             ))}
             {Array.from({ length: firstDayOfWeek }).map((_, i) => (
