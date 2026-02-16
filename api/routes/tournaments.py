@@ -251,9 +251,7 @@ async def enter_athletes(
     )
     already_entered = set(dup_result.scalars().all())
 
-    athletes_result = await ctx.session.execute(
-        select(Athlete).where(Athlete.id.in_(data.athlete_ids))
-    )
+    athletes_result = await ctx.session.execute(select(Athlete).where(Athlete.id.in_(data.athlete_ids)))
     athletes_map = {a.id: a for a in athletes_result.scalars().all()}
 
     created_entries = []

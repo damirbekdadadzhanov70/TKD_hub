@@ -66,9 +66,7 @@ class TournamentEntry(Base):
 
 class TournamentResult(Base):
     __tablename__ = "tournament_results"
-    __table_args__ = (
-        UniqueConstraint("tournament_id", "athlete_id", "weight_category", "age_category"),
-    )
+    __table_args__ = (UniqueConstraint("tournament_id", "athlete_id", "weight_category", "age_category"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tournament_id: Mapped[uuid.UUID] = mapped_column(
