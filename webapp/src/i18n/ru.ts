@@ -255,7 +255,7 @@ const ru = {
   },
   onboarding: {
     chooseLanguage: 'Выберите язык',
-    welcome: 'Добро пожаловать в TKD Hub',
+    welcome: 'Добро пожаловать в KukkiDo',
     chooseRole: 'Выберите свою роль для начала',
     athlete: 'Спортсмен',
     athleteDesc: 'Дневник тренировок, турниры, рейтинг',

@@ -255,7 +255,7 @@ const en = {
   },
   onboarding: {
     chooseLanguage: 'Choose language',
-    welcome: 'Welcome to TKD Hub',
+    welcome: 'Welcome to KukkiDo',
     chooseRole: 'Choose your role to get started',
     athlete: 'Athlete',
     athleteDesc: 'Track training, enter tournaments, see your rating',

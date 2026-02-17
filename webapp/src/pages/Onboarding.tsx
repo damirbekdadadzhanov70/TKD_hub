@@ -22,7 +22,7 @@ const hasApi = !!API_URL;
 
 /* ---- Helpers ---- */
 
-const NAME_REGEX = /^[\p{L}\s\-]*$/u;
+const NAME_REGEX = /^[\p{L}\s-]*$/u;
 function isValidName(v: string): boolean {
   return NAME_REGEX.test(v);
 }

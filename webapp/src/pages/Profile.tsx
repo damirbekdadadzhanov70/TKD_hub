@@ -65,7 +65,7 @@ import type {
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
 
-const NAME_REGEX = /^[\p{L}\s\-]*$/u;
+const NAME_REGEX = /^[\p{L}\s-]*$/u;
 function isValidName(v: string): boolean {
   return NAME_REGEX.test(v);
 }
