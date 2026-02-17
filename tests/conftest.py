@@ -7,10 +7,6 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 import pytest_asyncio
-
-# Force default asyncio policy — uvloop (pulled by uvicorn[standard])
-# raises RuntimeError on Python 3.11+ when no current event loop exists.
-asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -18,6 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from bot.config import settings
 from db.base import Base, get_session
 from db.models import Athlete, Coach, CoachAthlete, Tournament, User
+
+# Force default asyncio policy — uvloop (pulled by uvicorn[standard])
+# raises RuntimeError on Python 3.11+ when no current event loop exists.
+asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
