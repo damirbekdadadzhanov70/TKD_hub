@@ -234,7 +234,6 @@ export default function TournamentDetail() {
             isAdmin={isAdmin}
             isCoach={isCoach}
             myCoachId={me?.coach?.id}
-            mutate={mutate}
             refetch={refetch}
           />
         </div>
@@ -348,7 +347,6 @@ function EntriesSection({
   isAdmin,
   isCoach,
   myCoachId,
-  mutate,
   refetch,
 }: {
   tournament: TournamentDetailType;
@@ -356,7 +354,6 @@ function EntriesSection({
   isAdmin: boolean;
   isCoach?: boolean;
   myCoachId?: string;
-  mutate: (d: TournamentDetailType) => void;
   refetch: (silent?: boolean) => void;
 }) {
   const { t } = useI18n();
