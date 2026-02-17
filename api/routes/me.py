@@ -22,10 +22,20 @@ router = APIRouter()
 
 
 def _resolve_role(user) -> str:
-    """Determine user role: admin > coach > athlete > none.
+    """Determine user role, respecting active_role if set.
 
     Admin without any profile returns 'none' so they go through onboarding first.
     """
+    # If user has an explicit active_role and the profile for it exists, use it
+    if user.active_role:
+        if user.active_role == "admin" and user.telegram_id in settings.admin_ids and (user.coach or user.athlete):
+            return "admin"
+        if user.active_role == "coach" and user.coach:
+            return "coach"
+        if user.active_role == "athlete" and user.athlete:
+            return "athlete"
+
+    # Fallback: admin > coach > athlete > none
     has_profile = user.coach or user.athlete
     if user.telegram_id in settings.admin_ids and has_profile:
         return "admin"
@@ -132,6 +142,40 @@ async def get_profile_stats(ctx: AuthContext = Depends(get_current_user)):
         stats.tournaments_total = t_total.scalar_one()
 
     return stats
+
+
+class SwitchRolePayload(BaseModel):
+    role: Literal["athlete", "coach", "admin"]
+
+
+@router.put("/me/role", response_model=MeResponse)
+async def switch_role(
+    payload: SwitchRolePayload,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    user = ctx.user
+
+    if payload.role == "admin" and user.telegram_id not in settings.admin_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized for admin role",
+        )
+    if payload.role == "coach" and not user.coach:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No coach profile",
+        )
+    if payload.role == "athlete" and not user.athlete:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No athlete profile",
+        )
+
+    user.active_role = payload.role
+    ctx.session.add(user)
+    await ctx.session.commit()
+    await ctx.session.refresh(user)
+    return _build_me_response(user)
 
 
 @router.put("/me", response_model=MeResponse)
@@ -328,6 +372,7 @@ async def request_role_change(
     role_request = RoleRequest(
         user_id=user.id,
         requested_role=payload.requested_role,
+        data=payload.data if payload.data else None,
     )
     ctx.session.add(role_request)
     await ctx.session.commit()

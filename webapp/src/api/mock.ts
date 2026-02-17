@@ -6,6 +6,7 @@ import type {
   MeResponse,
   ProfileStats,
   RatingEntry,
+  RoleRequestItem,
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
@@ -137,6 +138,41 @@ export function registerMockProfile(
   const updated: MeResponse = { ...mockMe, role: 'coach', athlete: null, coach };
   updateMockMe(updated);
   return updated;
+}
+
+// ── Role Management ────────────────────────────────────────
+
+export function switchMockRole(role: MeResponse['role']): MeResponse {
+  const updated = { ...mockMe, role };
+  updateMockMe(updated);
+  return updated;
+}
+
+export let mockRoleRequests: RoleRequestItem[] = [
+  {
+    id: 'mock-rr-1',
+    user_id: 'mock-user-1',
+    username: 'ivan_tkd',
+    requested_role: 'coach',
+    status: 'pending',
+    data: {
+      full_name: 'Иванов Иван',
+      date_of_birth: '1990-05-20',
+      gender: 'M',
+      sport_rank: 'МС',
+      city: 'Казань',
+      club: 'Казань TKD',
+    },
+    created_at: '2026-02-15T10:00:00',
+  },
+];
+
+export function approveMockRoleRequest(id: string) {
+  mockRoleRequests = mockRoleRequests.filter((r) => r.id !== id);
+}
+
+export function rejectMockRoleRequest(id: string) {
+  mockRoleRequests = mockRoleRequests.filter((r) => r.id !== id);
 }
 
 // ── Profile Stats ───────────────────────────────────────────

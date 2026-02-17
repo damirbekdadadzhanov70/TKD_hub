@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -2247,3 +2247,206 @@ class TestProfileStats:
         assert data["users_count"] == 0
         assert data["tournaments_total"] == 0
         assert data["tournament_history"] == []
+
+
+# ═══════════════════════════════════════════════════════════════
+#  15. Role Management (PUT /me/role, admin role-requests)
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_switch_role_admin(
+    admin_client: AsyncClient,
+    admin_user: User,
+    db_session: AsyncSession,
+):
+    """Admin can switch active_role, GET /me returns the new role."""
+    # admin_user has athlete profile → can switch to athlete
+    resp = await admin_client.put("/api/me/role", json={"role": "athlete"})
+    assert resp.status_code == 200
+    assert resp.json()["role"] == "athlete"
+
+    # GET /me should also return athlete
+    resp2 = await admin_client.get("/api/me")
+    assert resp2.status_code == 200
+    assert resp2.json()["role"] == "athlete"
+
+    # Switch back to admin
+    resp3 = await admin_client.put("/api/me/role", json={"role": "admin"})
+    assert resp3.status_code == 200
+    assert resp3.json()["role"] == "admin"
+
+
+@pytest.mark.asyncio
+async def test_switch_role_without_profile(auth_client: AsyncClient):
+    """Switching to a role without the profile returns 400."""
+    # auth_client = athlete user, has no coach profile
+    resp = await auth_client.put("/api/me/role", json={"role": "coach"})
+    assert resp.status_code == 400
+    assert "No coach profile" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_switch_role_non_admin(auth_client: AsyncClient):
+    """Non-admin user cannot switch to admin role."""
+    resp = await auth_client.put("/api/me/role", json={"role": "admin"})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_role_request_stores_data(auth_client: AsyncClient, db_session: AsyncSession):
+    """POST /me/role-request stores data field in DB."""
+    profile_data = {
+        "full_name": "Test Coach",
+        "date_of_birth": "1990-01-01",
+        "gender": "M",
+        "sport_rank": "КМС",
+        "city": "Москва",
+        "club": "Test Club",
+    }
+    resp = await auth_client.post(
+        "/api/me/role-request",
+        json={"requested_role": "coach", "data": profile_data},
+    )
+    assert resp.status_code == 200
+    request_id = resp.json()["id"]
+
+    # Check DB (SQLite needs uuid.UUID, not string)
+    result = await db_session.execute(select(RoleRequest).where(RoleRequest.id == uuid_mod.UUID(request_id)))
+    rr = result.scalar_one()
+    assert rr.data is not None
+    assert rr.data["full_name"] == "Test Coach"
+    assert rr.data["city"] == "Москва"
+
+
+@pytest.mark.asyncio
+async def test_admin_list_role_requests(
+    db_session: AsyncSession,
+    admin_user: User,
+    test_user: User,
+):
+    """Admin can list pending role requests."""
+    from api.main import app
+    from db.base import get_session
+    from tests.conftest import make_init_data, override_get_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        # Create role request as test_user
+        athlete_init = make_init_data(telegram_id=test_user.telegram_id)
+        resp = await c.post(
+            "/api/me/role-request",
+            json={"requested_role": "coach", "data": {"full_name": "Test"}},
+            headers={"Authorization": f"tma {athlete_init}"},
+        )
+        assert resp.status_code == 200
+
+        # List as admin
+        admin_init = make_init_data(telegram_id=admin_user.telegram_id)
+        resp2 = await c.get(
+            "/api/admin/role-requests",
+            headers={"Authorization": f"tma {admin_init}"},
+        )
+        assert resp2.status_code == 200
+        data = resp2.json()
+        assert len(data) >= 1
+        assert data[0]["requested_role"] == "coach"
+        assert data[0]["status"] == "pending"
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_admin_approve_creates_profile(
+    db_session: AsyncSession,
+    admin_user: User,
+    test_user: User,
+):
+    """Approving a role request creates the profile in DB."""
+    from api.main import app
+    from db.base import get_session
+    from tests.conftest import make_init_data, override_get_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        profile_data = {
+            "full_name": "New Coach",
+            "date_of_birth": "1990-05-20",
+            "gender": "M",
+            "sport_rank": "МС",
+            "city": "Казань",
+            "club": "Test Club",
+        }
+        athlete_init = make_init_data(telegram_id=test_user.telegram_id)
+        resp = await c.post(
+            "/api/me/role-request",
+            json={"requested_role": "coach", "data": profile_data},
+            headers={"Authorization": f"tma {athlete_init}"},
+        )
+        assert resp.status_code == 200
+        request_id = resp.json()["id"]
+
+        # Admin approves
+        admin_init = make_init_data(telegram_id=admin_user.telegram_id)
+        resp2 = await c.post(
+            f"/api/admin/role-requests/{request_id}/approve",
+            headers={"Authorization": f"tma {admin_init}"},
+        )
+        assert resp2.status_code == 200
+        assert resp2.json()["status"] == "approved"
+
+    app.dependency_overrides.clear()
+
+    # Verify coach profile exists for test_user
+    result = await db_session.execute(select(User).where(User.id == test_user.id).options(selectinload(User.coach)))
+    user = result.scalar_one()
+    assert user.coach is not None
+    assert user.coach.full_name == "New Coach"
+    assert user.coach.city == "Казань"
+
+
+@pytest.mark.asyncio
+async def test_admin_reject(
+    db_session: AsyncSession,
+    admin_user: User,
+    test_user: User,
+):
+    """Rejecting a role request updates status to rejected."""
+    from api.main import app
+    from db.base import get_session
+    from tests.conftest import make_init_data, override_get_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        athlete_init = make_init_data(telegram_id=test_user.telegram_id)
+        resp = await c.post(
+            "/api/me/role-request",
+            json={"requested_role": "coach", "data": {"full_name": "Deny Me"}},
+            headers={"Authorization": f"tma {athlete_init}"},
+        )
+        assert resp.status_code == 200
+        request_id = resp.json()["id"]
+
+        admin_init = make_init_data(telegram_id=admin_user.telegram_id)
+        resp2 = await c.post(
+            f"/api/admin/role-requests/{request_id}/reject",
+            headers={"Authorization": f"tma {admin_init}"},
+        )
+        assert resp2.status_code == 200
+        assert resp2.json()["status"] == "rejected"
+
+    app.dependency_overrides.clear()
+
+    # Verify in DB
+    result = await db_session.execute(select(RoleRequest).where(RoleRequest.id == uuid_mod.UUID(request_id)))
+    rr = result.scalar_one()
+    assert rr.status == "rejected"
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_list_requests(auth_client: AsyncClient):
+    """Non-admin gets 403 on admin endpoints."""
+    resp = await auth_client.get("/api/admin/role-requests")
+    assert resp.status_code == 403

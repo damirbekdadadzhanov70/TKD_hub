@@ -226,6 +226,16 @@ export interface ProfileStats {
   tournament_history: TournamentHistoryItem[];
 }
 
+export interface RoleRequestItem {
+  id: string;
+  user_id: string;
+  username: string | null;
+  requested_role: string;
+  status: string;
+  data: Record<string, unknown> | null;
+  created_at: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

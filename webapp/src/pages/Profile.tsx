@@ -6,9 +6,38 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
-import { getCoachAthletes, getCoachEntries, getMe, getProfileStats, updateCoach, updateMe } from '../api/endpoints';
-import { mockCoachAthletes, mockCoachEntries, mockMe, mockProfileStats } from '../api/mock';
-import type { AthleteUpdate, CoachAthlete, CoachEntry, CoachUpdate, MeResponse, ProfileStats } from '../types';
+import {
+  approveRoleRequest,
+  getCoachAthletes,
+  getCoachEntries,
+  getMe,
+  getProfileStats,
+  getRoleRequests,
+  rejectRoleRequest,
+  submitRoleRequest,
+  switchRole,
+  updateCoach,
+  updateMe,
+} from '../api/endpoints';
+import {
+  approveMockRoleRequest,
+  mockCoachAthletes,
+  mockCoachEntries,
+  mockMe,
+  mockProfileStats,
+  mockRoleRequests,
+  rejectMockRoleRequest,
+  switchMockRole,
+} from '../api/mock';
+import type {
+  AthleteUpdate,
+  CoachAthlete,
+  CoachEntry,
+  CoachUpdate,
+  MeResponse,
+  ProfileStats,
+  RoleRequestItem,
+} from '../types';
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
 
@@ -65,8 +94,7 @@ export default function Profile() {
     </div>
   );
 
-  const handleRoleChange = (role: MeResponse['role']) => {
-    const newMe = { ...me, role };
+  const handleRoleChange = (newMe: MeResponse) => {
     mutate(newMe);
   };
 
@@ -514,15 +542,16 @@ function SettingsSheet({
 }: {
   me: MeResponse;
   onClose: () => void;
-  onRoleChange: (role: MeResponse['role']) => void;
+  onRoleChange: (newMe: MeResponse) => void;
 }) {
   const { showToast } = useToast();
+  const { hapticNotification } = useTelegram();
   const { t, lang, setLang } = useI18n();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showAdminAuth, setShowAdminAuth] = useState(false);
-  const [adminLogin, setAdminLogin] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [authError, setAuthError] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [showRoleRequestForm, setShowRoleRequestForm] = useState(false);
+
+  const isAdmin = me.role === 'admin';
 
   const ROLE_LABELS: Record<MeResponse['role'], string> = {
     athlete: t('profile.roleAthlete'),
@@ -537,25 +566,31 @@ function SettingsSheet({
     none: '',
   };
 
-  const handleRoleClick = (role: MeResponse['role']) => {
-    if (role === 'admin' && me.role !== 'admin') {
-      setShowAdminAuth(true);
-      setAuthError(false);
-      setAdminLogin('');
-      setAdminPassword('');
-    } else {
-      onRoleChange(role);
+  const handleRoleSwitch = async (role: MeResponse['role']) => {
+    if (role === me.role || role === 'none' || switching) return;
+    setSwitching(true);
+    try {
+      const updated = await switchRole(role);
+      hapticNotification('success');
+      // Demo mode: switchRole returns {} as MeResponse, use mock fallback
+      if (!updated.telegram_id) {
+        onRoleChange(switchMockRole(role));
+      } else {
+        onRoleChange(updated);
+      }
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setSwitching(false);
     }
   };
 
-  const handleAdminAuth = () => {
-    if (adminLogin === 'admin' && adminPassword === '123') {
-      setShowAdminAuth(false);
-      onRoleChange('admin');
-    } else {
-      setAuthError(true);
-    }
-  };
+  // Determine which extra role the user can request
+  const canRequestRole = !isAdmin && (
+    (me.role === 'athlete' && !me.coach) || (me.role === 'coach' && !me.athlete)
+  );
+  const requestableRole = me.role === 'coach' ? 'athlete' : 'coach';
 
   if (showDeleteConfirm) {
     return (
@@ -601,65 +636,39 @@ function SettingsSheet({
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
         {/* Role */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-3">{t('profile.role')}</p>
-        <div className="space-y-1.5 mb-4">
-          {ROLES.map((role) => (
-            <button
-              key={role}
-              onClick={() => handleRoleClick(role)}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 ${
-                me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
-              }`}
-            >
-              <div>
-                <p className="text-sm font-medium">{ROLE_LABELS[role]}</p>
-                <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
-                  {ROLE_DESCRIPTIONS[role]}
-                </p>
-              </div>
-              {me.role === role && <CheckIcon />}
-            </button>
-          ))}
-        </div>
 
-        {/* Admin auth modal */}
-        {showAdminAuth && (
-          <div className="mb-4 p-4 rounded-xl bg-bg-secondary border border-border">
-            <p className="text-sm font-medium text-text mb-3">{t('profile.adminAuth')}</p>
-            <input
-              type="text"
-              placeholder={t('profile.login')}
-              value={adminLogin}
-              onChange={(e) => { setAdminLogin(e.target.value); setAuthError(false); }}
-              className="w-full mb-2 px-3 py-2.5 rounded-lg text-sm bg-bg border border-border text-text outline-none focus:border-accent transition-colors"
-            />
-            <input
-              type="password"
-              placeholder={t('profile.password')}
-              value={adminPassword}
-              onChange={(e) => { setAdminPassword(e.target.value); setAuthError(false); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleAdminAuth(); }}
-              className="w-full mb-2 px-3 py-2.5 rounded-lg text-sm bg-bg border border-border text-text outline-none focus:border-accent transition-colors"
-            />
-            {authError && (
-              <p className="text-[11px] text-rose-500 mb-2">{t('profile.wrongCredentials')}</p>
-            )}
-            <div className="flex gap-2">
+        {isAdmin ? (
+          /* Admin: 3-role switcher with persistence */
+          <div className="space-y-1.5 mb-4">
+            {ROLES.map((role) => (
               <button
-                onClick={() => setShowAdminAuth(false)}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+                key={role}
+                onClick={() => handleRoleSwitch(role)}
+                disabled={switching}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 disabled:opacity-60 ${
+                  me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
+                }`}
               >
-                {t('common.cancel')}
+                <div>
+                  <p className="text-sm font-medium">{ROLE_LABELS[role]}</p>
+                  <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
+                    {ROLE_DESCRIPTIONS[role]}
+                  </p>
+                </div>
+                {me.role === role && <CheckIcon />}
               </button>
-              <button
-                onClick={handleAdminAuth}
-                disabled={!adminLogin || !adminPassword}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all"
-              >
-                {t('profile.enter')}
-              </button>
-            </div>
+            ))}
+          </div>
+        ) : (
+          /* Regular user: show current role, no switcher */
+          <div className="mb-4 p-3 rounded-xl bg-bg-secondary">
+            <p className="text-sm font-medium text-text">{ROLE_LABELS[me.role]}</p>
+            <p className="text-[11px] text-text-secondary">{ROLE_DESCRIPTIONS[me.role]}</p>
           </div>
         )}
+
+        {/* Admin: Role requests section */}
+        {isAdmin && <AdminRoleRequests />}
 
         {/* Language */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.language')}</p>
@@ -683,8 +692,18 @@ function SettingsSheet({
         {/* Account links */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.account')}</p>
         <div className="mb-4">
+          {canRequestRole && (
+            <button
+              onClick={() => setShowRoleRequestForm(true)}
+              className="w-full flex items-center justify-between py-2.5 border-b border-border border-x-0 border-t-0 bg-transparent cursor-pointer text-left active:opacity-70"
+            >
+              <span className="text-sm text-text">
+                {requestableRole === 'coach' ? t('profile.requestCoachRole') : t('profile.requestAthleteRole')}
+              </span>
+              <span className="text-text-disabled text-sm">→</span>
+            </button>
+          )}
           {[
-            ...(me.role === 'admin' ? [] : [me.role === 'coach' ? t('profile.requestAthleteRole') : t('profile.requestCoachRole')]),
             t('profile.exportData'),
             t('profile.about'),
             t('profile.support'),
@@ -708,6 +727,303 @@ function SettingsSheet({
         </button>
 
         <p className="text-center font-mono text-[11px] text-text-disabled mt-4">v0.1.0</p>
+      </div>
+
+      {showRoleRequestForm && (
+        <RoleRequestForm
+          requestedRole={requestableRole}
+          onClose={() => setShowRoleRequestForm(false)}
+          onSubmitted={() => {
+            setShowRoleRequestForm(false);
+            showToast(t('profile.requestSent'));
+          }}
+        />
+      )}
+    </BottomSheet>
+  );
+}
+
+/* ---- Admin Role Requests ---- */
+
+function AdminRoleRequests() {
+  const { t } = useI18n();
+  const { showToast } = useToast();
+  const { hapticNotification } = useTelegram();
+  const { data: requests, refetch } = useApi<RoleRequestItem[]>(
+    getRoleRequests,
+    mockRoleRequests,
+    [],
+  );
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  const handleApprove = async (id: string) => {
+    setProcessing(id);
+    try {
+      await approveRoleRequest(id);
+      hapticNotification('success');
+      approveMockRoleRequest(id);
+      showToast(t('profile.roleRequestApproved'));
+      refetch(true);
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setProcessing(id);
+    try {
+      await rejectRoleRequest(id);
+      hapticNotification('success');
+      rejectMockRoleRequest(id);
+      showToast(t('profile.roleRequestRejected'));
+      refetch(true);
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const ROLE_NAME: Record<string, string> = {
+    coach: t('profile.roleCoach').toLowerCase(),
+    athlete: t('profile.roleAthlete').toLowerCase(),
+  };
+
+  return (
+    <div className="mb-4">
+      <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.roleRequests')}</p>
+      {!requests || requests.length === 0 ? (
+        <p className="text-sm text-text-secondary mb-2">{t('profile.noRoleRequests')}</p>
+      ) : (
+        requests.map((r) => (
+          <div key={r.id} className="p-3 rounded-xl bg-bg-secondary mb-1.5">
+            <p className="text-sm text-text mb-2">
+              <span className="font-medium">{r.username || r.user_id.slice(0, 8)}</span>
+              {' '}{t('profile.wantsRole')}{' '}
+              <span className="font-medium">{ROLE_NAME[r.requested_role] || r.requested_role}</span>
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleApprove(r.id)}
+                disabled={processing === r.id}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all"
+              >
+                {t('profile.approve')}
+              </button>
+              <button
+                onClick={() => handleReject(r.id)}
+                disabled={processing === r.id}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 disabled:opacity-40 transition-all"
+              >
+                {t('profile.reject')}
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+/* ---- Role Request Form ---- */
+
+function RoleRequestForm({
+  requestedRole,
+  onClose,
+  onSubmitted,
+}: {
+  requestedRole: 'athlete' | 'coach';
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const { t } = useI18n();
+  const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    full_name: '',
+    date_of_birth: '',
+    gender: 'M' as 'M' | 'F',
+    sport_rank: '',
+    city: '',
+    club: '',
+    weight_category: '',
+    current_weight: '',
+  });
+
+  const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  const isValid = form.full_name && form.date_of_birth && form.sport_rank && form.city && form.club
+    && (requestedRole === 'coach' || (form.weight_category && form.current_weight));
+
+  const handleSubmit = async () => {
+    if (!isValid) return;
+    setSaving(true);
+    try {
+      const data: Record<string, unknown> = {
+        full_name: form.full_name,
+        date_of_birth: form.date_of_birth,
+        gender: form.gender,
+        sport_rank: form.sport_rank,
+        city: form.city,
+        club: form.club || null,
+      };
+      if (requestedRole === 'athlete') {
+        data.weight_category = form.weight_category;
+        data.current_weight = parseFloat(form.current_weight);
+      }
+      await submitRoleRequest({ requested_role: requestedRole, data });
+      hapticNotification('success');
+      onSubmitted();
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.fillProfileData')}</h2>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-4">
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.fullName')}</span>
+          <input
+            value={form.full_name}
+            onChange={(e) => update('full_name', e.target.value)}
+            placeholder={t('onboarding.enterFullName')}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+          />
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.dateOfBirth')}</span>
+          <input
+            type="date"
+            value={form.date_of_birth}
+            onChange={(e) => update('date_of_birth', e.target.value)}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+          />
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.gender')}</span>
+          <div className="flex gap-2">
+            {(['M', 'F'] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => update('gender', g)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border cursor-pointer transition-colors ${
+                  form.gender === g
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-transparent text-text-disabled border-text-disabled'
+                }`}
+              >
+                {g === 'M' ? t('onboarding.male') : t('onboarding.female')}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.sportRank')}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {RANKS.map((r) => (
+              <button
+                key={r}
+                onClick={() => update('sport_rank', r)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                  form.sport_rank === r
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-transparent text-text-disabled border-text-disabled'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.city')}</span>
+          <select
+            value={form.city}
+            onChange={(e) => update('city', e.target.value)}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
+          >
+            <option value="">{t('onboarding.selectCity')}</option>
+            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.club')}</span>
+          <input
+            value={form.club}
+            onChange={(e) => update('club', e.target.value)}
+            placeholder={t('onboarding.enterClub')}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+          />
+        </div>
+
+        {requestedRole === 'athlete' && (
+          <>
+            <div>
+              <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.weightCategory')}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {WEIGHT_CATEGORIES.map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => update('weight_category', w)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                      form.weight_category === w
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-transparent text-text-disabled border-text-disabled'
+                    }`}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.currentWeight')}</span>
+              <input
+                type="number"
+                step="0.1"
+                value={form.current_weight}
+                onChange={(e) => update('current_weight', e.target.value)}
+                className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={saving || !isValid}
+          className="w-full py-3.5 rounded-lg text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-40 active:opacity-80 transition-all"
+        >
+          {saving ? t('common.saving') : t('common.save')}
+        </button>
       </div>
     </BottomSheet>
   );

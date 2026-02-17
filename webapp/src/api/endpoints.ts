@@ -10,6 +10,7 @@ import type {
   PaginatedResponse,
   ProfileStats,
   RatingEntry,
+  RoleRequestItem,
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
@@ -53,6 +54,39 @@ export function registerProfile(payload: {
   return apiRequest<MeResponse>('/me/register', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function switchRole(role: string): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/me/role', {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function submitRoleRequest(payload: {
+  requested_role: string;
+  data: Record<string, unknown>;
+}): Promise<{ id: string; requested_role: string; status: string }> {
+  return apiRequest('/me/role-request', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getRoleRequests(): Promise<RoleRequestItem[]> {
+  return apiRequest<RoleRequestItem[]>('/admin/role-requests');
+}
+
+export function approveRoleRequest(id: string): Promise<void> {
+  return apiRequest<void>(`/admin/role-requests/${id}/approve`, {
+    method: 'POST',
+  });
+}
+
+export function rejectRoleRequest(id: string): Promise<void> {
+  return apiRequest<void>(`/admin/role-requests/${id}/reject`, {
+    method: 'POST',
   });
 }
 

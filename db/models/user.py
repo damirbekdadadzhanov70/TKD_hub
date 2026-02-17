@@ -14,6 +14,7 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     username: Mapped[str | None] = mapped_column(String(255))
     language: Mapped[str] = mapped_column(String(2), default="ru")
+    active_role: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
