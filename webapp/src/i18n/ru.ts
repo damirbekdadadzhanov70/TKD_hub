@@ -213,6 +213,7 @@ const ru = {
     tournamentsCount: 'всего',
   },
   onboarding: {
+    chooseLanguage: 'Выберите язык',
     welcome: 'Добро пожаловать в TKD Hub',
     chooseRole: 'Выберите свою роль для начала',
     athlete: 'Спортсмен',
@@ -221,6 +222,10 @@ const ru = {
     coachDesc: 'Управление спортсменами, заявки, прогресс',
     athleteProfile: 'Профиль спортсмена',
     coachProfile: 'Профиль тренера',
+    lastName: 'Фамилия',
+    firstName: 'Имя',
+    enterLastName: 'Введите фамилию',
+    enterFirstName: 'Введите имя',
     fullName: 'Полное имя',
     enterFullName: 'Введите ваше полное имя',
     weightCategory: 'Весовая категория',

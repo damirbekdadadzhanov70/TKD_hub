@@ -65,11 +65,14 @@ async def cmd_start(message: Message, state: FSMContext, command: CommandObject)
             )
             session.add(user)
             await session.commit()
+            is_new = True
         else:
             lang = user.language or "ru"
+            is_new = not (user.athlete or user.coach)
 
-    # Send WebApp button
+    # Different welcome for new vs returning users
+    msg_key = "welcome_webapp" if is_new else "welcome_webapp_returning"
     await message.answer(
-        t("welcome_webapp", lang),
+        t(msg_key, lang),
         reply_markup=_webapp_keyboard(lang),
     )

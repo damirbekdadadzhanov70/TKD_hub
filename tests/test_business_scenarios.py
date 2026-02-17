@@ -644,7 +644,7 @@ async def test_start_new_user(db_session):
 
 @pytest.mark.asyncio
 async def test_start_existing_user(db_session, test_user):
-    """Existing user with profile → send WebApp button."""
+    """Existing user with profile → returning welcome message."""
     from bot.handlers.start import cmd_start
 
     msg = _make_message(telegram_id=test_user.telegram_id)
@@ -656,7 +656,7 @@ async def test_start_existing_user(db_session, test_user):
 
     msg.answer.assert_called_once()
     call_text = msg.answer.call_args[0][0]
-    assert "KukkiDo" in call_text
+    assert "Welcome back" in call_text or "С возвращением" in call_text
 
 
 @pytest.mark.asyncio

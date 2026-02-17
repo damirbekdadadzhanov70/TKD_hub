@@ -1,6 +1,7 @@
 {
   "welcome": "🥋 Welcome to TKD Hub!\nChoose language / Выберите язык:",
   "welcome_webapp": "🥋 Welcome to KukkiDo!\nTap the button below to open the app.",
+  "welcome_webapp_returning": "🥋 Welcome back!\nTap the button below to open the app.",
   "choose_role": "Choose your role:",
   "role_athlete": "🥋 Athlete",
   "role_coach": "🎓 Coach",

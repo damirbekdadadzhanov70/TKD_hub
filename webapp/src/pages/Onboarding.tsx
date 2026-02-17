@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { registerProfile } from '../api/endpoints';
 import { registerMockProfile } from '../api/mock';
+import BottomSheet from '../components/BottomSheet';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 import type { AthleteRegistration, CoachRegistration, MeResponse } from '../types';
@@ -10,9 +11,10 @@ const WEIGHT_M = ['54kg', '58kg', '63kg', '68kg', '74kg', '80kg', '87kg', '+87kg
 const WEIGHT_F = ['46kg', '49kg', '53kg', '57kg', '62kg', '67kg', '73kg', '+73kg'];
 const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Рязань', 'Махачкала', 'Новосибирск', 'Краснодар', 'Владивосток'];
 const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 type SelectedRole = 'athlete' | 'coach';
-type Step = 'role' | 'form';
+type Step = 'language' | 'role' | 'form';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const hasApi = !!API_URL;
@@ -56,12 +58,21 @@ function BackArrow() {
   );
 }
 
+function ChevronDown() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 /* ---- Progress Bar ---- */
 
 function ProgressBar({ step }: { step: Step }) {
   return (
     <div className="flex gap-2 mb-8">
-      <div className="flex-1 h-1 rounded-full bg-accent" />
+      <div className={`flex-1 h-1 rounded-full ${step !== 'language' ? 'bg-accent' : 'bg-border'}`} />
+      <div className={`flex-1 h-1 rounded-full ${step === 'form' ? 'bg-accent' : 'bg-border'}`} />
       <div className={`flex-1 h-1 rounded-full ${step === 'form' ? 'bg-accent' : 'bg-border'}`} />
     </div>
   );
@@ -101,17 +112,89 @@ function PillSelector({
   );
 }
 
+/* ---- SelectSheet — replaces native <select> ---- */
+
+function SelectSheet({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { hapticFeedback } = useTelegram();
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (open && activeRef.current) {
+      activeRef.current.scrollIntoView({ block: 'center' });
+    }
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex-1 flex items-center justify-between bg-transparent border-b border-border text-[15px] py-2 outline-none cursor-pointer transition-colors hover:border-accent min-w-0"
+      >
+        <span className={selected ? 'text-text truncate' : 'text-text-disabled truncate'}>
+          {selected ? selected.label : label}
+        </span>
+        <ChevronDown />
+      </button>
+      {open && (
+        <BottomSheet onClose={() => setOpen(false)}>
+          <div className="px-6 pt-2 pb-1">
+            <h3 className="text-[17px] font-heading text-text-heading">{label}</h3>
+          </div>
+          <div className="overflow-y-auto px-2 pb-6" style={{ maxHeight: '50vh' }}>
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                ref={opt.value === value ? activeRef : undefined}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  hapticFeedback('light');
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 rounded-lg text-[15px] cursor-pointer transition-colors ${
+                  opt.value === value
+                    ? 'bg-accent text-white'
+                    : 'text-text hover:bg-bg-secondary active:opacity-80'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </BottomSheet>
+      )}
+    </>
+  );
+}
+
 /* ---- Main ---- */
 
 export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse) => void }) {
   const { hapticFeedback, hapticNotification, showBackButton, isTelegram } = useTelegram();
-  const { t } = useI18n();
-  const [step, setStep] = useState<Step>('role');
+  const { t, lang, setLang } = useI18n();
+
+  const hasStoredLang = !!localStorage.getItem('app_language');
+  const [step, setStep] = useState<Step>(hasStoredLang ? 'role' : 'language');
   const [role, setRole] = useState<SelectedRole | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Shared form state
-  const [name, setName] = useState('');
+  // Split name fields
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [dobDay, setDobDay] = useState('');
   const [dobMonth, setDobMonth] = useState('');
   const [dobYear, setDobYear] = useState('');
@@ -125,12 +208,15 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
   const [weight, setWeight] = useState('');
   const [currentWeight, setCurrentWeight] = useState('');
 
-  // Telegram Back Button on step 2
+  // Telegram Back Button on step 2 and 3
   useEffect(() => {
     if (step === 'form') {
       return showBackButton(() => setStep('role'));
     }
-  }, [step, showBackButton]);
+    if (step === 'role' && !hasStoredLang) {
+      return showBackButton(() => setStep('language'));
+    }
+  }, [step, showBackButton, hasStoredLang]);
 
   // Clamp day when month/year changes
   const clampDay = (day: string, month: string, year: string) => {
@@ -152,18 +238,19 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
   const dobValid = dobDay && dobMonth && dobYear;
 
   const isFormValid = role === 'athlete'
-    ? name.trim() && dobValid && gender && weight && currentWeight && rank && effectiveCity
-    : name.trim() && dobValid && gender && rank && effectiveCity && club.trim();
+    ? lastName.trim() && firstName.trim() && dobValid && gender && weight && currentWeight && rank && effectiveCity
+    : lastName.trim() && firstName.trim() && dobValid && gender && rank && effectiveCity && club.trim();
 
   const handleSubmit = async () => {
     if (!role || !isFormValid) return;
     setSaving(true);
 
+    const fullName = `${lastName.trim()} ${firstName.trim()}`;
     const dateOfBirth = `${dobYear}-${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}`;
 
     const data: AthleteRegistration | CoachRegistration = role === 'athlete'
       ? {
-          full_name: name.trim(),
+          full_name: fullName,
           date_of_birth: dateOfBirth,
           gender: gender as 'M' | 'F',
           weight_category: weight,
@@ -173,7 +260,7 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
           club: club.trim() || undefined,
         }
       : {
-          full_name: name.trim(),
+          full_name: fullName,
           date_of_birth: dateOfBirth,
           gender: gender as 'M' | 'F',
           sport_rank: rank,
@@ -197,10 +284,69 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
     }
   };
 
+  const months = lang === 'ru' ? MONTHS_RU : MONTHS_EN;
+
+  /* ---- Step 0: Language Selection ---- */
+  if (step === 'language') {
+    return (
+      <div className="min-h-screen bg-bg flex flex-col px-6 pt-12" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+        <ProgressBar step="language" />
+
+        <h1 className="text-[28px] font-heading text-text-heading mb-2">
+          {t('onboarding.chooseLanguage')}
+        </h1>
+        <p className="text-sm text-text-secondary mb-8">
+          Choose language / Выберите язык
+        </p>
+
+        <div className="space-y-3 flex-1">
+          <button
+            onClick={() => {
+              hapticFeedback('light');
+              setLang('ru');
+              setStep('role');
+            }}
+            className={`w-full flex items-center gap-4 p-5 rounded-2xl border cursor-pointer text-left transition-all hover:border-accent active:opacity-80 ${
+              lang === 'ru' ? 'border-accent bg-accent-light' : 'border-border bg-bg-secondary'
+            }`}
+          >
+            <span className="text-2xl shrink-0">RU</span>
+            <span className="text-[17px] font-heading text-text-heading">Русский</span>
+          </button>
+
+          <button
+            onClick={() => {
+              hapticFeedback('light');
+              setLang('en');
+              setStep('role');
+            }}
+            className={`w-full flex items-center gap-4 p-5 rounded-2xl border cursor-pointer text-left transition-all hover:border-accent active:opacity-80 ${
+              lang === 'en' ? 'border-accent bg-accent-light' : 'border-border bg-bg-secondary'
+            }`}
+          >
+            <span className="text-2xl shrink-0">EN</span>
+            <span className="text-[17px] font-heading text-text-heading">English</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   /* ---- Step 1: Role Selection ---- */
   if (step === 'role') {
     return (
       <div className="min-h-screen bg-bg flex flex-col px-6 pt-12" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+        {/* Back button to language step (desktop only) */}
+        {!isTelegram && !hasStoredLang && (
+          <button
+            onClick={() => setStep('language')}
+            aria-label={t('onboarding.back')}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors mb-4 -mt-2"
+          >
+            <BackArrow />
+          </button>
+        )}
+
         <ProgressBar step="role" />
 
         <h1 className="text-[28px] font-heading text-text-heading mb-2">
@@ -247,12 +393,23 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
 
   /* ---- Step 2: Profile Form ---- */
 
-  const selectClass = 'flex-1 bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none';
-
-  const yearOptions: number[] = [];
-  for (let y = 2018; y >= 1960; y--) yearOptions.push(y);
+  const yearOptions: { value: string; label: string }[] = [];
+  for (let y = 2018; y >= 1960; y--) yearOptions.push({ value: String(y), label: String(y) });
 
   const maxDay = dobMonth && dobYear ? daysInMonth(Number(dobMonth), Number(dobYear)) : 31;
+  const dayOptions = Array.from({ length: maxDay }, (_, i) => ({
+    value: String(i + 1),
+    label: String(i + 1),
+  }));
+  const monthOptions = months.map((m, i) => ({
+    value: String(i + 1),
+    label: m,
+  }));
+
+  const cityOptions = [
+    ...CITIES.map((c) => ({ value: c, label: c })),
+    { value: 'other', label: t('onboarding.otherCity') },
+  ];
 
   const weightCategories = gender === 'F' ? WEIGHT_F : WEIGHT_M;
 
@@ -276,51 +433,50 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
       </h1>
 
       <div className="flex-1 space-y-5">
-        {/* Full Name */}
-        <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.fullName')}</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('onboarding.enterFullName')}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
-          />
+        {/* Last Name + First Name */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.lastName')}</span>
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder={t('onboarding.enterLastName')}
+              className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
+            />
+          </div>
+          <div className="flex-1">
+            <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.firstName')}</span>
+            <input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder={t('onboarding.enterFirstName')}
+              className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
+            />
+          </div>
         </div>
 
-        {/* Date of Birth — 3 selects */}
+        {/* Date of Birth — 3 SelectSheet buttons */}
         <div>
           <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.dateOfBirth')}</span>
           <div className="flex gap-2">
-            <select
+            <SelectSheet
+              label={t('onboarding.day')}
               value={dobDay}
-              onChange={(e) => setDobDay(e.target.value)}
-              className={selectClass}
-            >
-              <option value="" disabled>{t('onboarding.day')}</option>
-              {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-                <option key={d} value={String(d)}>{d}</option>
-              ))}
-            </select>
-            <select
+              options={dayOptions}
+              onChange={setDobDay}
+            />
+            <SelectSheet
+              label={t('onboarding.month')}
               value={dobMonth}
-              onChange={(e) => handleDobMonth(e.target.value)}
-              className={selectClass}
-            >
-              <option value="" disabled>{t('onboarding.month')}</option>
-              {MONTHS_RU.map((m, i) => (
-                <option key={i} value={String(i + 1)}>{m}</option>
-              ))}
-            </select>
-            <select
+              options={monthOptions}
+              onChange={handleDobMonth}
+            />
+            <SelectSheet
+              label={t('onboarding.year')}
               value={dobYear}
-              onChange={(e) => handleDobYear(e.target.value)}
-              className={selectClass}
-            >
-              <option value="" disabled>{t('onboarding.year')}</option>
-              {yearOptions.map((y) => (
-                <option key={y} value={String(y)}>{y}</option>
-              ))}
-            </select>
+              options={yearOptions}
+              onChange={handleDobYear}
+            />
           </div>
         </div>
 
@@ -376,18 +532,15 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
           <PillSelector options={RANKS} value={rank} onChange={setRank} columns={2} />
         </div>
 
-        {/* City — select + custom */}
+        {/* City — SelectSheet + custom */}
         <div>
           <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.city')}</span>
-          <select
+          <SelectSheet
+            label={t('onboarding.selectCity')}
             value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
-          >
-            <option value="" disabled>{t('onboarding.selectCity')}</option>
-            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            <option value="other">{t('onboarding.otherCity')}</option>
-          </select>
+            options={cityOptions}
+            onChange={setCity}
+          />
           {city === 'other' && (
             <input
               value={customCity}

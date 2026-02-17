@@ -213,6 +213,7 @@ const en = {
     tournamentsCount: 'total',
   },
   onboarding: {
+    chooseLanguage: 'Choose language',
     welcome: 'Welcome to TKD Hub',
     chooseRole: 'Choose your role to get started',
     athlete: 'Athlete',
@@ -221,6 +222,10 @@ const en = {
     coachDesc: 'Manage athletes, submit entries, track progress',
     athleteProfile: 'Athlete Profile',
     coachProfile: 'Coach Profile',
+    lastName: 'Last Name',
+    firstName: 'First Name',
+    enterLastName: 'Enter last name',
+    enterFirstName: 'Enter first name',
     fullName: 'Full Name',
     enterFullName: 'Enter your full name',
     weightCategory: 'Weight Category',
