@@ -23,6 +23,7 @@ from db.models import Athlete, Coach, CoachAthlete, Tournament, User
 def event_loop_policy():
     return asyncio.DefaultEventLoopPolicy()
 
+
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
