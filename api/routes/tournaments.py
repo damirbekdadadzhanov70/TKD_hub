@@ -462,6 +462,7 @@ async def _notify_coach_entries(session, coach_id, tournament_id, entries, entry
         lang = coach.user.language or "ru"
 
         from aiogram import Bot
+
         bot = Bot(token=settings.BOT_TOKEN)
         try:
             for entry in entries:

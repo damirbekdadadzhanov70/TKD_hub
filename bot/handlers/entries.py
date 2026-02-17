@@ -276,6 +276,7 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
         t_name = t_result.scalar_one_or_none() or "?"
 
         from db.models.coach import Coach
+
         c_result = await session.execute(select(Coach.full_name).where(Coach.id == coach_id))
         coach_name = c_result.scalar_one_or_none() or "?"
 
