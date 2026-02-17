@@ -219,6 +219,7 @@ const ru = {
     roleRequestApproved: 'Заявка одобрена',
     roleRequestRejected: 'Заявка отклонена',
     fillProfileData: 'Заполните данные профиля',
+    noProfileForRole: 'Нет профиля — создайте через бота',
     approve: 'Одобрить',
     reject: 'Отклонить',
   },

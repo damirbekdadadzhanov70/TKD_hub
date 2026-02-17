@@ -57,6 +57,7 @@ def _build_me_response(user) -> MeResponse:
         username=user.username,
         language=user.language,
         role=role,
+        is_admin=user.telegram_id in settings.admin_ids,
         athlete=athlete_data,
         coach=coach_data,
     )

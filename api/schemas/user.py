@@ -11,5 +11,6 @@ class MeResponse(BaseModel):
     username: Optional[str] = None
     language: str
     role: Literal["athlete", "coach", "admin", "none"]
+    is_admin: bool = False
     athlete: Optional[AthleteRead] = None
     coach: Optional[CoachRead] = None

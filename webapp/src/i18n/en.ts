@@ -219,6 +219,7 @@ const en = {
     roleRequestApproved: 'Request approved',
     roleRequestRejected: 'Request rejected',
     fillProfileData: 'Fill in profile data',
+    noProfileForRole: 'No profile — create via bot',
     approve: 'Approve',
     reject: 'Reject',
   },

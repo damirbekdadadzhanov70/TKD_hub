@@ -42,6 +42,7 @@ const defaultMe: MeResponse = {
   username: 'damir_tkd',
   language: 'ru',
   role: 'admin',
+  is_admin: true,
   athlete: {
     id: '00000000-0000-0000-0000-000000000001',
     full_name: 'Alikhanov Damir',
@@ -75,6 +76,7 @@ const newUserMe: MeResponse = {
   username: 'damir_tkd',
   language: 'ru',
   role: 'none',
+  is_admin: false,
   athlete: null,
   coach: null,
 };
@@ -117,7 +119,7 @@ export function registerMockProfile(
       photo_url: null,
       rating_points: 0,
     };
-    const updated: MeResponse = { ...mockMe, role: 'athlete', athlete, coach: null };
+    const updated: MeResponse = { ...mockMe, role: 'athlete', is_admin: mockMe.is_admin, athlete, coach: null };
     updateMockMe(updated);
     return updated;
   }
@@ -135,7 +137,7 @@ export function registerMockProfile(
     photo_url: null,
     is_verified: false,
   };
-  const updated: MeResponse = { ...mockMe, role: 'coach', athlete: null, coach };
+  const updated: MeResponse = { ...mockMe, role: 'coach', is_admin: mockMe.is_admin, athlete: null, coach };
   updateMockMe(updated);
   return updated;
 }

@@ -551,7 +551,7 @@ function SettingsSheet({
   const [switching, setSwitching] = useState(false);
   const [showRoleRequestForm, setShowRoleRequestForm] = useState(false);
 
-  const isAdmin = me.role === 'admin';
+  const isAdmin = me.is_admin;
 
   const ROLE_LABELS: Record<MeResponse['role'], string> = {
     athlete: t('profile.roleAthlete'),
@@ -638,26 +638,32 @@ function SettingsSheet({
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-3">{t('profile.role')}</p>
 
         {isAdmin ? (
-          /* Admin: 3-role switcher with persistence */
+          /* Admin: role switcher — only roles with existing profiles */
           <div className="space-y-1.5 mb-4">
-            {ROLES.map((role) => (
-              <button
-                key={role}
-                onClick={() => handleRoleSwitch(role)}
-                disabled={switching}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 disabled:opacity-60 ${
-                  me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
-                }`}
-              >
-                <div>
-                  <p className="text-sm font-medium">{ROLE_LABELS[role]}</p>
-                  <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
-                    {ROLE_DESCRIPTIONS[role]}
-                  </p>
-                </div>
-                {me.role === role && <CheckIcon />}
-              </button>
-            ))}
+            {ROLES.map((role) => {
+              const hasProfile =
+                role === 'admin' ||
+                (role === 'athlete' && !!me.athlete) ||
+                (role === 'coach' && !!me.coach);
+              return (
+                <button
+                  key={role}
+                  onClick={() => hasProfile && handleRoleSwitch(role)}
+                  disabled={switching || !hasProfile}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 disabled:opacity-40 ${
+                    me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-medium">{ROLE_LABELS[role]}</p>
+                    <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
+                      {!hasProfile ? t('profile.noProfileForRole') : ROLE_DESCRIPTIONS[role]}
+                    </p>
+                  </div>
+                  {me.role === role && <CheckIcon />}
+                </button>
+              );
+            })}
           </div>
         ) : (
           /* Regular user: show current role, no switcher */

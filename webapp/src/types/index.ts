@@ -31,6 +31,7 @@ export interface MeResponse {
   username: string | null;
   language: string;
   role: 'athlete' | 'coach' | 'admin' | 'none';
+  is_admin: boolean;
   athlete: AthleteProfile | null;
   coach: CoachProfile | null;
 }
