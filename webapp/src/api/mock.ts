@@ -1,4 +1,5 @@
 import type {
+  AdminUserItem,
   AthleteRegistration,
   CoachAthlete,
   CoachEntry,
@@ -178,6 +179,42 @@ export function approveMockRoleRequest(id: string) {
 
 export function rejectMockRoleRequest(id: string) {
   mockRoleRequests = mockRoleRequests.filter((r) => r.id !== id);
+}
+
+// ── Admin Users ─────────────────────────────────────────────
+
+export let mockAdminUsers: AdminUserItem[] = [
+  {
+    id: '00000000-0000-0000-0000-000000000001',
+    telegram_id: 123456789,
+    username: 'damir_tkd',
+    role: 'admin',
+    full_name: 'Alikhanov Damir',
+    city: 'Москва',
+    created_at: '2026-01-01T00:00:00',
+  },
+  {
+    id: 'mock-user-1',
+    telegram_id: 111111111,
+    username: 'ivan_tkd',
+    role: 'coach',
+    full_name: 'Иванов Иван',
+    city: 'Казань',
+    created_at: '2026-01-15T10:00:00',
+  },
+  {
+    id: 'mock-user-2',
+    telegram_id: 222222222,
+    username: 'sergei_k',
+    role: 'athlete',
+    full_name: 'Ким Сергей',
+    city: 'Москва',
+    created_at: '2026-02-01T12:00:00',
+  },
+];
+
+export function deleteMockAdminUser(userId: string) {
+  mockAdminUsers = mockAdminUsers.filter((u) => u.id !== userId);
 }
 
 // ── Profile Stats ───────────────────────────────────────────

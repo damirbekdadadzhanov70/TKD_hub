@@ -266,6 +266,16 @@ export interface PendingAthleteRequest {
   club: string | null;
 }
 
+export interface AdminUserItem {
+  id: string;
+  telegram_id: number;
+  username: string | null;
+  role: string;
+  full_name: string | null;
+  city: string | null;
+  created_at: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

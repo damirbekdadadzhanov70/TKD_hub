@@ -234,6 +234,13 @@ const ru = {
     athleteRequestAccepted: 'Спортсмен добавлен',
     athleteRequestRejected: 'Запрос отклонён',
     verifiedCoach: 'Проверен',
+    users: 'Пользователи',
+    searchUsers: 'Поиск пользователей...',
+    noUsersFound: 'Пользователи не найдены',
+    deleteUser: 'Удалить',
+    deleteUserConfirm: 'Удалить этого пользователя? Все данные будут потеряны.',
+    userDeleted: 'Пользователь удалён',
+    cannotDeleteSelf: 'Нельзя удалить себя',
   },
   onboarding: {
     chooseLanguage: 'Выберите язык',

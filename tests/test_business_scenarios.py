@@ -19,6 +19,9 @@ Sections:
   12. Bot: Entries Edge Cases (deadline, withdraw, /my_entries)
   13. Bot: Registration Edge Cases (weight, country, club, photo)
   14. API: Profile Stats
+  15. API: Athlete-Coach Search & Linking
+  16. Athlete-Coach Linking
+  17. API: Admin User Management
 """
 
 import uuid as uuid_mod
@@ -2688,3 +2691,88 @@ async def test_coach_reject_request(
     # Verify deleted from DB
     result = await db_session.execute(select(CoachAthlete).where(CoachAthlete.id == link_id))
     assert result.scalar_one_or_none() is None
+
+
+# ═══════════════════════════════════════════════════════════════
+#  17. API: ADMIN USER MANAGEMENT
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_admin_list_users(admin_client: AsyncClient, test_user: User):
+    """Admin can list all users."""
+    resp = await admin_client.get("/api/admin/users")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 2  # admin + test_user at minimum
+    # All items have required fields
+    for item in data:
+        assert "id" in item
+        assert "telegram_id" in item
+        assert "role" in item
+
+
+@pytest.mark.asyncio
+async def test_admin_list_users_search(admin_client: AsyncClient, test_user: User):
+    """Admin can search users by name."""
+    resp = await admin_client.get("/api/admin/users?q=Test Athlete")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert any(u["full_name"] == "Test Athlete" for u in data)
+
+    # Search with non-matching query
+    resp2 = await admin_client.get("/api/admin/users?q=ZZZZZZZZNOTFOUND")
+    assert resp2.status_code == 200
+    assert len(resp2.json()) == 0
+
+
+@pytest.mark.asyncio
+async def test_admin_delete_user(admin_client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """Admin can delete a user; cascade removes athlete."""
+    user_id = str(test_user.id)
+
+    resp = await admin_client.delete(f"/api/admin/users/{user_id}")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "deleted"
+
+    # User gone from DB
+    result = await db_session.execute(select(User).where(User.id == test_user.id))
+    assert result.scalar_one_or_none() is None
+
+    # Athlete also gone (cascade)
+    result2 = await db_session.execute(select(Athlete).where(Athlete.user_id == test_user.id))
+    assert result2.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_delete_self(admin_client: AsyncClient, admin_user: User):
+    """Admin cannot delete themselves."""
+    resp = await admin_client.delete(f"/api/admin/users/{admin_user.id}")
+    assert resp.status_code == 400
+    assert "Cannot delete yourself" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_list_users(client: AsyncClient, test_user: User):
+    """Non-admin users get 403 on admin endpoints."""
+    from tests.conftest import make_init_data
+
+    init_data = make_init_data(telegram_id=test_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    resp = await client.get("/api/admin/users")
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_delete_user(client: AsyncClient, test_user: User, admin_user: User):
+    """Non-admin users get 403 trying to delete."""
+    from tests.conftest import make_init_data
+
+    init_data = make_init_data(telegram_id=test_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    resp = await client.delete(f"/api/admin/users/{admin_user.id}")
+    assert resp.status_code == 403

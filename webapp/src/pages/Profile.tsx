@@ -9,6 +9,8 @@ import { useI18n } from '../i18n/I18nProvider';
 import {
   acceptAthleteRequest,
   approveRoleRequest,
+  deleteAdminUser,
+  getAdminUsers,
   getCoachAthletes,
   getCoachEntries,
   getMe,
@@ -29,6 +31,8 @@ import {
 import {
   acceptMockAthleteRequest,
   approveMockRoleRequest,
+  deleteMockAdminUser,
+  mockAdminUsers,
   mockCoachAthletes,
   mockCoachEntries,
   mockCoachSearchResults,
@@ -44,6 +48,7 @@ import {
   unlinkMockCoach,
 } from '../api/mock';
 import type {
+  AdminUserItem,
   AthleteUpdate,
   CoachAthlete,
   CoachEntry,
@@ -981,6 +986,9 @@ function SettingsSheet({
         {/* Admin: Role requests section */}
         {isAdmin && <AdminRoleRequests />}
 
+        {/* Admin: Users section */}
+        {isAdmin && <AdminUsersSection me={me} />}
+
         {/* Language */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.language')}</p>
         <div className="space-y-1 mb-4">
@@ -1136,6 +1144,130 @@ function AdminRoleRequests() {
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+/* ---- Admin Users Section ---- */
+
+function AdminUsersSection({ me }: { me: MeResponse }) {
+  const { t } = useI18n();
+  const { showToast } = useToast();
+  const { hapticNotification } = useTelegram();
+  const [query, setQuery] = useState('');
+  const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const fetchUsers = useCallback(async (q: string) => {
+    setLoading(true);
+    try {
+      const data = await getAdminUsers(q || undefined);
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        // Demo mode fallback
+        const filtered = q
+          ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
+          : mockAdminUsers;
+        setUsers(filtered);
+      }
+    } catch {
+      const filtered = q
+        ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
+        : mockAdminUsers;
+      setUsers(filtered);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers('');
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchUsers(query), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, fetchUsers]);
+
+  const handleDelete = async (user: AdminUserItem) => {
+    if (user.id === me.athlete?.id || user.telegram_id === me.telegram_id) {
+      showToast(t('profile.cannotDeleteSelf'), 'error');
+      return;
+    }
+    if (!confirm(t('profile.deleteUserConfirm'))) return;
+    setDeleting(user.id);
+    try {
+      await deleteAdminUser(user.id);
+      hapticNotification('success');
+      deleteMockAdminUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      showToast(t('profile.userDeleted'));
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const ROLE_BADGE: Record<string, string> = {
+    admin: 'bg-accent-light text-accent',
+    coach: 'bg-blue-500/10 text-blue-500',
+    athlete: 'bg-green-500/10 text-green-500',
+    none: 'bg-bg-divider text-text-disabled',
+  };
+
+  return (
+    <div className="mb-4">
+      <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.users')}</p>
+
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={t('profile.searchUsers')}
+        className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 mb-3 outline-none focus:border-accent transition-colors"
+      />
+
+      {loading && <LoadingSpinner />}
+
+      {!loading && users.length === 0 && (
+        <p className="text-sm text-text-secondary mb-2">{t('profile.noUsersFound')}</p>
+      )}
+
+      {!loading && users.map((u) => {
+        const isSelf = u.telegram_id === me.telegram_id;
+        return (
+          <div key={u.id} className="flex items-center gap-3 py-2.5 border-b border-dashed border-border">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+              {(u.full_name || u.username || '?').charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-medium text-text truncate">{u.full_name || u.username || `ID ${u.telegram_id}`}</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role] || ROLE_BADGE.none}`}>
+                  {u.role}
+                </span>
+                {u.city && <span className="text-[12px] text-text-secondary">{u.city}</span>}
+              </div>
+            </div>
+            {!isSelf && (
+              <button
+                onClick={() => handleDelete(u)}
+                disabled={deleting === u.id}
+                className="text-[12px] text-rose-500 border-none bg-transparent cursor-pointer p-1 active:opacity-70 disabled:opacity-40 hover:text-rose-600"
+              >
+                {t('profile.deleteUser')}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

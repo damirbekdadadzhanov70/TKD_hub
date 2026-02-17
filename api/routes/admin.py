@@ -4,11 +4,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from api.dependencies import AuthContext, get_current_user
-from api.routes.me import AthleteRegistration, CoachRegistration
+from api.routes.me import AthleteRegistration, CoachRegistration, _resolve_role
 from bot.config import settings
 from db.models.athlete import Athlete
 from db.models.coach import Coach
@@ -163,3 +163,94 @@ async def reject_role_request(
     await ctx.session.commit()
 
     return {"status": "rejected"}
+
+
+# ── Admin user management ────────────────────────────────────
+
+
+class AdminUserItem(BaseModel):
+    id: str
+    telegram_id: int
+    username: Optional[str] = None
+    role: str
+    full_name: Optional[str] = None
+    city: Optional[str] = None
+    created_at: str
+
+
+@router.get("/admin/users", response_model=list[AdminUserItem])
+async def list_users(
+    q: Optional[str] = None,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _require_admin(ctx.user)
+
+    stmt = (
+        select(User)
+        .options(selectinload(User.athlete), selectinload(User.coach))
+        .order_by(User.created_at.desc())
+        .limit(50)
+    )
+
+    if q:
+        pattern = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                User.athlete.has(Athlete.full_name.ilike(pattern)),
+                User.coach.has(Coach.full_name.ilike(pattern)),
+            )
+        )
+
+    result = await ctx.session.execute(stmt)
+    users = result.scalars().all()
+
+    items = []
+    for u in users:
+        role = _resolve_role(u)
+        full_name = None
+        city = None
+        if u.athlete:
+            full_name = u.athlete.full_name
+            city = u.athlete.city
+        elif u.coach:
+            full_name = u.coach.full_name
+            city = u.coach.city
+        items.append(
+            AdminUserItem(
+                id=str(u.id),
+                telegram_id=u.telegram_id,
+                username=u.username,
+                role=role,
+                full_name=full_name,
+                city=city,
+                created_at=str(u.created_at),
+            )
+        )
+
+    return items
+
+
+@router.delete("/admin/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _require_admin(ctx.user)
+
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid user ID") from err
+
+    if uid == ctx.user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+
+    result = await ctx.session.execute(select(User).where(User.id == uid))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await ctx.session.delete(target)
+    await ctx.session.commit()
+
+    return {"status": "deleted"}

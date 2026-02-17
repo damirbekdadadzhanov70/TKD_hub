@@ -1,5 +1,6 @@
 import { apiRequest } from './client';
 import type {
+  AdminUserItem,
   AthleteRegistration,
   AthleteUpdate,
   CoachAthlete,
@@ -90,6 +91,17 @@ export function approveRoleRequest(id: string): Promise<void> {
 export function rejectRoleRequest(id: string): Promise<void> {
   return apiRequest<void>(`/admin/role-requests/${id}/reject`, {
     method: 'POST',
+  });
+}
+
+export function getAdminUsers(q?: string): Promise<AdminUserItem[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+  return apiRequest<AdminUserItem[]>(`/admin/users${qs}`);
+}
+
+export function deleteAdminUser(userId: string): Promise<void> {
+  return apiRequest<void>(`/admin/users/${userId}`, {
+    method: 'DELETE',
   });
 }
 

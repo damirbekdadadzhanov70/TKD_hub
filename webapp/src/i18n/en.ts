@@ -234,6 +234,13 @@ const en = {
     athleteRequestAccepted: 'Athlete added',
     athleteRequestRejected: 'Request rejected',
     verifiedCoach: 'Verified',
+    users: 'Users',
+    searchUsers: 'Search users...',
+    noUsersFound: 'No users found',
+    deleteUser: 'Delete',
+    deleteUserConfirm: 'Delete this user? All data will be lost.',
+    userDeleted: 'User deleted',
+    cannotDeleteSelf: 'Cannot delete yourself',
   },
   onboarding: {
     chooseLanguage: 'Choose language',
