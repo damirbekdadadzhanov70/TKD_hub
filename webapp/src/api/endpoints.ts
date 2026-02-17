@@ -61,6 +61,10 @@ export function registerProfile(payload: {
   });
 }
 
+export function deleteMyAccount(): Promise<void> {
+  return apiRequest<void>('/me', { method: 'DELETE' });
+}
+
 export function switchRole(role: string): Promise<MeResponse> {
   return apiRequest<MeResponse>('/me/role', {
     method: 'PUT',

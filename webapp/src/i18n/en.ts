@@ -5,6 +5,7 @@ const en = {
     saving: 'Saving...',
     cancel: 'Cancel',
     delete: 'Delete',
+    deleting: 'Deleting...',
     edit: 'Edit',
     close: 'Close',
     all: 'All',

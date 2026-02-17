@@ -162,5 +162,6 @@
 
   "new_entry_admin_notification": "📋 Новая заявка на турнир <b>{tournament}</b>\n\nТренер: {coach}\nСпортсменов: {count}",
   "entry_approved_notification": "✅ Заявка одобрена!\n\nТурнир: <b>{tournament}</b>\nСпортсмен: {athlete}",
-  "entry_rejected_notification": "❌ Заявка отклонена.\n\nТурнир: <b>{tournament}</b>\nСпортсмен: {athlete}"
+  "entry_rejected_notification": "❌ Заявка отклонена.\n\nТурнир: <b>{tournament}</b>\nСпортсмен: {athlete}",
+  "account_deleted_admin_notification": "🗑 Пользователь <b>{name}</b> (@{username}) удалил свой аккаунт."
 }

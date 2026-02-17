@@ -280,13 +280,13 @@
 - [x] **Settings role switcher — admin-only** — реализовано с `PUT /me/role` и персистенцией
 - [x] **Запрос смены роли** — форма как в онбординге → запрос админу, `POST /me/role-request` сохраняет данные
 - [x] **Админ: UI одобрения/отклонения** запросов смены роли — `GET/POST /admin/role-requests` + UI в Settings
-- [ ] **DELETE /me — полное удаление аккаунта** — очистить все данные, при `/start` → чистый онбординг
+- [x] ~~**DELETE /me — полное удаление аккаунта**~~ — реализовано: cascade delete + уведомление админу + frontend redirect на онбординг
 
 ---
 
 ## Недостающие эндпоинты (Feature Gaps)
 
-- [ ] `DELETE /api/me` — удаление аккаунта
+- [x] ~~`DELETE /api/me` — удаление аккаунта~~ — реализовано
 - [x] ~~`POST /api/tournaments` — создание турнира~~ — добавлен (admin-only)
 - [x] ~~`DELETE /api/tournaments/{id}` — удаление турнира~~ — добавлен (admin-only)
 - [ ] `PUT /api/training-log/{id}/comment` — комментарий тренера к тренировке

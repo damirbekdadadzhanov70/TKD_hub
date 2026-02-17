@@ -134,6 +134,10 @@ After completing any task (bug fix, feature, refactor), **always check and updat
 
 Never leave documentation out of sync with the actual codebase state.
 
+## Shortcuts
+
+- **`/commit`** — commit all changes and push to remote. Write a concise commit message, `git add` relevant files, commit, then `git push`.
+
 ## Common Pitfalls
 
 1. **localStorage stale data**: When adding new fields to `MeResponse`, merge with defaults in `mock.ts` (`storedMe.field || defaultMe.field`)

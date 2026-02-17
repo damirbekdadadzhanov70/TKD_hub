@@ -22,6 +22,7 @@ Sections:
   15. API: Athlete-Coach Search & Linking
   16. Athlete-Coach Linking
   17. API: Admin User Management
+  18. API: Account Self-Deletion
 """
 
 import uuid as uuid_mod
@@ -2776,3 +2777,67 @@ async def test_non_admin_cannot_delete_user(client: AsyncClient, test_user: User
 
     resp = await client.delete(f"/api/admin/users/{admin_user.id}")
     assert resp.status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════
+#  18. API: Account Self-Deletion
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_user_delete_own_account(client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """User can delete their own account via DELETE /me."""
+    from tests.conftest import make_init_data
+
+    init_data = make_init_data(telegram_id=test_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    with patch("api.routes.me.notify_admins_account_deleted", new_callable=AsyncMock):
+        resp = await client.delete("/api/me")
+
+    assert resp.status_code == 204
+
+    # User gone from DB
+    result = await db_session.execute(select(User).where(User.id == test_user.id))
+    assert result.scalar_one_or_none() is None
+
+    # Athlete also gone (cascade)
+    result2 = await db_session.execute(select(Athlete).where(Athlete.user_id == test_user.id))
+    assert result2.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_admin_notified_on_account_deletion(client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """Admin is notified when a user deletes their account."""
+    from tests.conftest import make_init_data
+
+    init_data = make_init_data(telegram_id=test_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    mock_notify = AsyncMock()
+    with patch("api.routes.me.notify_admins_account_deleted", mock_notify):
+        resp = await client.delete("/api/me")
+
+    assert resp.status_code == 204
+    mock_notify.assert_called_once()
+    call_kwargs = mock_notify.call_args
+    assert call_kwargs[1]["full_name"] == "Test Athlete"
+    assert call_kwargs[1]["username"] == "testuser"
+
+
+@pytest.mark.asyncio
+async def test_deleted_user_returns_404(client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """After account deletion, GET /me returns 404 (user must re-register via bot /start)."""
+    from tests.conftest import make_init_data
+
+    tid = test_user.telegram_id
+    init_data = make_init_data(telegram_id=tid)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    with patch("api.routes.me.notify_admins_account_deleted", new_callable=AsyncMock):
+        resp = await client.delete("/api/me")
+    assert resp.status_code == 204
+
+    # GET /me returns 404 — user no longer exists
+    resp2 = await client.get("/api/me")
+    assert resp2.status_code == 404

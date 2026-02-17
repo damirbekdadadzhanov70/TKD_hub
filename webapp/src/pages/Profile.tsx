@@ -10,6 +10,7 @@ import {
   acceptAthleteRequest,
   approveRoleRequest,
   deleteAdminUser,
+  deleteMyAccount,
   getAdminUsers,
   getCoachAthletes,
   getCoachEntries,
@@ -31,6 +32,7 @@ import {
 import {
   acceptMockAthleteRequest,
   approveMockRoleRequest,
+  deleteMockAccount,
   deleteMockAdminUser,
   mockAdminUsers,
   mockCoachAthletes,
@@ -209,6 +211,7 @@ export default function Profile() {
           me={me}
           onClose={() => setShowSettings(false)}
           onRoleChange={handleRoleChange}
+          mutate={mutate}
         />
       )}
     </div>
@@ -849,16 +852,20 @@ function SettingsSheet({
   me,
   onClose,
   onRoleChange,
+  mutate,
 }: {
   me: MeResponse;
   onClose: () => void;
   onRoleChange: (newMe: MeResponse) => void;
+  mutate: (d: MeResponse) => void;
 }) {
   const { showToast } = useToast();
   const { hapticNotification } = useTelegram();
   const { t, lang, setLang } = useI18n();
+  const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showRoleRequestForm, setShowRoleRequestForm] = useState(false);
 
   const isAdmin = me.is_admin;
@@ -918,10 +925,26 @@ function SettingsSheet({
               {t('common.cancel')}
             </button>
             <button
-              onClick={() => { onClose(); showToast(t('profile.accountDeletionRequested')); }}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 transition-all"
+              onClick={async () => {
+                if (deleting) return;
+                setDeleting(true);
+                try {
+                  await deleteMyAccount();
+                  hapticNotification('success');
+                  deleteMockAccount();
+                  onClose();
+                  showToast(t('profile.accountDeletionRequested'));
+                  navigate('/onboarding');
+                } catch {
+                  hapticNotification('error');
+                  showToast(t('common.error'), 'error');
+                  setDeleting(false);
+                }
+              }}
+              disabled={deleting}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 disabled:opacity-40 transition-all"
             >
-              {t('common.delete')}
+              {deleting ? t('common.deleting') : t('common.delete')}
             </button>
           </div>
         </div>

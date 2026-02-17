@@ -103,6 +103,17 @@ export function updateMockMe(data: MeResponse) {
   save('me', mockMe);
 }
 
+export function deleteMockAccount() {
+  mockMe = { ...newUserMe };
+  // Clear all tkd_* keys from localStorage
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('tkd_')) keysToRemove.push(key);
+  }
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+}
+
 export function registerMockProfile(
   role: 'athlete' | 'coach',
   data: AthleteRegistration | CoachRegistration,

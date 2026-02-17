@@ -162,5 +162,6 @@
 
   "new_entry_admin_notification": "📋 New tournament entry for <b>{tournament}</b>\n\nCoach: {coach}\nAthletes: {count}",
   "entry_approved_notification": "✅ Entry approved!\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}",
-  "entry_rejected_notification": "❌ Entry rejected.\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}"
+  "entry_rejected_notification": "❌ Entry rejected.\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}",
+  "account_deleted_admin_notification": "🗑 User <b>{name}</b> (@{username}) has deleted their account."
 }

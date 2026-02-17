@@ -5,6 +5,7 @@ const ru = {
     saving: 'Сохранение...',
     cancel: 'Отмена',
     delete: 'Удалить',
+    deleting: 'Удаление...',
     edit: 'Изменить',
     close: 'Закрыть',
     all: 'Все',

@@ -27,6 +27,23 @@ async def notify_admins_new_entry(
             logger.warning("Failed to notify admin %s", admin_id)
 
 
+async def notify_admins_account_deleted(
+    bot: Bot,
+    full_name: str,
+    username: str,
+    lang: str = "ru",
+) -> None:
+    text = t("account_deleted_admin_notification", lang).format(
+        name=full_name,
+        username=username,
+    )
+    for admin_id in settings.admin_ids:
+        try:
+            await bot.send_message(admin_id, text)
+        except Exception:
+            logger.warning("Failed to notify admin %s about account deletion", admin_id)
+
+
 async def notify_coach_entry_status(
     bot: Bot,
     coach_telegram_id: int,

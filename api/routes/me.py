@@ -1,9 +1,10 @@
+import logging
 import uuid as uuid_mod
 from datetime import date
 from decimal import Decimal
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import selectinload
@@ -13,11 +14,14 @@ from api.schemas.athlete import AthleteRead, AthleteUpdate
 from api.schemas.coach import CoachRead, CoachUpdate, MyCoachRead
 from api.schemas.user import MeResponse
 from bot.config import settings
+from bot.utils.notifications import notify_admins_account_deleted
 from db.models.athlete import Athlete
 from db.models.coach import Coach, CoachAthlete
 from db.models.role_request import RoleRequest
 from db.models.tournament import Tournament, TournamentEntry, TournamentResult
 from db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -67,6 +71,40 @@ def _build_me_response(user) -> MeResponse:
 @router.get("/me", response_model=MeResponse)
 async def get_me(ctx: AuthContext = Depends(get_current_user)):
     return _build_me_response(ctx.user)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(ctx: AuthContext = Depends(get_current_user)):
+    """Delete the current user's account (cascade removes all related data)."""
+    user = ctx.user
+    full_name = (
+        user.athlete.full_name
+        if user.athlete
+        else user.coach.full_name
+        if user.coach
+        else user.username or str(user.telegram_id)
+    )
+
+    # Notify admins before deletion
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            await notify_admins_account_deleted(
+                bot,
+                full_name=full_name,
+                username=user.username or "",
+                lang="ru",
+            )
+        finally:
+            await bot.session.close()
+    except Exception:
+        logger.warning("Failed to send admin notification for account deletion")
+
+    await ctx.session.delete(user)
+    await ctx.session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # ── Profile Stats ───────────────────────────────────────────
