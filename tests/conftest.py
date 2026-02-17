@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import json
@@ -6,6 +7,10 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 import pytest_asyncio
+
+# Force default asyncio policy — uvloop (pulled by uvicorn[standard])
+# raises RuntimeError on Python 3.11+ when no current event loop exists.
+asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
