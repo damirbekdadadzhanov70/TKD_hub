@@ -124,15 +124,11 @@ async def get_profile_stats(ctx: AuthContext = Depends(get_current_user)):
     # Admin stats
     if role == "admin":
         u_count = await session.execute(
-            select(func.count(distinct(User.id))).where(
-                (User.athlete.has()) | (User.coach.has())
-            )
+            select(func.count(distinct(User.id))).where((User.athlete.has()) | (User.coach.has()))
         )
         stats.users_count = u_count.scalar_one()
 
-        t_total = await session.execute(
-            select(func.count(Tournament.id))
-        )
+        t_total = await session.execute(select(func.count(Tournament.id)))
         stats.tournaments_total = t_total.scalar_one()
 
     return stats

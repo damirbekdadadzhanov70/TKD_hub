@@ -146,9 +146,7 @@ async def delete_tournament(
 ):
     _check_admin(ctx.user)
 
-    result = await ctx.session.execute(
-        select(Tournament).where(Tournament.id == tournament_id)
-    )
+    result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
     tournament = result.scalar_one_or_none()
     if not tournament:
         raise HTTPException(

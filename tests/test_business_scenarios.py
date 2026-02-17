@@ -2125,16 +2125,12 @@ class TestProfileStats:
         """Athlete with approved entries and results gets correct counts."""
         # Reload users with profiles
         user_q = await db_session.execute(
-            select(User)
-            .where(User.id == test_user.id)
-            .options(selectinload(User.athlete))
+            select(User).where(User.id == test_user.id).options(selectinload(User.athlete))
         )
         user = user_q.scalar_one()
 
         coach_q = await db_session.execute(
-            select(User)
-            .where(User.id == coach_user.id)
-            .options(selectinload(User.coach))
+            select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
         )
         coach_u = coach_q.scalar_one()
 
