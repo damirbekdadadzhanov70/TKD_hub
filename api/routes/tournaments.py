@@ -34,7 +34,6 @@ from db.models import (
     TournamentInterest,
     TournamentResult,
 )
-from db.models.user import User
 
 logger = logging.getLogger(__name__)
 
