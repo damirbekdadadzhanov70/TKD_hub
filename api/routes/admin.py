@@ -221,9 +221,7 @@ async def get_user_detail(
         raise HTTPException(status_code=400, detail="Invalid user ID") from err
 
     result = await ctx.session.execute(
-        select(User)
-        .where(User.id == uid)
-        .options(selectinload(User.athlete), selectinload(User.coach))
+        select(User).where(User.id == uid).options(selectinload(User.athlete), selectinload(User.coach))
     )
     target = result.scalar_one_or_none()
     if not target:
