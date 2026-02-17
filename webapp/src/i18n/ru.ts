@@ -267,6 +267,7 @@ const ru = {
     firstName: 'Имя',
     enterLastName: 'Введите фамилию',
     enterFirstName: 'Введите имя',
+    nameInvalidChars: 'Только буквы, пробелы и дефисы',
     fullName: 'Полное имя',
     enterFullName: 'Введите ваше полное имя',
     weightCategory: 'Весовая категория',

@@ -267,6 +267,7 @@ const en = {
     firstName: 'First Name',
     enterLastName: 'Enter last name',
     enterFirstName: 'Enter first name',
+    nameInvalidChars: 'Only letters, spaces and hyphens',
     fullName: 'Full Name',
     enterFullName: 'Enter your full name',
     weightCategory: 'Weight Category',

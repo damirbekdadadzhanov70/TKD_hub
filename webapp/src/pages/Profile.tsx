@@ -65,9 +65,130 @@ import type {
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
 
+const NAME_REGEX = /^[\p{L}\s\-]*$/u;
+function isValidName(v: string): boolean {
+  return NAME_REGEX.test(v);
+}
+
 const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
+const WEIGHT_M = ['54kg', '58kg', '63kg', '68kg', '74kg', '80kg', '87kg', '+87kg'];
+const WEIGHT_F = ['46kg', '49kg', '53kg', '57kg', '62kg', '67kg', '73kg', '+73kg'];
 const RANKS = ['Без разряда', '3 разряд', '2 разряд', '1 разряд', 'КМС', 'МС', 'МСМК', 'ЗМС'];
 const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Рязань', 'Махачкала', 'Новосибирск', 'Краснодар', 'Владивосток'];
+const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function daysInMonth(month: number, year: number): number {
+  if (!month || !year) return 31;
+  return new Date(year, month, 0).getDate();
+}
+
+function ChevronDown() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function RoleFormSelectSheet({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { hapticFeedback } = useTelegram();
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (open && activeRef.current) {
+      activeRef.current.scrollIntoView({ block: 'center' });
+    }
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex-1 flex items-center justify-between bg-transparent border-b border-border text-[15px] py-2 outline-none cursor-pointer transition-colors hover:border-accent min-w-0"
+      >
+        <span className={selected ? 'text-text truncate' : 'text-text-disabled truncate'}>
+          {selected ? selected.label : label}
+        </span>
+        <ChevronDown />
+      </button>
+      {open && (
+        <BottomSheet onClose={() => setOpen(false)}>
+          <div className="px-6 pt-2 pb-1">
+            <h3 className="text-[17px] font-heading text-text-heading">{label}</h3>
+          </div>
+          <div className="overflow-y-auto px-2 pb-6" style={{ maxHeight: '50vh' }}>
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                ref={opt.value === value ? activeRef : undefined}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  hapticFeedback('light');
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 rounded-lg text-[15px] cursor-pointer transition-colors ${
+                  opt.value === value
+                    ? 'bg-accent text-white'
+                    : 'text-text hover:bg-bg-secondary active:opacity-80'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </BottomSheet>
+      )}
+    </>
+  );
+}
+
+function PillSelector({
+  options,
+  value,
+  onChange,
+  columns = 4,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  columns?: number;
+}) {
+  const { hapticFeedback } = useTelegram();
+  return (
+    <div className="flex flex-wrap gap-1.5" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => { onChange(opt); hapticFeedback('light'); }}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+            value === opt
+              ? 'bg-accent text-white border-accent'
+              : 'bg-transparent text-text-disabled border-text-disabled hover:border-accent'
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ---- Icons ---- */
 
@@ -1405,41 +1526,63 @@ function RoleRequestForm({
   onClose: () => void;
   onSubmitted: () => void;
 }) {
-  const { t } = useI18n();
-  const { hapticNotification } = useTelegram();
+  const { t, lang } = useI18n();
+  const { hapticFeedback, hapticNotification } = useTelegram();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    full_name: '',
-    date_of_birth: '',
-    gender: 'M' as 'M' | 'F',
-    sport_rank: '',
-    city: '',
-    club: '',
-    weight_category: '',
-    current_weight: '',
-  });
 
-  const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYear, setDobYear] = useState('');
+  const [gender, setGender] = useState<'M' | 'F' | ''>('');
+  const [rank, setRank] = useState('');
+  const [city, setCity] = useState('');
+  const [customCity, setCustomCity] = useState('');
+  const [club, setClub] = useState('');
+  const [weight, setWeight] = useState('');
+  const [currentWeight, setCurrentWeight] = useState('');
 
-  const isValid = form.full_name && form.date_of_birth && form.sport_rank && form.city && form.club
-    && (requestedRole === 'coach' || (form.weight_category && form.current_weight));
+  const clampDay = (day: string, month: string, year: string) => {
+    if (day && month && year) {
+      const maxDay = daysInMonth(Number(month), Number(year));
+      if (Number(day) > maxDay) setDobDay(String(maxDay));
+    }
+  };
+  const handleDobMonth = (m: string) => { setDobMonth(m); clampDay(dobDay, m, dobYear); };
+  const handleDobYear = (y: string) => { setDobYear(y); clampDay(dobDay, dobMonth, y); };
+
+  const effectiveCity = city === 'other' ? customCity.trim() : city;
+  const dobValid = dobDay && dobMonth && dobYear;
+  const lastNameValid = isValidName(lastName) && !!lastName.trim();
+  const firstNameValid = isValidName(firstName) && !!firstName.trim();
+  const lastNameError = lastName.length > 0 && !isValidName(lastName);
+  const firstNameError = firstName.length > 0 && !isValidName(firstName);
+
+  const isValid = requestedRole === 'athlete'
+    ? lastNameValid && firstNameValid && dobValid && gender && weight && currentWeight && rank && effectiveCity
+    : lastNameValid && firstNameValid && dobValid && gender && effectiveCity && club.trim();
 
   const handleSubmit = async () => {
     if (!isValid) return;
     setSaving(true);
+
+    const fullName = `${lastName.trim()} ${firstName.trim()}`;
+    const dateOfBirth = `${dobYear}-${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}`;
+
     try {
       const data: Record<string, unknown> = {
-        full_name: form.full_name,
-        date_of_birth: form.date_of_birth,
-        gender: form.gender,
-        sport_rank: form.sport_rank,
-        city: form.city,
-        club: form.club || null,
+        full_name: fullName,
+        date_of_birth: dateOfBirth,
+        gender,
+        city: effectiveCity,
+        club: club.trim() || null,
       };
       if (requestedRole === 'athlete') {
-        data.weight_category = form.weight_category;
-        data.current_weight = parseFloat(form.current_weight);
+        data.weight_category = weight;
+        data.current_weight = parseFloat(currentWeight);
+        data.sport_rank = rank;
       }
       await submitRoleRequest({ requested_role: requestedRole, data });
       hapticNotification('success');
@@ -1450,6 +1593,28 @@ function RoleRequestForm({
       setSaving(false);
     }
   };
+
+  const months = lang === 'ru' ? MONTHS_RU : MONTHS_EN;
+
+  const yearOptions: { value: string; label: string }[] = [];
+  for (let y = 2018; y >= 1960; y--) yearOptions.push({ value: String(y), label: String(y) });
+
+  const maxDay = dobMonth && dobYear ? daysInMonth(Number(dobMonth), Number(dobYear)) : 31;
+  const dayOptions = Array.from({ length: maxDay }, (_, i) => ({
+    value: String(i + 1),
+    label: String(i + 1),
+  }));
+  const monthOptions = months.map((m, i) => ({
+    value: String(i + 1),
+    label: m,
+  }));
+
+  const cityOptions = [
+    ...CITIES.map((c) => ({ value: c, label: c })),
+    { value: 'other', label: t('onboarding.otherCity') },
+  ];
+
+  const weightCategories = gender === 'F' ? WEIGHT_F : WEIGHT_M;
 
   return (
     <BottomSheet onClose={onClose}>
@@ -1466,105 +1631,90 @@ function RoleRequestForm({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-4">
-        <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.fullName')}</span>
-          <input
-            value={form.full_name}
-            onChange={(e) => update('full_name', e.target.value)}
-            placeholder={t('onboarding.enterFullName')}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
-          />
+        {/* Last Name + First Name */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.lastName')}</span>
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder={t('onboarding.enterLastName')}
+              className={`w-full bg-transparent border-b text-[15px] text-text py-2 outline-none transition-colors placeholder:text-text-disabled ${
+                lastNameError ? 'border-rose-500' : 'border-border focus:border-accent'
+              }`}
+            />
+            {lastNameError && (
+              <p className="text-[11px] text-rose-500 mt-1">{t('onboarding.nameInvalidChars')}</p>
+            )}
+          </div>
+          <div className="flex-1">
+            <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.firstName')}</span>
+            <input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder={t('onboarding.enterFirstName')}
+              className={`w-full bg-transparent border-b text-[15px] text-text py-2 outline-none transition-colors placeholder:text-text-disabled ${
+                firstNameError ? 'border-rose-500' : 'border-border focus:border-accent'
+              }`}
+            />
+            {firstNameError && (
+              <p className="text-[11px] text-rose-500 mt-1">{t('onboarding.nameInvalidChars')}</p>
+            )}
+          </div>
         </div>
 
+        {/* Date of Birth — 3 SelectSheet */}
         <div>
           <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.dateOfBirth')}</span>
-          <input
-            type="date"
-            value={form.date_of_birth}
-            onChange={(e) => update('date_of_birth', e.target.value)}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
-          />
+          <div className="flex gap-2">
+            <RoleFormSelectSheet
+              label={t('onboarding.day')}
+              value={dobDay}
+              options={dayOptions}
+              onChange={setDobDay}
+            />
+            <RoleFormSelectSheet
+              label={t('onboarding.month')}
+              value={dobMonth}
+              options={monthOptions}
+              onChange={handleDobMonth}
+            />
+            <RoleFormSelectSheet
+              label={t('onboarding.year')}
+              value={dobYear}
+              options={yearOptions}
+              onChange={handleDobYear}
+            />
+          </div>
         </div>
 
+        {/* Gender — pill buttons */}
         <div>
           <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.gender')}</span>
           <div className="flex gap-2">
-            {(['M', 'F'] as const).map((g) => (
+            {([['M', t('onboarding.male')], ['F', t('onboarding.female')]] as const).map(([val, label]) => (
               <button
-                key={g}
-                onClick={() => update('gender', g)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium border cursor-pointer transition-colors ${
-                  form.gender === g
+                key={val}
+                type="button"
+                onClick={() => { setGender(val); hapticFeedback('light'); }}
+                className={`flex-1 py-2.5 rounded-full text-sm font-medium border cursor-pointer transition-colors ${
+                  gender === val
                     ? 'bg-accent text-white border-accent'
-                    : 'bg-transparent text-text-disabled border-text-disabled'
+                    : 'bg-transparent text-text-disabled border-text-disabled hover:border-accent'
                 }`}
               >
-                {g === 'M' ? t('onboarding.male') : t('onboarding.female')}
+                {label}
               </button>
             ))}
           </div>
         </div>
 
-        <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.sportRank')}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {RANKS.map((r) => (
-              <button
-                key={r}
-                onClick={() => update('sport_rank', r)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
-                  form.sport_rank === r
-                    ? 'bg-accent text-white border-accent'
-                    : 'bg-transparent text-text-disabled border-text-disabled'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.city')}</span>
-          <select
-            value={form.city}
-            onChange={(e) => update('city', e.target.value)}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors appearance-none"
-          >
-            <option value="">{t('onboarding.selectCity')}</option>
-            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.club')}</span>
-          <input
-            value={form.club}
-            onChange={(e) => update('club', e.target.value)}
-            placeholder={t('onboarding.enterClub')}
-            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
-          />
-        </div>
-
+        {/* Athlete: weight category + current weight */}
         {requestedRole === 'athlete' && (
           <>
             <div>
               <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.weightCategory')}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {WEIGHT_CATEGORIES.map((w) => (
-                  <button
-                    key={w}
-                    onClick={() => update('weight_category', w)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
-                      form.weight_category === w
-                        ? 'bg-accent text-white border-accent'
-                        : 'bg-transparent text-text-disabled border-text-disabled'
-                    }`}
-                  >
-                    {w}
-                  </button>
-                ))}
-              </div>
+              <PillSelector options={weightCategories} value={weight} onChange={setWeight} />
             </div>
 
             <div>
@@ -1572,13 +1722,57 @@ function RoleRequestForm({
               <input
                 type="number"
                 step="0.1"
-                value={form.current_weight}
-                onChange={(e) => update('current_weight', e.target.value)}
-                className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+                min="0"
+                max="300"
+                value={currentWeight}
+                onChange={(e) => setCurrentWeight(e.target.value)}
+                placeholder="65.5"
+                className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
               />
             </div>
           </>
         )}
+
+        {/* Sport Rank — athlete only */}
+        {requestedRole === 'athlete' && (
+          <div>
+            <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.sportRank')}</span>
+            <PillSelector options={RANKS} value={rank} onChange={setRank} columns={2} />
+          </div>
+        )}
+
+        {/* City — SelectSheet + custom */}
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.city')}</span>
+          <RoleFormSelectSheet
+            label={t('onboarding.selectCity')}
+            value={city}
+            options={cityOptions}
+            onChange={setCity}
+          />
+          {city === 'other' && (
+            <input
+              value={customCity}
+              onChange={(e) => setCustomCity(e.target.value)}
+              placeholder={t('onboarding.enterCity')}
+              className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 mt-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
+            />
+          )}
+        </div>
+
+        {/* Club */}
+        <div>
+          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">
+            {t('onboarding.club')}
+            {requestedRole === 'athlete' && <span className="normal-case tracking-normal text-text-disabled ml-1">({t('common.optional')})</span>}
+          </span>
+          <input
+            value={club}
+            onChange={(e) => setClub(e.target.value)}
+            placeholder={t('onboarding.enterClub')}
+            className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
+          />
+        </div>
       </div>
 
       <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>

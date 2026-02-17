@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date
 
@@ -19,14 +20,23 @@ from api.schemas.tournament import (
 )
 from api.utils.pagination import paginate_query
 from bot.config import settings
+from bot.utils.notifications import (
+    notify_athlete_interest,
+    notify_coach_athlete_interest,
+    notify_coach_entry_status,
+)
 from db.models import (
     Athlete,
+    Coach,
     CoachAthlete,
     Tournament,
     TournamentEntry,
     TournamentInterest,
     TournamentResult,
 )
+from db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -226,7 +236,8 @@ async def mark_interest(
 
     # Check tournament exists
     t_result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
-    if not t_result.scalar_one_or_none():
+    tournament = t_result.scalar_one_or_none()
+    if not tournament:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tournament not found",
@@ -252,6 +263,47 @@ async def mark_interest(
     )
     ctx.session.add(interest)
     await ctx.session.commit()
+
+    # Notify athlete and their coach
+    user = ctx.user
+    athlete = user.athlete
+    lang = user.language or "ru"
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            # Notify athlete
+            await notify_athlete_interest(
+                bot,
+                athlete_telegram_id=user.telegram_id,
+                tournament_name=tournament.name,
+                lang=lang,
+            )
+
+            # Notify coach if athlete has one
+            coach_link_result = await ctx.session.execute(
+                select(CoachAthlete)
+                .where(
+                    CoachAthlete.athlete_id == athlete.id,
+                    CoachAthlete.status == "accepted",
+                )
+                .options(selectinload(CoachAthlete.coach).selectinload(Coach.user))
+            )
+            coach_link = coach_link_result.scalar_one_or_none()
+            if coach_link and coach_link.coach and coach_link.coach.user:
+                coach_user = coach_link.coach.user
+                await notify_coach_athlete_interest(
+                    bot,
+                    coach_telegram_id=coach_user.telegram_id,
+                    athlete_name=athlete.full_name,
+                    tournament_name=tournament.name,
+                    lang=coach_user.language or "ru",
+                )
+        finally:
+            await bot.session.close()
+    except Exception:
+        logger.warning("Failed to send interest notifications for athlete %s", athlete.id)
 
     return TournamentInterestResponse(
         tournament_id=tournament_id,
@@ -392,6 +444,43 @@ async def remove_entry(
     await ctx.session.commit()
 
 
+async def _notify_coach_entries(session, coach_id, tournament_id, entries, entry_status: str):
+    """Send notification to coach about entry approval/rejection."""
+    try:
+        # Get coach's telegram_id and language
+        coach_result = await session.execute(
+            select(Coach).where(Coach.id == coach_id).options(selectinload(Coach.user))
+        )
+        coach = coach_result.scalar_one_or_none()
+        if not coach or not coach.user:
+            return
+
+        # Get tournament name
+        t_result = await session.execute(select(Tournament.name).where(Tournament.id == tournament_id))
+        t_name = t_result.scalar_one_or_none() or "?"
+
+        coach_tid = coach.user.telegram_id
+        lang = coach.user.language or "ru"
+
+        from aiogram import Bot
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            for entry in entries:
+                athlete_name = entry.athlete.full_name if entry.athlete else "?"
+                await notify_coach_entry_status(
+                    bot,
+                    coach_telegram_id=coach_tid,
+                    tournament_name=t_name,
+                    athlete_name=athlete_name,
+                    status=entry_status,
+                    lang=lang,
+                )
+        finally:
+            await bot.session.close()
+    except Exception:
+        logger.warning("Failed to notify coach %s about entry %s", coach_id, entry_status)
+
+
 def _check_admin(user) -> None:
     """Verify user is admin by telegram_id in settings."""
     if user.telegram_id not in settings.admin_ids:
@@ -413,10 +502,12 @@ async def approve_coach_entries(
     _check_admin(ctx.user)
 
     result = await ctx.session.execute(
-        select(TournamentEntry).where(
+        select(TournamentEntry)
+        .where(
             TournamentEntry.tournament_id == tournament_id,
             TournamentEntry.coach_id == coach_id,
         )
+        .options(selectinload(TournamentEntry.athlete))
     )
     entries = result.scalars().all()
     if not entries:
@@ -428,6 +519,9 @@ async def approve_coach_entries(
     for entry in entries:
         entry.status = "approved"
     await ctx.session.commit()
+
+    # Notify coach about approval
+    await _notify_coach_entries(ctx.session, coach_id, tournament_id, entries, "approved")
 
 
 @router.post(
@@ -442,10 +536,12 @@ async def reject_coach_entries(
     _check_admin(ctx.user)
 
     result = await ctx.session.execute(
-        select(TournamentEntry).where(
+        select(TournamentEntry)
+        .where(
             TournamentEntry.tournament_id == tournament_id,
             TournamentEntry.coach_id == coach_id,
         )
+        .options(selectinload(TournamentEntry.athlete))
     )
     entries = result.scalars().all()
     if not entries:
@@ -457,6 +553,9 @@ async def reject_coach_entries(
     for entry in entries:
         entry.status = "rejected"
     await ctx.session.commit()
+
+    # Notify coach about rejection
+    await _notify_coach_entries(ctx.session, coach_id, tournament_id, entries, "rejected")
 
 
 @router.get(

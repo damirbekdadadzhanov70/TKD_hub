@@ -19,6 +19,7 @@ from bot.keyboards.entries import (
 from bot.states.entries import EnterAthletes
 from bot.utils.callback import CallbackParseError, parse_callback
 from bot.utils.helpers import t
+from bot.utils.notifications import notify_admins_new_entry
 from db.base import async_session
 from db.models.athlete import Athlete
 from db.models.coach import CoachAthlete
@@ -264,7 +265,7 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(t("entries_created", lang).format(count=created))
     await callback.answer()
 
-    # Notify athletes
+    # Notify athletes + admins
     async with async_session() as session:
         result = await session.execute(
             select(Athlete).where(Athlete.id.in_(selected)).options(selectinload(Athlete.user))
@@ -273,6 +274,10 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
 
         t_result = await session.execute(select(Tournament.name).where(Tournament.id == tid))
         t_name = t_result.scalar_one_or_none() or "?"
+
+        from db.models.coach import Coach
+        c_result = await session.execute(select(Coach.full_name).where(Coach.id == coach_id))
+        coach_name = c_result.scalar_one_or_none() or "?"
 
     for athlete in athletes:
         if athlete.user:
@@ -284,6 +289,18 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
                 )
             except Exception:
                 logger.warning("Failed to notify athlete %s about tournament entry", athlete.user.telegram_id)
+
+    # Notify admins about new entry
+    if created > 0:
+        try:
+            await notify_admins_new_entry(
+                callback.bot,
+                tournament_name=t_name,
+                coach_name=coach_name,
+                count=created,
+            )
+        except Exception:
+            logger.warning("Failed to notify admins about new entry")
 
 
 @router.callback_query(F.data == "entry_cancel")

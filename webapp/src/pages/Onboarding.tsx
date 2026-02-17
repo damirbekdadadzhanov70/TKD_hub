@@ -22,6 +22,11 @@ const hasApi = !!API_URL;
 
 /* ---- Helpers ---- */
 
+const NAME_REGEX = /^[\p{L}\s\-]*$/u;
+function isValidName(v: string): boolean {
+  return NAME_REGEX.test(v);
+}
+
 function daysInMonth(month: number, year: number): number {
   if (!month || !year) return 31;
   return new Date(year, month, 0).getDate();
@@ -237,10 +242,14 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
 
   const effectiveCity = city === 'other' ? customCity.trim() : city;
   const dobValid = dobDay && dobMonth && dobYear;
+  const lastNameValid = isValidName(lastName) && !!lastName.trim();
+  const firstNameValid = isValidName(firstName) && !!firstName.trim();
+  const lastNameError = lastName.length > 0 && !isValidName(lastName);
+  const firstNameError = firstName.length > 0 && !isValidName(firstName);
 
   const isFormValid = role === 'athlete'
-    ? lastName.trim() && firstName.trim() && dobValid && gender && weight && currentWeight && rank && effectiveCity
-    : lastName.trim() && firstName.trim() && dobValid && gender && rank && effectiveCity && club.trim();
+    ? lastNameValid && firstNameValid && dobValid && gender && weight && currentWeight && rank && effectiveCity
+    : lastNameValid && firstNameValid && dobValid && gender && effectiveCity && club.trim();
 
   const handleSubmit = async () => {
     if (!role || !isFormValid) return;
@@ -264,7 +273,6 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
           full_name: fullName,
           date_of_birth: dateOfBirth,
           gender: gender as 'M' | 'F',
-          sport_rank: rank,
           city: effectiveCity,
           club: club.trim(),
         };
@@ -434,8 +442,13 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder={t('onboarding.enterLastName')}
-              className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
+              className={`w-full bg-transparent border-b text-[15px] text-text py-2 outline-none transition-colors placeholder:text-text-disabled ${
+                lastNameError ? 'border-rose-500' : 'border-border focus:border-accent'
+              }`}
             />
+            {lastNameError && (
+              <p className="text-[11px] text-rose-500 mt-1">{t('onboarding.nameInvalidChars')}</p>
+            )}
           </div>
           <div className="flex-1">
             <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.firstName')}</span>
@@ -443,8 +456,13 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder={t('onboarding.enterFirstName')}
-              className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors placeholder:text-text-disabled"
+              className={`w-full bg-transparent border-b text-[15px] text-text py-2 outline-none transition-colors placeholder:text-text-disabled ${
+                firstNameError ? 'border-rose-500' : 'border-border focus:border-accent'
+              }`}
             />
+            {firstNameError && (
+              <p className="text-[11px] text-rose-500 mt-1">{t('onboarding.nameInvalidChars')}</p>
+            )}
           </div>
         </div>
 
@@ -519,11 +537,13 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
           </>
         )}
 
-        {/* Sport Rank — pill buttons in 2 columns */}
-        <div>
-          <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.sportRank')}</span>
-          <PillSelector options={RANKS} value={rank} onChange={setRank} columns={2} />
-        </div>
+        {/* Sport Rank — pill buttons in 2 columns (athlete only) */}
+        {role === 'athlete' && (
+          <div>
+            <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('onboarding.sportRank')}</span>
+            <PillSelector options={RANKS} value={rank} onChange={setRank} columns={2} />
+          </div>
+        )}
 
         {/* City — SelectSheet + custom */}
         <div>

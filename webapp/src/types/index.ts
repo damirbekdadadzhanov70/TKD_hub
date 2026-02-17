@@ -208,7 +208,7 @@ export interface CoachRegistration {
   full_name: string;
   date_of_birth: string;
   gender: 'M' | 'F';
-  sport_rank: string;
+  sport_rank?: string;
   city: string;
   club: string;
 }

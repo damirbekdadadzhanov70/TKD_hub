@@ -412,7 +412,7 @@ class CoachRegistration(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=255)
     date_of_birth: date
     gender: Literal["M", "F"]
-    sport_rank: str = Field(..., min_length=1, max_length=50)
+    sport_rank: Optional[str] = Field(None, max_length=50)
     city: str = Field(..., min_length=1, max_length=100)
     club: str = Field(..., min_length=1, max_length=255)
 
@@ -467,7 +467,7 @@ async def register_profile(
             country="Россия",
             city=reg.city,
             club=reg.club,
-            qualification=reg.sport_rank,
+            qualification=reg.sport_rank or "Не указано",
         )
         ctx.session.add(coach)
         await ctx.session.flush()

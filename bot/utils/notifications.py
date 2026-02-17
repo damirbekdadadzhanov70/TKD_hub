@@ -113,6 +113,36 @@ async def notify_admins_role_request(
             logger.warning("Failed to notify admin %s about role request", admin_id)
 
 
+async def notify_athlete_interest(
+    bot: Bot,
+    athlete_telegram_id: int,
+    tournament_name: str,
+    lang: str = "ru",
+) -> None:
+    text = t("interest_confirmed_athlete", lang).format(tournament=tournament_name)
+    try:
+        await bot.send_message(athlete_telegram_id, text)
+    except Exception:
+        logger.warning("Failed to notify athlete %s about interest", athlete_telegram_id)
+
+
+async def notify_coach_athlete_interest(
+    bot: Bot,
+    coach_telegram_id: int,
+    athlete_name: str,
+    tournament_name: str,
+    lang: str = "ru",
+) -> None:
+    text = t("interest_coach_notification", lang).format(
+        athlete=athlete_name,
+        tournament=tournament_name,
+    )
+    try:
+        await bot.send_message(coach_telegram_id, text)
+    except Exception:
+        logger.warning("Failed to notify coach %s about athlete interest", coach_telegram_id)
+
+
 async def notify_coach_entry_status(
     bot: Bot,
     coach_telegram_id: int,

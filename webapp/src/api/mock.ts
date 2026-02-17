@@ -148,7 +148,7 @@ export function registerMockProfile(
     country: 'Россия',
     city: reg.city,
     club: reg.club,
-    qualification: reg.sport_rank,
+    qualification: reg.sport_rank || 'Не указано',
     photo_url: null,
     is_verified: false,
   };
