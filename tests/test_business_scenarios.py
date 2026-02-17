@@ -2496,6 +2496,7 @@ async def test_request_coach_link(auth_client: AsyncClient, coach_user: User, db
     """Athlete sends a request to coach, gets pending link."""
     # Get coach id
     from sqlalchemy.orm import selectinload
+
     coach_result = await db_session.execute(
         select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
     )
@@ -2516,6 +2517,7 @@ async def test_request_coach_link(auth_client: AsyncClient, coach_user: User, db
 async def test_request_coach_link_duplicate(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
     """Cannot request a second coach link."""
     from sqlalchemy.orm import selectinload
+
     coach_result = await db_session.execute(
         select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
     )
@@ -2540,6 +2542,7 @@ async def test_request_coach_link_duplicate(auth_client: AsyncClient, coach_user
 async def test_get_my_coach_pending(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
     """Returns pending link after request."""
     from sqlalchemy.orm import selectinload
+
     coach_result = await db_session.execute(
         select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
     )
@@ -2562,6 +2565,7 @@ async def test_get_my_coach_pending(auth_client: AsyncClient, coach_user: User, 
 async def test_unlink_coach(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
     """Athlete can unlink from coach."""
     from sqlalchemy.orm import selectinload
+
     coach_result = await db_session.execute(
         select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
     )
@@ -2582,7 +2586,9 @@ async def test_unlink_coach(auth_client: AsyncClient, coach_user: User, db_sessi
 
 
 @pytest.mark.asyncio
-async def test_coach_pending_athletes(coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User):
+async def test_coach_pending_athletes(
+    coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User
+):
     """Coach sees pending athlete requests."""
     from sqlalchemy.orm import selectinload
 
@@ -2612,7 +2618,9 @@ async def test_coach_pending_athletes(coach_client: AsyncClient, db_session: Asy
 
 
 @pytest.mark.asyncio
-async def test_coach_accept_request(coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User):
+async def test_coach_accept_request(
+    coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User
+):
     """Coach accepts athlete request → status becomes accepted."""
     from sqlalchemy.orm import selectinload
 
@@ -2641,16 +2649,16 @@ async def test_coach_accept_request(coach_client: AsyncClient, db_session: Async
 
     # Verify in DB — use a fresh session to avoid stale cache
     async with TestSession() as fresh:
-        result = await fresh.execute(
-            select(CoachAthlete).where(CoachAthlete.id == link_id)
-        )
+        result = await fresh.execute(select(CoachAthlete).where(CoachAthlete.id == link_id))
         updated = result.scalar_one()
         assert updated.status == "accepted"
         assert updated.accepted_at is not None
 
 
 @pytest.mark.asyncio
-async def test_coach_reject_request(coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User):
+async def test_coach_reject_request(
+    coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User
+):
     """Coach rejects athlete request → link is deleted."""
     from sqlalchemy.orm import selectinload
 
@@ -2678,7 +2686,5 @@ async def test_coach_reject_request(coach_client: AsyncClient, db_session: Async
     assert resp.json()["status"] == "rejected"
 
     # Verify deleted from DB
-    result = await db_session.execute(
-        select(CoachAthlete).where(CoachAthlete.id == link_id)
-    )
+    result = await db_session.execute(select(CoachAthlete).where(CoachAthlete.id == link_id))
     assert result.scalar_one_or_none() is None
