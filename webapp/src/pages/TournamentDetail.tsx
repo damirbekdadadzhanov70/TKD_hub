@@ -15,11 +15,12 @@ import {
   getCoachAthletes,
   getMe,
   getTournament,
+  getTournamentResults,
   markInterest,
   rejectCoachEntries,
   removeEntry,
 } from '../api/endpoints';
-import { approveMockCoachEntries, deleteMockTournament, enterMockAthletes, getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults, rejectMockCoachEntries, removeMockEntryAthlete } from '../api/mock';
+import { getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults } from '../api/mock';
 import type { CoachAthlete, MeResponse, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentResult } from '../types';
 
 const MEDAL_COLORS: Record<number, string> = {
@@ -88,11 +89,11 @@ export default function TournamentDetail() {
     try {
       await deleteTournament(syncedTournament.id);
       hapticNotification('success');
-      deleteMockTournament(syncedTournament.id);
       showToast(t('tournamentDetail.tournamentDeleted'));
       navigate('/', { replace: true });
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setDeleting(false);
       setShowDeleteConfirm(false);
     }
@@ -241,7 +242,7 @@ export default function TournamentDetail() {
 
       {/* Results tab */}
       {tab === 'results' && (
-        <ResultsTab />
+        <ResultsTab tournamentId={syncedTournament.id} />
       )}
 
       {/* Admin delete button */}
@@ -419,10 +420,9 @@ function CoachEntryCard({
     setProcessing(true);
     try {
       await approveCoachEntries(tournamentId, group.coachId);
-      const updated = approveMockCoachEntries(tournamentId, group.coachId);
       hapticNotification('success');
       showToast(t('tournamentDetail.entryApproved'));
-      if (updated) mutate(updated); else refetch(true);
+      refetch(true);
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -434,10 +434,9 @@ function CoachEntryCard({
     setProcessing(true);
     try {
       await rejectCoachEntries(tournamentId, group.coachId);
-      const updated = rejectMockCoachEntries(tournamentId, group.coachId);
       hapticNotification('success');
       showToast(t('tournamentDetail.entryRejected'));
-      if (updated) mutate(updated); else refetch(true);
+      refetch(true);
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -448,10 +447,9 @@ function CoachEntryCard({
   const handleRemoveAthlete = async (entryId: string) => {
     try {
       await removeEntry(tournamentId, entryId);
-      const updated = removeMockEntryAthlete(tournamentId, entryId);
       hapticNotification('success');
       showToast(t('tournamentDetail.athleteRemoved'));
-      if (updated) mutate(updated); else refetch(true);
+      refetch(true);
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -526,13 +524,17 @@ function CoachEntryCard({
 
 /* ---- Results tab ---- */
 
-function ResultsTab() {
+function ResultsTab({ tournamentId }: { tournamentId: string }) {
   const { t } = useI18n();
-  const results = mockTournamentResults;
+  const { data: results, loading } = useApi<TournamentResult[]>(
+    () => getTournamentResults(tournamentId),
+    mockTournamentResults,
+    [tournamentId],
+  );
 
   const grouped = useMemo(() => {
     const map = new Map<string, TournamentResult[]>();
-    results.forEach((r) => {
+    (results || []).forEach((r) => {
       const key = `${r.age_category} · ${r.weight_category}`;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
@@ -542,7 +544,11 @@ function ResultsTab() {
     return map;
   }, [results]);
 
-  if (results.length === 0) {
+  if (loading) {
+    return <div className="px-4"><LoadingSpinner /></div>;
+  }
+
+  if (!results || results.length === 0) {
     return (
       <div className="px-4">
         <EmptyState title={t('tournamentDetail.noResults')} />
@@ -703,12 +709,12 @@ function EnterAthletesModal({
     setSubmitting(true);
     try {
       await enterTournament(tournamentId, Array.from(selected), selectedAge);
-      const updated = enterMockAthletes(tournamentId, Array.from(selected));
       hapticNotification('success');
       showToast(t('tournamentDetail.entriesSubmitted'));
-      onDone(updated || undefined);
-    } catch {
+      onDone();
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSubmitting(false);
     }
   };

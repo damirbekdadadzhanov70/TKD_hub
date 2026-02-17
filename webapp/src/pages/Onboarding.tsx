@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { registerProfile } from '../api/endpoints';
 import { registerMockProfile } from '../api/mock';
 import BottomSheet from '../components/BottomSheet';
+import { useToast } from '../components/Toast';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 import type { AthleteRegistration, CoachRegistration, MeResponse } from '../types';
@@ -185,6 +186,7 @@ function SelectSheet({
 
 export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse) => void }) {
   const { hapticFeedback, hapticNotification, showBackButton, isTelegram } = useTelegram();
+  const { showToast } = useToast();
   const { t, lang, setLang } = useI18n();
 
   const hasStoredLang = !!localStorage.getItem('app_language');
@@ -278,8 +280,9 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
       }
       hapticNotification('success');
       onComplete(result);
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSaving(false);
     }
   };

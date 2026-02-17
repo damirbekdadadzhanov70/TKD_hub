@@ -18,6 +18,7 @@ Sections:
   11. Bot: My Athletes
   12. Bot: Entries Edge Cases (deadline, withdraw, /my_entries)
   13. Bot: Registration Edge Cases (weight, country, club, photo)
+  14. API: Profile Stats
 """
 
 import uuid as uuid_mod
@@ -32,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from bot.config import settings
-from db.models import Tournament, TournamentEntry
+from db.models import Tournament, TournamentEntry, TournamentResult
 from db.models.athlete import Athlete
 from db.models.coach import Coach, CoachAthlete
 from db.models.invite_token import InviteToken
@@ -559,6 +560,181 @@ async def test_create_result_non_admin_403(
         },
     )
     assert response.status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════
+#  4b. API: Tournament CRUD (POST / DELETE)
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_admin_create_tournament(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+):
+    response = await admin_client.post(
+        "/api/tournaments",
+        json={
+            "name": "Test Tournament",
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-03",
+            "city": "Москва",
+            "venue": "Дворец единоборств",
+            "registration_deadline": "2026-05-20",
+            "importance_level": 3,
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Test Tournament"
+    assert data["city"] == "Москва"
+    assert data["country"] == "Россия"
+    assert data["status"] == "upcoming"
+    assert data["importance_level"] == 3
+    assert data["entry_count"] == 0
+    assert "id" in data
+
+
+@pytest.mark.asyncio
+async def test_create_tournament_non_admin_403(
+    auth_client: AsyncClient,
+):
+    response = await auth_client.post(
+        "/api/tournaments",
+        json={
+            "name": "Blocked",
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-03",
+            "city": "Москва",
+            "venue": "Test",
+            "registration_deadline": "2026-05-20",
+        },
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_create_tournament_with_optional_fields(
+    admin_client: AsyncClient,
+):
+    response = await admin_client.post(
+        "/api/tournaments",
+        json={
+            "name": "Full Tournament",
+            "description": "Описание турнира",
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-02",
+            "city": "Казань",
+            "venue": "СК Казань",
+            "entry_fee": 3000,
+            "currency": "RUB",
+            "registration_deadline": "2026-06-25",
+            "importance_level": 1,
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Full Tournament"
+    assert data["importance_level"] == 1
+
+
+@pytest.mark.asyncio
+async def test_admin_delete_tournament(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+):
+    tournament = await create_tournament(db_session, admin_user)
+
+    response = await admin_client.delete(f"/api/tournaments/{tournament.id}")
+    assert response.status_code == 204
+
+    # Verify tournament is gone
+    result = await db_session.execute(select(Tournament).where(Tournament.id == tournament.id))
+    assert result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_delete_tournament_non_admin_403(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    tournament = await create_tournament(db_session, test_user)
+
+    response = await auth_client.delete(f"/api/tournaments/{tournament.id}")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_tournament_not_found_404(
+    admin_client: AsyncClient,
+):
+    fake_id = uuid_mod.uuid4()
+    response = await admin_client.delete(f"/api/tournaments/{fake_id}")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_tournament_cascades_entries(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    coach_with_athlete: tuple[User, User],
+):
+    coach_u, athlete_u = coach_with_athlete
+    tournament = await create_tournament(db_session, admin_user)
+
+    coach_result = await db_session.execute(select(User).where(User.id == coach_u.id).options(selectinload(User.coach)))
+    coach = coach_result.scalar_one().coach
+
+    athlete_result = await db_session.execute(
+        select(User).where(User.id == athlete_u.id).options(selectinload(User.athlete))
+    )
+    athlete = athlete_result.scalar_one().athlete
+
+    entry = TournamentEntry(
+        tournament_id=tournament.id,
+        athlete_id=athlete.id,
+        coach_id=coach.id,
+        weight_category="68kg",
+        age_category="Seniors",
+    )
+    db_session.add(entry)
+    await db_session.commit()
+
+    response = await admin_client.delete(f"/api/tournaments/{tournament.id}")
+    assert response.status_code == 204
+
+    # Tournament should be gone
+    t_result = await db_session.execute(select(Tournament).where(Tournament.id == tournament.id))
+    assert t_result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_created_tournament_appears_in_list(
+    admin_client: AsyncClient,
+):
+    # Create
+    create_resp = await admin_client.post(
+        "/api/tournaments",
+        json={
+            "name": "Listable Tournament",
+            "start_date": "2026-08-01",
+            "end_date": "2026-08-02",
+            "city": "Владивосток",
+            "venue": "ФОК Владивосток",
+            "registration_deadline": "2026-07-25",
+        },
+    )
+    assert create_resp.status_code == 201
+    created_id = create_resp.json()["id"]
+
+    # List
+    list_resp = await admin_client.get("/api/tournaments")
+    assert list_resp.status_code == 200
+    ids = [t["id"] for t in list_resp.json()["items"]]
+    assert created_id in ids
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1918,3 +2094,160 @@ async def test_athlete_photo_skip(db_session: AsyncSession):
     # State should be cleared after successful save
     data = await state.get_data()
     assert data == {}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  14. API: Profile Stats
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestProfileStats:
+    """Tests for GET /me/stats endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_athlete_stats_empty(self, auth_client: AsyncClient):
+        """Athlete with no entries/results gets zeros."""
+        resp = await auth_client.get("/api/me/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["tournaments_count"] == 0
+        assert data["medals_count"] == 0
+        assert data["tournament_history"] == []
+
+    @pytest.mark.asyncio
+    async def test_athlete_stats_with_entries_and_results(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        coach_user: User,
+    ):
+        """Athlete with approved entries and results gets correct counts."""
+        # Reload users with profiles
+        user_q = await db_session.execute(
+            select(User)
+            .where(User.id == test_user.id)
+            .options(selectinload(User.athlete))
+        )
+        user = user_q.scalar_one()
+
+        coach_q = await db_session.execute(
+            select(User)
+            .where(User.id == coach_user.id)
+            .options(selectinload(User.coach))
+        )
+        coach_u = coach_q.scalar_one()
+
+        # Create 2 tournaments
+        t1 = await create_tournament(db_session, user, name="Tournament A")
+        t2 = await create_tournament(db_session, user, name="Tournament B")
+
+        # Create approved entries for both
+        e1 = TournamentEntry(
+            tournament_id=t1.id,
+            athlete_id=user.athlete.id,
+            coach_id=coach_u.coach.id,
+            weight_category="68kg",
+            age_category="Seniors",
+            status="approved",
+        )
+        e2 = TournamentEntry(
+            tournament_id=t2.id,
+            athlete_id=user.athlete.id,
+            coach_id=coach_u.coach.id,
+            weight_category="68kg",
+            age_category="Seniors",
+            status="approved",
+        )
+        # Pending entry — should NOT count
+        e3 = TournamentEntry(
+            tournament_id=t1.id,
+            athlete_id=coach_u.coach.id if False else user.athlete.id,
+            coach_id=coach_u.coach.id,
+            weight_category="74kg",
+            age_category="Juniors",
+            status="pending",
+        )
+        # Remove duplicate athlete_id + tournament_id — e3 conflicts with e1
+        # Instead use a third tournament for pending
+        t3 = await create_tournament(db_session, user, name="Tournament C")
+        e3 = TournamentEntry(
+            tournament_id=t3.id,
+            athlete_id=user.athlete.id,
+            coach_id=coach_u.coach.id,
+            weight_category="68kg",
+            age_category="Seniors",
+            status="pending",
+        )
+        db_session.add_all([e1, e2, e3])
+        await db_session.flush()
+
+        # Add results — 2 medals (place 1 and 3), 1 non-medal (place 5)
+        r1 = TournamentResult(
+            tournament_id=t1.id,
+            athlete_id=user.athlete.id,
+            weight_category="68kg",
+            age_category="Seniors",
+            place=1,
+        )
+        r2 = TournamentResult(
+            tournament_id=t2.id,
+            athlete_id=user.athlete.id,
+            weight_category="68kg",
+            age_category="Seniors",
+            place=3,
+        )
+        r3 = TournamentResult(
+            tournament_id=t3.id,
+            athlete_id=user.athlete.id,
+            weight_category="68kg",
+            age_category="Seniors",
+            place=5,
+        )
+        db_session.add_all([r1, r2, r3])
+        await db_session.commit()
+
+        resp = await auth_client.get("/api/me/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        # 2 approved entries (t1 and t2), pending t3 doesn't count
+        assert data["tournaments_count"] == 2
+        # 2 medals (place 1 and 3), place 5 doesn't count
+        assert data["medals_count"] == 2
+        # 3 results in history
+        assert len(data["tournament_history"]) == 3
+        # Each history item has required fields
+        for item in data["tournament_history"]:
+            assert "place" in item
+            assert "tournament_name" in item
+            assert "tournament_date" in item
+
+    @pytest.mark.asyncio
+    async def test_admin_stats(
+        self,
+        admin_client: AsyncClient,
+        db_session: AsyncSession,
+        admin_user: User,
+    ):
+        """Admin gets correct user and tournament counts."""
+        # admin_user has an athlete profile → counts as 1 user
+        # Create a tournament
+        t = await create_tournament(db_session, admin_user, name="Admin Tournament")
+
+        resp = await admin_client.get("/api/me/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["users_count"] >= 1
+        assert data["tournaments_total"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_bare_user_stats(self, bare_client: AsyncClient):
+        """User without profiles gets all zeros."""
+        resp = await bare_client.get("/api/me/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["tournaments_count"] == 0
+        assert data["medals_count"] == 0
+        assert data["users_count"] == 0
+        assert data["tournaments_total"] == 0
+        assert data["tournament_history"] == []

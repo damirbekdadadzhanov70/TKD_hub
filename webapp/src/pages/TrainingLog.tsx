@@ -16,11 +16,8 @@ import {
   updateTrainingLog,
 } from '../api/endpoints';
 import {
-  addMockTrainingLog,
-  deleteMockTrainingLog,
   mockTrainingLogs,
   mockTrainingStats,
-  updateMockTrainingLog as updateMockLog,
 } from '../api/mock';
 import type {
   TrainingLog as TrainingLogType,
@@ -91,13 +88,13 @@ export default function TrainingLogPage() {
   const [actionLog, setActionLog] = useState<TrainingLogType | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const { data: logs, loading, mutate, refetch } = useApi<TrainingLogType[]>(
+  const { data: logs, loading, refetch } = useApi<TrainingLogType[]>(
     () => getTrainingLogs({ month, year }),
     mockTrainingLogs,
     [month, year],
   );
 
-  const { data: stats, mutate: mutateStats } = useApi<TrainingLogStats>(
+  const { data: stats } = useApi<TrainingLogStats>(
     () => getTrainingStats({ month, year }),
     mockTrainingStats,
     [month, year],
@@ -138,17 +135,11 @@ export default function TrainingLogPage() {
     else setMonth(month + 1);
   };
 
-  const refreshFromMock = () => {
-    mutate([...mockTrainingLogs]);
-    mutateStats({ ...mockTrainingStats });
-  };
-
   const handleDelete = async (logId: string) => {
     try {
       await deleteTrainingLog(logId);
       hapticNotification('success');
-      deleteMockTrainingLog(logId);
-      refreshFromMock();
+      refetch(true);
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -409,10 +400,9 @@ export default function TrainingLogPage() {
       {showForm && (
         <TrainingForm
           onClose={() => setShowForm(false)}
-          onSaved={(data) => {
+          onSaved={() => {
             setShowForm(false);
-            addMockTrainingLog(data);
-            refreshFromMock();
+            refetch(true);
           }}
         />
       )}
@@ -422,10 +412,9 @@ export default function TrainingLogPage() {
         <TrainingEditForm
           log={editingLog}
           onClose={() => setEditingLog(null)}
-          onSaved={(data) => {
-            updateMockLog(editingLog.id, data);
+          onSaved={() => {
             setEditingLog(null);
-            refreshFromMock();
+            refetch(true);
           }}
         />
       )}
@@ -434,7 +423,7 @@ export default function TrainingLogPage() {
   );
 }
 
-function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (data: TrainingLogCreate) => void }) {
+function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { hapticNotification } = useTelegram();
   const { t } = useI18n();
   const { showToast } = useToast();
@@ -453,7 +442,7 @@ function TrainingForm({ onClose, onSaved }: { onClose: () => void; onSaved: (dat
     try {
       await createTrainingLog(form);
       hapticNotification('success');
-      onSaved(form);
+      onSaved();
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -557,7 +546,7 @@ function TrainingEditForm({
 }: {
   log: TrainingLogType;
   onClose: () => void;
-  onSaved: (data: TrainingLogUpdate) => void;
+  onSaved: () => void;
 }) {
   const { hapticNotification } = useTelegram();
   const { t } = useI18n();
@@ -577,7 +566,7 @@ function TrainingEditForm({
     try {
       await updateTrainingLog(log.id, form);
       hapticNotification('success');
-      onSaved(form);
+      onSaved();
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');

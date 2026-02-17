@@ -9,6 +9,7 @@ from api.dependencies import AuthContext, get_current_user
 from api.schemas.pagination import PaginatedResponse
 from api.schemas.tournament import (
     TournamentBatchEnter,
+    TournamentCreate,
     TournamentEntryRead,
     TournamentInterestResponse,
     TournamentListItem,
@@ -90,6 +91,73 @@ async def list_tournaments(
         limit=limit,
         has_next=(page * limit) < total,
     )
+
+
+@router.post(
+    "/tournaments",
+    response_model=TournamentListItem,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_tournament(
+    data: TournamentCreate,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _check_admin(ctx.user)
+
+    tournament = Tournament(
+        name=data.name,
+        description=data.description,
+        start_date=data.start_date,
+        end_date=data.end_date,
+        city=data.city,
+        country="Россия",
+        venue=data.venue,
+        entry_fee=data.entry_fee,
+        currency=data.currency,
+        registration_deadline=data.registration_deadline,
+        importance_level=data.importance_level,
+        status="upcoming",
+        created_by=ctx.user.id,
+    )
+    ctx.session.add(tournament)
+    await ctx.session.commit()
+    await ctx.session.refresh(tournament)
+
+    return TournamentListItem(
+        id=tournament.id,
+        name=tournament.name,
+        start_date=tournament.start_date,
+        end_date=tournament.end_date,
+        city=tournament.city,
+        country=tournament.country,
+        status=tournament.status,
+        importance_level=tournament.importance_level,
+        entry_count=0,
+    )
+
+
+@router.delete(
+    "/tournaments/{tournament_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_tournament(
+    tournament_id: uuid.UUID,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _check_admin(ctx.user)
+
+    result = await ctx.session.execute(
+        select(Tournament).where(Tournament.id == tournament_id)
+    )
+    tournament = result.scalar_one_or_none()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tournament not found",
+        )
+
+    await ctx.session.delete(tournament)
+    await ctx.session.commit()
 
 
 @router.get("/tournaments/{tournament_id}", response_model=TournamentRead)

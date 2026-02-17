@@ -80,6 +80,19 @@ class TournamentResultRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TournamentCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=1000)
+    start_date: date
+    end_date: date
+    city: str = Field(..., min_length=1, max_length=100)
+    venue: str = Field(..., min_length=1, max_length=255)
+    entry_fee: int | None = None
+    currency: str = Field("RUB", max_length=10)
+    registration_deadline: date
+    importance_level: int = Field(2, ge=1, le=3)
+
+
 class TournamentResultCreate(BaseModel):
     athlete_id: uuid.UUID
     weight_category: str = Field(..., min_length=1, max_length=50)

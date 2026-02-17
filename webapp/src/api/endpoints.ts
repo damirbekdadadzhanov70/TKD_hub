@@ -8,12 +8,14 @@ import type {
   CoachEntry,
   MeResponse,
   PaginatedResponse,
+  ProfileStats,
   RatingEntry,
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
   TournamentInterestResponse,
   TournamentListItem,
+  TournamentResult,
   TrainingLog,
   TrainingLogCreate,
   TrainingLogStats,
@@ -38,6 +40,10 @@ export function updateCoach(data: CoachUpdate): Promise<MeResponse> {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+export function getProfileStats(): Promise<ProfileStats> {
+  return apiRequest<ProfileStats>('/me/stats');
 }
 
 export function registerProfile(payload: {
@@ -114,6 +120,10 @@ export function rejectCoachEntries(tournamentId: string, coachId: string): Promi
   return apiRequest<void>(`/tournaments/${tournamentId}/coaches/${coachId}/reject`, {
     method: 'POST',
   });
+}
+
+export function getTournamentResults(tournamentId: string): Promise<TournamentResult[]> {
+  return apiRequest<TournamentResult[]>(`/tournaments/${tournamentId}/results`);
 }
 
 // --- Training Log ---

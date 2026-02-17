@@ -5,11 +5,12 @@ import BottomSheet from '../components/BottomSheet';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useToast } from '../components/Toast';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 import { createTournament, getCoachEntries, getMe, getTournaments } from '../api/endpoints';
-import { addMockTournament, mockCoachEntries, mockMe, mockTournaments } from '../api/mock';
+import { mockCoachEntries, mockMe, mockTournaments } from '../api/mock';
 import type { CoachEntry, MeResponse, TournamentCreate, TournamentListItem } from '../types';
 
 function statusBadge(status: string, t: (key: string) => string) {
@@ -284,6 +285,7 @@ const IMPORTANCE_LEVELS = [1, 2, 3];
 
 function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
   const { t } = useI18n();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<TournamentCreate>({
@@ -308,10 +310,10 @@ function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSav
     try {
       await createTournament(form);
       hapticNotification('success');
-      addMockTournament(form);
       onSaved();
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSaving(false);
     }
   };

@@ -4,6 +4,7 @@ import type {
   CoachEntry,
   CoachRegistration,
   MeResponse,
+  ProfileStats,
   RatingEntry,
   TournamentCreate,
   TournamentDetail,
@@ -137,6 +138,19 @@ export function registerMockProfile(
   updateMockMe(updated);
   return updated;
 }
+
+// ── Profile Stats ───────────────────────────────────────────
+
+export const mockProfileStats: ProfileStats = {
+  tournaments_count: 4,
+  medals_count: 2,
+  users_count: 7,
+  tournaments_total: 5,
+  tournament_history: [
+    { place: 3, tournament_name: 'Первенство Нижнего Новгорода', tournament_date: '2026-01-18' },
+    { place: 1, tournament_name: 'Турнир Дагестана', tournament_date: '2025-12-05' },
+  ],
+};
 
 // ── Tournaments ─────────────────────────────────────────────
 

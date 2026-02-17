@@ -4,7 +4,8 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
+from sqlalchemy.orm import selectinload
 
 from api.dependencies import AuthContext, get_current_user
 from api.schemas.athlete import AthleteRead, AthleteUpdate
@@ -14,6 +15,8 @@ from bot.config import settings
 from db.models.athlete import Athlete
 from db.models.coach import Coach
 from db.models.role_request import RoleRequest
+from db.models.tournament import Tournament, TournamentEntry, TournamentResult
+from db.models.user import User
 
 router = APIRouter()
 
@@ -52,6 +55,87 @@ def _build_me_response(user) -> MeResponse:
 @router.get("/me", response_model=MeResponse)
 async def get_me(ctx: AuthContext = Depends(get_current_user)):
     return _build_me_response(ctx.user)
+
+
+# ── Profile Stats ───────────────────────────────────────────
+
+
+class TournamentHistoryItem(BaseModel):
+    place: int
+    tournament_name: str
+    tournament_date: str
+
+
+class ProfileStats(BaseModel):
+    tournaments_count: int = 0
+    medals_count: int = 0
+    users_count: int = 0
+    tournaments_total: int = 0
+    tournament_history: list[TournamentHistoryItem] = []
+
+
+@router.get("/me/stats", response_model=ProfileStats)
+async def get_profile_stats(ctx: AuthContext = Depends(get_current_user)):
+    user = ctx.user
+    session = ctx.session
+    role = _resolve_role(user)
+    stats = ProfileStats()
+
+    # Athlete stats
+    if user.athlete:
+        athlete_id = user.athlete.id
+
+        # Count distinct tournaments with approved entries
+        t_count = await session.execute(
+            select(func.count(distinct(TournamentEntry.tournament_id))).where(
+                TournamentEntry.athlete_id == athlete_id,
+                TournamentEntry.status == "approved",
+            )
+        )
+        stats.tournaments_count = t_count.scalar_one()
+
+        # Count medals (place <= 3)
+        m_count = await session.execute(
+            select(func.count(TournamentResult.id)).where(
+                TournamentResult.athlete_id == athlete_id,
+                TournamentResult.place <= 3,
+            )
+        )
+        stats.medals_count = m_count.scalar_one()
+
+        # Tournament history (results with tournament info)
+        history_q = await session.execute(
+            select(TournamentResult)
+            .where(TournamentResult.athlete_id == athlete_id)
+            .options(selectinload(TournamentResult.tournament))
+            .order_by(TournamentResult.created_at.desc())
+            .limit(10)
+        )
+        results = history_q.scalars().all()
+        stats.tournament_history = [
+            TournamentHistoryItem(
+                place=r.place,
+                tournament_name=r.tournament.name,
+                tournament_date=str(r.tournament.start_date),
+            )
+            for r in results
+        ]
+
+    # Admin stats
+    if role == "admin":
+        u_count = await session.execute(
+            select(func.count(distinct(User.id))).where(
+                (User.athlete.has()) | (User.coach.has())
+            )
+        )
+        stats.users_count = u_count.scalar_one()
+
+        t_total = await session.execute(
+            select(func.count(Tournament.id))
+        )
+        stats.tournaments_total = t_total.scalar_one()
+
+    return stats
 
 
 @router.put("/me", response_model=MeResponse)

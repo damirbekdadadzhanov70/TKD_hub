@@ -212,6 +212,20 @@ export interface CoachRegistration {
   club: string;
 }
 
+export interface TournamentHistoryItem {
+  place: number;
+  tournament_name: string;
+  tournament_date: string;
+}
+
+export interface ProfileStats {
+  tournaments_count: number;
+  medals_count: number;
+  users_count: number;
+  tournaments_total: number;
+  tournament_history: TournamentHistoryItem[];
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

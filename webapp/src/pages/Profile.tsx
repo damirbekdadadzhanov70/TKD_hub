@@ -6,9 +6,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
-import { getCoachAthletes, getCoachEntries, getMe, updateCoach, updateMe } from '../api/endpoints';
-import { mockCoachAthletes, mockCoachEntries, mockMe, updateMockMe } from '../api/mock';
-import type { AthleteUpdate, CoachAthlete, CoachEntry, CoachUpdate, MeResponse } from '../types';
+import { getCoachAthletes, getCoachEntries, getMe, getProfileStats, updateCoach, updateMe } from '../api/endpoints';
+import { mockCoachAthletes, mockCoachEntries, mockMe, mockProfileStats } from '../api/mock';
+import type { AthleteUpdate, CoachAthlete, CoachEntry, CoachUpdate, MeResponse, ProfileStats } from '../types';
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
 
@@ -52,6 +52,7 @@ export default function Profile() {
   const { user: tgUser } = useTelegram();
   const { t } = useI18n();
   const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
+  const { data: stats } = useApi<ProfileStats>(getProfileStats, mockProfileStats, []);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -67,7 +68,6 @@ export default function Profile() {
   const handleRoleChange = (role: MeResponse['role']) => {
     const newMe = { ...me, role };
     mutate(newMe);
-    updateMockMe(newMe);
   };
 
   const isCoach = me.role === 'coach';
@@ -131,6 +131,7 @@ export default function Profile() {
       {isAthlete && me.athlete && (
         <AthleteSection
           me={me}
+          stats={stats}
           mutate={mutate}
           editing={editing}
           setEditing={setEditing}
@@ -147,8 +148,8 @@ export default function Profile() {
         <div className="px-4">
           <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
           <InfoRow label={t('profile.role')} value={t('profile.administrator')} />
-          <InfoRow label="Users" value={`7 ${t('profile.usersCount')}`} />
-          <InfoRow label={t('nav.tournaments')} value={`5 ${t('profile.tournamentsCount')}`} />
+          <InfoRow label="Users" value={`${stats?.users_count ?? 0} ${t('profile.usersCount')}`} />
+          <InfoRow label={t('nav.tournaments')} value={`${stats?.tournaments_total ?? 0} ${t('profile.tournamentsCount')}`} />
         </div>
       )}
 
@@ -168,11 +169,13 @@ export default function Profile() {
 
 function AthleteSection({
   me,
+  stats,
   mutate,
   editing,
   setEditing,
 }: {
   me: MeResponse;
+  stats: ProfileStats | null;
   mutate: (d: MeResponse) => void;
   editing: boolean;
   setEditing: (v: boolean) => void;
@@ -191,12 +194,12 @@ function AthleteSection({
         </div>
         <div className="w-px h-10 bg-border" />
         <div className="flex-1 text-center">
-          <p className="font-mono text-2xl text-text-heading">—</p>
+          <p className="font-mono text-2xl text-text-heading">{stats?.tournaments_count ?? 0}</p>
           <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.tourneys')}</p>
         </div>
         <div className="w-px h-10 bg-border" />
         <div className="flex-1 text-center">
-          <p className="font-mono text-2xl text-text-heading">—</p>
+          <p className="font-mono text-2xl text-text-heading">{stats?.medals_count ?? 0}</p>
           <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.medals')}</p>
         </div>
       </div>
@@ -221,8 +224,13 @@ function AthleteSection({
         </button>
         {historyOpen && (
           <div>
-            <TournamentHistoryRow place={3} name="Первенство Нижнего Новгорода" date="Jan 2026" />
-            <TournamentHistoryRow place={1} name="Турнир Дагестана" date="Dec 2025" />
+            {stats?.tournament_history && stats.tournament_history.length > 0 ? (
+              stats.tournament_history.map((h, i) => (
+                <TournamentHistoryRow key={i} place={h.place} name={h.tournament_name} date={h.tournament_date} />
+              ))
+            ) : (
+              <p className="text-sm text-text-secondary">{t('profile.noResults')}</p>
+            )}
           </div>
         )}
       </div>
@@ -252,7 +260,6 @@ function AthleteSection({
                 : me.coach,
             };
             mutate(newMe);
-            updateMockMe(newMe);
           }}
         />
       )}
@@ -351,7 +358,6 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
                 : me.athlete,
             };
             mutate(newMe);
-            updateMockMe(newMe);
           }}
         />
       )}
@@ -876,6 +882,7 @@ function EditCoachForm({
   onSaved: (data: CoachUpdate) => void;
 }) {
   const { t } = useI18n();
+  const { showToast } = useToast();
   const [form, setForm] = useState<CoachUpdate>({
     full_name: coach.full_name,
     city: coach.city,
@@ -897,8 +904,9 @@ function EditCoachForm({
       await updateCoach(form);
       hapticNotification('success');
       onSaved(form);
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
       setSaving(false);
     }
   };
