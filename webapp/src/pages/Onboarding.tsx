@@ -189,8 +189,7 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
   const { showToast } = useToast();
   const { t, lang, setLang } = useI18n();
 
-  const hasStoredLang = !!localStorage.getItem('app_language');
-  const [step, setStep] = useState<Step>(hasStoredLang ? 'role' : 'language');
+  const [step, setStep] = useState<Step>('language');
   const [role, setRole] = useState<SelectedRole | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -215,10 +214,10 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
     if (step === 'form') {
       return showBackButton(() => setStep('role'));
     }
-    if (step === 'role' && !hasStoredLang) {
+    if (step === 'role') {
       return showBackButton(() => setStep('language'));
     }
-  }, [step, showBackButton, hasStoredLang]);
+  }, [step, showBackButton]);
 
   // Clamp day when month/year changes
   const clampDay = (day: string, month: string, year: string) => {
@@ -303,33 +302,24 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
         </p>
 
         <div className="space-y-3 flex-1">
-          <button
-            onClick={() => {
-              hapticFeedback('light');
-              setLang('ru');
-              setStep('role');
-            }}
-            className={`w-full flex items-center gap-4 p-5 rounded-2xl border cursor-pointer text-left transition-all hover:border-accent active:opacity-80 ${
-              lang === 'ru' ? 'border-accent bg-accent-light' : 'border-border bg-bg-secondary'
-            }`}
-          >
-            <span className="text-2xl shrink-0">RU</span>
-            <span className="text-[17px] font-heading text-text-heading">Русский</span>
-          </button>
-
-          <button
-            onClick={() => {
-              hapticFeedback('light');
-              setLang('en');
-              setStep('role');
-            }}
-            className={`w-full flex items-center gap-4 p-5 rounded-2xl border cursor-pointer text-left transition-all hover:border-accent active:opacity-80 ${
-              lang === 'en' ? 'border-accent bg-accent-light' : 'border-border bg-bg-secondary'
-            }`}
-          >
-            <span className="text-2xl shrink-0">EN</span>
-            <span className="text-[17px] font-heading text-text-heading">English</span>
-          </button>
+          {([['ru', 'Русский'], ['en', 'English']] as const).map(([code, label]) => (
+            <button
+              key={code}
+              onClick={() => {
+                hapticFeedback('light');
+                setLang(code);
+                setStep('role');
+              }}
+              className={`w-full flex items-center gap-4 p-5 rounded-2xl border cursor-pointer text-left transition-all hover:border-accent active:opacity-80 ${
+                lang === code ? 'border-accent bg-accent-light' : 'border-border bg-bg-secondary'
+              }`}
+            >
+              <span className="w-12 h-12 rounded-xl flex items-center justify-center bg-accent-light text-accent text-sm font-semibold font-body shrink-0">
+                {code.toUpperCase()}
+              </span>
+              <span className="text-[17px] font-body font-medium text-text-heading">{label}</span>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -340,7 +330,7 @@ export default function Onboarding({ onComplete }: { onComplete: (me: MeResponse
     return (
       <div className="min-h-screen bg-bg flex flex-col px-6 pt-12" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
         {/* Back button to language step (desktop only) */}
-        {!isTelegram && !hasStoredLang && (
+        {!isTelegram && (
           <button
             onClick={() => setStep('language')}
             aria-label={t('onboarding.back')}
