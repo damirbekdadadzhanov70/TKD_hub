@@ -231,7 +231,7 @@ function AthleteSection({
   const athlete = me.athlete!;
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showCoachSearch, setShowCoachSearch] = useState(false);
-  const { data: myCoach, refetch: refetchCoach, mutate: mutateCoach } = useApi<MyCoachLink | null>(
+  const { data: myCoach, mutate: mutateCoach } = useApi<MyCoachLink | null>(
     getMyCoach,
     mockMyCoach,
     [],
