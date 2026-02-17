@@ -119,6 +119,9 @@ export default function App() {
     expand();
     setHeaderColor('#FAFAF9');
     setBackgroundColor('#FAFAF9');
+    // Safety: clear stale overflow:hidden left by BottomSheet from previous session
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.paddingRight = '';
   }, []);
 
   return (

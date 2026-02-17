@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+// Track how many sheets are open so we only restore overflow when the last one closes
+let openCount = 0;
+
 export default function BottomSheet({
   children,
   onClose,
@@ -29,21 +32,24 @@ export default function BottomSheet({
     };
   }, []);
 
-  // Hide background scrollbar + prevent background scroll.
-  // Uses overflow:hidden on <html> to remove the viewport scrollbar,
-  // and compensates with padding-right to prevent layout shift.
-  // NO scroll-position save/restore, NO focus manipulation — those caused
-  // the gear-button disappearance bug on desktop.
+  // Prevent background scroll — only the first sheet locks, only the last unlocks
   useEffect(() => {
     const html = document.documentElement;
-    const scrollbarWidth = window.innerWidth - html.clientWidth;
-    html.style.overflow = 'hidden';
-    if (scrollbarWidth > 0) {
-      html.style.paddingRight = `${scrollbarWidth}px`;
+    openCount++;
+    if (openCount === 1) {
+      const scrollbarWidth = window.innerWidth - html.clientWidth;
+      html.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        html.style.paddingRight = `${scrollbarWidth}px`;
+      }
     }
     return () => {
-      html.style.overflow = '';
-      html.style.paddingRight = '';
+      openCount--;
+      if (openCount <= 0) {
+        openCount = 0;
+        html.style.overflow = '';
+        html.style.paddingRight = '';
+      }
     };
   }, []);
 
