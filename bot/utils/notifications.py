@@ -93,6 +93,26 @@ async def notify_admins_account_created(
             logger.warning("Failed to notify admin %s about account creation", admin_id)
 
 
+async def notify_admins_role_request(
+    bot: Bot,
+    full_name: str,
+    username: str,
+    role: str,
+    lang: str = "ru",
+) -> None:
+    role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(role, role) if lang == "ru" else role
+    text = t("role_request_admin_notification", lang).format(
+        name=full_name,
+        username=username,
+        role=role_label,
+    )
+    for admin_id in settings.admin_ids:
+        try:
+            await bot.send_message(admin_id, text)
+        except Exception:
+            logger.warning("Failed to notify admin %s about role request", admin_id)
+
+
 async def notify_coach_entry_status(
     bot: Bot,
     coach_telegram_id: int,

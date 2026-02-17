@@ -17,6 +17,7 @@ from bot.config import settings
 from bot.utils.notifications import (
     notify_admins_account_created,
     notify_admins_account_deleted,
+    notify_admins_role_request,
     notify_user_account_deleted,
 )
 from db.models.athlete import Athlete
@@ -550,6 +551,25 @@ async def request_role_change(
     ctx.session.add(role_request)
     await ctx.session.commit()
     await ctx.session.refresh(role_request)
+
+    # Notify admins about role request
+    full_name = payload.data.get("full_name", "") if payload.data else ""
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            await notify_admins_role_request(
+                bot,
+                full_name=full_name,
+                username=user.username or "",
+                role=payload.requested_role,
+                lang="ru",
+            )
+        finally:
+            await bot.session.close()
+    except Exception:
+        logger.warning("Failed to send admin notification for role request")
 
     return RoleRequestResponse(
         id=str(role_request.id),

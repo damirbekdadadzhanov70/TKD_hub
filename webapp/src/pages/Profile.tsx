@@ -1006,8 +1006,8 @@ function SettingsSheet({
         {/* Admin: Role requests section */}
         {isAdmin && <AdminRoleRequests />}
 
-        {/* Admin: Users section */}
-        {isAdmin && <AdminUsersSection me={me} />}
+        {/* Admin: Users button → sheet */}
+        {isAdmin && <AdminUsersButton me={me} />}
 
         {/* Language */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.language')}</p>
@@ -1138,39 +1138,127 @@ function AdminRoleRequests() {
       {!requests || requests.length === 0 ? (
         <p className="text-sm text-text-secondary mb-2">{t('profile.noRoleRequests')}</p>
       ) : (
-        requests.map((r) => (
-          <div key={r.id} className="p-3 rounded-xl bg-bg-secondary mb-1.5">
-            <p className="text-sm text-text mb-2">
-              <span className="font-medium">{r.username || r.user_id.slice(0, 8)}</span>
-              {' '}{t('profile.wantsRole')}{' '}
-              <span className="font-medium">{ROLE_NAME[r.requested_role] || r.requested_role}</span>
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleApprove(r.id)}
-                disabled={processing === r.id}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all"
-              >
-                {t('profile.approve')}
-              </button>
-              <button
-                onClick={() => handleReject(r.id)}
-                disabled={processing === r.id}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 disabled:opacity-40 transition-all"
-              >
-                {t('profile.reject')}
-              </button>
+        requests.map((r) => {
+          const d = r.data as Record<string, unknown> | null;
+          return (
+            <div key={r.id} className="p-3 rounded-xl bg-bg-secondary mb-1.5">
+              <p className="text-sm text-text mb-1">
+                <span className="font-medium">{r.username || r.user_id.slice(0, 8)}</span>
+                {' '}{t('profile.wantsRole')}{' '}
+                <span className="font-medium">{ROLE_NAME[r.requested_role] || r.requested_role}</span>
+              </p>
+              {d && (
+                <div className="mb-2 space-y-0.5">
+                  {d.full_name && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestFullName')}:</span> {String(d.full_name)}
+                    </p>
+                  )}
+                  {d.date_of_birth && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestDob')}:</span> {String(d.date_of_birth)}
+                    </p>
+                  )}
+                  {d.gender && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestGender')}:</span> {d.gender === 'M' ? t('profile.male') : t('profile.female')}
+                    </p>
+                  )}
+                  {d.city && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestCity')}:</span> {String(d.city)}
+                    </p>
+                  )}
+                  {d.club && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestClub')}:</span> {String(d.club)}
+                    </p>
+                  )}
+                  {d.weight_category && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestWeight')}:</span> {String(d.weight_category)}
+                    </p>
+                  )}
+                  {d.current_weight && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestCurrentWeight')}:</span> {String(d.current_weight)} kg
+                    </p>
+                  )}
+                  {d.sport_rank && (
+                    <p className="text-[12px] text-text-secondary">
+                      <span className="text-text-disabled">{t('profile.roleRequestSportRank')}:</span> {String(d.sport_rank)}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleApprove(r.id)}
+                  disabled={processing === r.id}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all"
+                >
+                  {t('profile.approve')}
+                </button>
+                <button
+                  onClick={() => handleReject(r.id)}
+                  disabled={processing === r.id}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 disabled:opacity-40 transition-all"
+                >
+                  {t('profile.reject')}
+                </button>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
 }
 
-/* ---- Admin Users Section ---- */
+/* ---- Admin Users Button + Sheet ---- */
 
-function AdminUsersSection({ me }: { me: MeResponse }) {
+function AdminUsersButton({ me }: { me: MeResponse }) {
+  const { t } = useI18n();
+  const [showSheet, setShowSheet] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
+
+  // Fetch user count on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getAdminUsers();
+        if (Array.isArray(data)) {
+          setCount(data.length);
+        } else {
+          setCount(mockAdminUsers.length);
+        }
+      } catch {
+        setCount(mockAdminUsers.length);
+      }
+    })();
+  }, []);
+
+  return (
+    <div className="mb-4">
+      <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.users')}</p>
+      <button
+        onClick={() => setShowSheet(true)}
+        className="w-full flex items-center justify-between p-3 rounded-xl bg-bg-secondary border-none cursor-pointer text-left active:opacity-80 hover:bg-bg-divider transition-colors"
+      >
+        <span className="text-sm font-medium text-text">{t('profile.users')}</span>
+        <span className="text-sm text-text-secondary">
+          {count !== null ? `${count} ${t('profile.usersCount')}` : '...'} →
+        </span>
+      </button>
+
+      {showSheet && (
+        <AdminUsersSheet me={me} onClose={() => setShowSheet(false)} />
+      )}
+    </div>
+  );
+}
+
+function AdminUsersSheet({ me, onClose }: { me: MeResponse; onClose: () => void }) {
   const { t } = useI18n();
   const { showToast } = useToast();
   const { hapticNotification } = useTelegram();
@@ -1187,7 +1275,6 @@ function AdminUsersSection({ me }: { me: MeResponse }) {
       if (Array.isArray(data)) {
         setUsers(data);
       } else {
-        // Demo mode fallback
         const filtered = q
           ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
           : mockAdminUsers;
@@ -1244,51 +1331,66 @@ function AdminUsersSection({ me }: { me: MeResponse }) {
   };
 
   return (
-    <div className="mb-4">
-      <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.users')}</p>
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.users')}</h2>
+      </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('profile.searchUsers')}
-        className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 mb-3 outline-none focus:border-accent transition-colors"
-      />
+      <div className="px-4 pb-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('profile.searchUsers')}
+          autoFocus
+          className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+        />
+      </div>
 
-      {loading && <LoadingSpinner />}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+        {loading && <LoadingSpinner />}
 
-      {!loading && users.length === 0 && (
-        <p className="text-sm text-text-secondary mb-2">{t('profile.noUsersFound')}</p>
-      )}
+        {!loading && users.length === 0 && (
+          <p className="text-sm text-text-secondary text-center py-4">{t('profile.noUsersFound')}</p>
+        )}
 
-      {!loading && users.map((u) => {
-        const isSelf = u.telegram_id === me.telegram_id;
-        return (
-          <div key={u.id} className="flex items-center gap-3 py-2.5 border-b border-dashed border-border">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
-              {(u.full_name || u.username || '?').charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-medium text-text truncate">{u.full_name || u.username || `ID ${u.telegram_id}`}</p>
-              <div className="flex items-center gap-1.5">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role] || ROLE_BADGE.none}`}>
-                  {u.role}
-                </span>
-                {u.city && <span className="text-[12px] text-text-secondary">{u.city}</span>}
+        {!loading && users.map((u) => {
+          const isSelf = u.telegram_id === me.telegram_id;
+          return (
+            <div key={u.id} className="flex items-center gap-3 py-2.5 border-b border-dashed border-border">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+                {(u.full_name || u.username || '?').charAt(0)}
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-medium text-text truncate">{u.full_name || u.username || `ID ${u.telegram_id}`}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role] || ROLE_BADGE.none}`}>
+                    {u.role}
+                  </span>
+                  {u.city && <span className="text-[12px] text-text-secondary">{u.city}</span>}
+                </div>
+              </div>
+              {!isSelf && (
+                <button
+                  onClick={() => handleDelete(u)}
+                  disabled={deleting === u.id}
+                  className="text-[12px] text-rose-500 border-none bg-transparent cursor-pointer p-1 active:opacity-70 disabled:opacity-40 hover:text-rose-600"
+                >
+                  {t('profile.deleteUser')}
+                </button>
+              )}
             </div>
-            {!isSelf && (
-              <button
-                onClick={() => handleDelete(u)}
-                disabled={deleting === u.id}
-                className="text-[12px] text-rose-500 border-none bg-transparent cursor-pointer p-1 active:opacity-70 disabled:opacity-40 hover:text-rose-600"
-              >
-                {t('profile.deleteUser')}
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    </BottomSheet>
   );
 }
 

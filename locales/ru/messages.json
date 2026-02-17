@@ -166,5 +166,6 @@
   "account_deleted_admin_notification": "Пользователь {name} (@{username}) удалил свой аккаунт.",
   "account_deleted_by_admin_notification": "Администратор удалил аккаунт пользователя {name} (@{username}).",
   "account_created_admin_notification": "Новый пользователь {name} (@{username}) зарегистрировался как {role}.",
-  "account_deleted_user_notification": "Ваш аккаунт был удалён. Если вы хотите создать новый профиль, нажмите /start."
+  "account_deleted_user_notification": "Ваш аккаунт был удалён. Если вы хотите создать новый профиль, нажмите /start.",
+  "role_request_admin_notification": "Пользователь {name} (@{username}) запрашивает роль {role}."
 }
