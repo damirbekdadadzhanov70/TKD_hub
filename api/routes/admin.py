@@ -250,9 +250,7 @@ async def delete_user(
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
 
     result = await ctx.session.execute(
-        select(User)
-        .where(User.id == uid)
-        .options(selectinload(User.athlete), selectinload(User.coach))
+        select(User).where(User.id == uid).options(selectinload(User.athlete), selectinload(User.coach))
     )
     target = result.scalar_one_or_none()
     if not target:
@@ -286,9 +284,7 @@ async def delete_user(
     except Exception:
         import logging
 
-        logging.getLogger(__name__).warning(
-            "Failed to send notification for admin account deletion"
-        )
+        logging.getLogger(__name__).warning("Failed to send notification for admin account deletion")
 
     await ctx.session.delete(target)
     await ctx.session.commit()
