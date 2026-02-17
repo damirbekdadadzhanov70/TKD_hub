@@ -1149,46 +1149,46 @@ function AdminRoleRequests() {
               </p>
               {d && (
                 <div className="mb-2 space-y-0.5">
-                  {d.full_name && (
+                  {d.full_name ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestFullName')}:</span> {String(d.full_name)}
                     </p>
-                  )}
-                  {d.date_of_birth && (
+                  ) : null}
+                  {d.date_of_birth ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestDob')}:</span> {String(d.date_of_birth)}
                     </p>
-                  )}
-                  {d.gender && (
+                  ) : null}
+                  {d.gender ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestGender')}:</span> {d.gender === 'M' ? t('profile.male') : t('profile.female')}
                     </p>
-                  )}
-                  {d.city && (
+                  ) : null}
+                  {d.city ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestCity')}:</span> {String(d.city)}
                     </p>
-                  )}
-                  {d.club && (
+                  ) : null}
+                  {d.club ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestClub')}:</span> {String(d.club)}
                     </p>
-                  )}
-                  {d.weight_category && (
+                  ) : null}
+                  {d.weight_category ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestWeight')}:</span> {String(d.weight_category)}
                     </p>
-                  )}
-                  {d.current_weight && (
+                  ) : null}
+                  {d.current_weight ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestCurrentWeight')}:</span> {String(d.current_weight)} kg
                     </p>
-                  )}
-                  {d.sport_rank && (
+                  ) : null}
+                  {d.sport_rank ? (
                     <p className="text-[12px] text-text-secondary">
                       <span className="text-text-disabled">{t('profile.roleRequestSportRank')}:</span> {String(d.sport_rank)}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               )}
               <div className="flex gap-2">
