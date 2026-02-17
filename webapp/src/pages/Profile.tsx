@@ -211,7 +211,6 @@ export default function Profile() {
           me={me}
           onClose={() => setShowSettings(false)}
           onRoleChange={handleRoleChange}
-          mutate={mutate}
         />
       )}
     </div>
@@ -852,12 +851,10 @@ function SettingsSheet({
   me,
   onClose,
   onRoleChange,
-  mutate,
 }: {
   me: MeResponse;
   onClose: () => void;
   onRoleChange: (newMe: MeResponse) => void;
-  mutate: (d: MeResponse) => void;
 }) {
   const { showToast } = useToast();
   const { hapticNotification } = useTelegram();
