@@ -10,6 +10,6 @@ class MeResponse(BaseModel):
     telegram_id: int
     username: Optional[str] = None
     language: str
-    role: Literal["athlete", "coach", "none"]
+    role: Literal["athlete", "coach", "admin", "none"]
     athlete: Optional[AthleteRead] = None
     coach: Optional[CoachRead] = None
