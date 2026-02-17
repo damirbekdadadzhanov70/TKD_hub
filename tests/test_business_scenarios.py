@@ -2232,7 +2232,7 @@ class TestProfileStats:
         """Admin gets correct user and tournament counts."""
         # admin_user has an athlete profile → counts as 1 user
         # Create a tournament
-        t = await create_tournament(db_session, admin_user, name="Admin Tournament")
+        await create_tournament(db_session, admin_user, name="Admin Tournament")
 
         resp = await admin_client.get("/api/me/stats")
         assert resp.status_code == 200
