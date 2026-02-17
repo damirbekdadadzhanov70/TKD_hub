@@ -385,7 +385,6 @@ function EntriesSection({
             tournamentId={tournamentId}
             isAdmin={isAdmin}
             isMyEntry={isCoach === true && group.coachId === myCoachId}
-            mutate={mutate}
             refetch={refetch}
           />
         ))
@@ -401,14 +400,12 @@ function CoachEntryCard({
   tournamentId,
   isAdmin,
   isMyEntry,
-  mutate,
   refetch,
 }: {
   group: CoachGroup;
   tournamentId: string;
   isAdmin: boolean;
   isMyEntry: boolean;
-  mutate: (d: TournamentDetailType) => void;
   refetch: (silent?: boolean) => void;
 }) {
   const { t } = useI18n();
