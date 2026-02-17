@@ -3,7 +3,10 @@ import type {
   CoachAthlete,
   CoachEntry,
   CoachRegistration,
+  CoachSearchResult,
   MeResponse,
+  MyCoachLink,
+  PendingAthleteRequest,
   ProfileStats,
   RatingEntry,
   RoleRequestItem,
@@ -430,6 +433,50 @@ export const mockRatings: RatingEntry[] = [
   { rank: 16, athlete_id: '00000000-0000-0000-0000-000000000067', full_name: 'Волков Дмитрий', gender: 'M', country: 'Россия', city: 'Екатеринбург', club: 'Урал TKD', weight_category: '-80kg', sport_rank: 'МС', rating_points: 2050, photo_url: null },
   { rank: 17, athlete_id: '00000000-0000-0000-0000-000000000068', full_name: 'Салимов Артур', gender: 'M', country: 'Россия', city: 'Нижний Новгород', club: 'Волга TKD', weight_category: '-80kg', sport_rank: '1 разряд', rating_points: 890, photo_url: null },
 ];
+
+// ── Coach Linking ────────────────────────────────────────────
+
+export const mockCoachSearchResults: CoachSearchResult[] = [
+  { id: '00000000-0000-0000-0000-000000000080', full_name: 'Петров Иван', city: 'Москва', club: 'Tiger Dojang', qualification: 'МС, 4 Dan', is_verified: true },
+  { id: '00000000-0000-0000-0000-000000000081', full_name: 'Сидоров Алексей', city: 'Казань', club: 'Казань TKD', qualification: 'КМС, 3 Dan', is_verified: false },
+  { id: '00000000-0000-0000-0000-000000000082', full_name: 'Ким Виктор', city: 'Санкт-Петербург', club: 'Нева TKD', qualification: 'МС, 5 Dan', is_verified: true },
+];
+
+export let mockMyCoach: MyCoachLink | null = load<MyCoachLink | null>('my_coach', null);
+
+export function requestMockCoachLink(coachId: string): MyCoachLink {
+  const coach = mockCoachSearchResults.find((c) => c.id === coachId);
+  const link: MyCoachLink = {
+    link_id: `mock-link-${Date.now()}`,
+    coach_id: coachId,
+    full_name: coach?.full_name || 'Unknown',
+    city: coach?.city || '',
+    club: coach?.club || '',
+    qualification: coach?.qualification || '',
+    is_verified: coach?.is_verified || false,
+    status: 'pending',
+  };
+  mockMyCoach = link;
+  save('my_coach', mockMyCoach);
+  return link;
+}
+
+export function unlinkMockCoach() {
+  mockMyCoach = null;
+  save('my_coach', null);
+}
+
+export let mockPendingAthletes: PendingAthleteRequest[] = [
+  { link_id: 'mock-pending-1', athlete_id: '00000000-0000-0000-0000-000000000090', full_name: 'Новиков Артём', weight_category: '-63kg', sport_rank: '1 разряд', club: 'Волга TKD' },
+];
+
+export function acceptMockAthleteRequest(linkId: string) {
+  mockPendingAthletes = mockPendingAthletes.filter((r) => r.link_id !== linkId);
+}
+
+export function rejectMockAthleteRequest(linkId: string) {
+  mockPendingAthletes = mockPendingAthletes.filter((r) => r.link_id !== linkId);
+}
 
 // ── Coach ───────────────────────────────────────────────────
 

@@ -237,6 +237,35 @@ export interface RoleRequestItem {
   created_at: string;
 }
 
+export interface CoachSearchResult {
+  id: string;
+  full_name: string;
+  city: string;
+  club: string;
+  qualification: string;
+  is_verified: boolean;
+}
+
+export interface MyCoachLink {
+  link_id: string;
+  coach_id: string;
+  full_name: string;
+  city: string;
+  club: string;
+  qualification: string;
+  is_verified: boolean;
+  status: string;
+}
+
+export interface PendingAthleteRequest {
+  link_id: string;
+  athlete_id: string;
+  full_name: string;
+  weight_category: string;
+  sport_rank: string;
+  club: string | null;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

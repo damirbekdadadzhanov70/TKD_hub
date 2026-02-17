@@ -1,12 +1,16 @@
+import uuid
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from api.dependencies import AuthContext, get_current_user
-from api.schemas.coach import CoachAthleteRead, CoachEntryRead
+from api.schemas.coach import CoachAthleteRead, CoachEntryRead, CoachSearchResult, PendingAthleteRead
 from api.schemas.pagination import PaginatedResponse
 from api.utils.pagination import paginate_query
 from db.models import CoachAthlete, TournamentEntry
+from db.models.coach import Coach
 
 router = APIRouter()
 
@@ -96,3 +100,119 @@ async def list_coach_entries(
         limit=limit,
         has_next=(page * limit) < total,
     )
+
+
+@router.get("/coaches/search", response_model=list[CoachSearchResult])
+async def search_coaches(
+    q: str = Query(..., min_length=2),
+    ctx: AuthContext = Depends(get_current_user),
+):
+    if not ctx.user.athlete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only athletes can search for coaches",
+        )
+
+    query = select(Coach).where(Coach.full_name.ilike(f"%{q}%")).limit(20)
+    result = await ctx.session.execute(query)
+    coaches = result.scalars().all()
+    return [CoachSearchResult.model_validate(c) for c in coaches]
+
+
+@router.get("/coach/pending-athletes", response_model=list[PendingAthleteRead])
+async def get_pending_athletes(
+    ctx: AuthContext = Depends(get_current_user),
+):
+    if not ctx.user.coach:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only coaches can access this endpoint",
+        )
+
+    query = (
+        select(CoachAthlete)
+        .where(
+            CoachAthlete.coach_id == ctx.user.coach.id,
+            CoachAthlete.status == "pending",
+        )
+        .options(selectinload(CoachAthlete.athlete))
+    )
+    result = await ctx.session.execute(query)
+    links = result.scalars().all()
+    return [
+        PendingAthleteRead(
+            link_id=link.id,
+            athlete_id=link.athlete.id,
+            full_name=link.athlete.full_name,
+            weight_category=link.athlete.weight_category,
+            sport_rank=link.athlete.sport_rank,
+            club=link.athlete.club,
+        )
+        for link in links
+    ]
+
+
+@router.post("/coach/athletes/{link_id}/accept")
+async def accept_athlete_request(
+    link_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    if not ctx.user.coach:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only coaches can access this endpoint",
+        )
+
+    try:
+        lid = uuid.UUID(link_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid link_id") from err
+
+    result = await ctx.session.execute(
+        select(CoachAthlete).where(
+            CoachAthlete.id == lid,
+            CoachAthlete.coach_id == ctx.user.coach.id,
+            CoachAthlete.status == "pending",
+        )
+    )
+    link = result.scalar_one_or_none()
+    if not link:
+        raise HTTPException(status_code=404, detail="Pending request not found")
+
+    link.status = "accepted"
+    link.accepted_at = datetime.now(timezone.utc)
+    ctx.session.add(link)
+    await ctx.session.commit()
+    return {"status": "accepted"}
+
+
+@router.post("/coach/athletes/{link_id}/reject")
+async def reject_athlete_request(
+    link_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    if not ctx.user.coach:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only coaches can access this endpoint",
+        )
+
+    try:
+        lid = uuid.UUID(link_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid link_id") from err
+
+    result = await ctx.session.execute(
+        select(CoachAthlete).where(
+            CoachAthlete.id == lid,
+            CoachAthlete.coach_id == ctx.user.coach.id,
+            CoachAthlete.status == "pending",
+        )
+    )
+    link = result.scalar_one_or_none()
+    if not link:
+        raise HTTPException(status_code=404, detail="Pending request not found")
+
+    await ctx.session.delete(link)
+    await ctx.session.commit()
+    return {"status": "rejected"}

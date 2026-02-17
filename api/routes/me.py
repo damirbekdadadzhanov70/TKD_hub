@@ -1,3 +1,4 @@
+import uuid as uuid_mod
 from datetime import date
 from decimal import Decimal
 from typing import Literal, Optional
@@ -9,11 +10,11 @@ from sqlalchemy.orm import selectinload
 
 from api.dependencies import AuthContext, get_current_user
 from api.schemas.athlete import AthleteRead, AthleteUpdate
-from api.schemas.coach import CoachRead, CoachUpdate
+from api.schemas.coach import CoachRead, CoachUpdate, MyCoachRead
 from api.schemas.user import MeResponse
 from bot.config import settings
 from db.models.athlete import Athlete
-from db.models.coach import Coach
+from db.models.coach import Coach, CoachAthlete
 from db.models.role_request import RoleRequest
 from db.models.tournament import Tournament, TournamentEntry, TournamentResult
 from db.models.user import User
@@ -239,6 +240,111 @@ async def update_coach(
         await ctx.session.refresh(user.athlete)
 
     return _build_me_response(user)
+
+
+# ── Coach Linking ────────────────────────────────────────────
+
+
+@router.get("/me/my-coach", response_model=MyCoachRead | None)
+async def get_my_coach(ctx: AuthContext = Depends(get_current_user)):
+    if not ctx.user.athlete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only athletes can access this endpoint",
+        )
+
+    result = await ctx.session.execute(
+        select(CoachAthlete)
+        .where(CoachAthlete.athlete_id == ctx.user.athlete.id)
+        .options(selectinload(CoachAthlete.coach))
+    )
+    link = result.scalar_one_or_none()
+    if not link:
+        return None
+
+    return MyCoachRead(
+        link_id=link.id,
+        coach_id=link.coach.id,
+        full_name=link.coach.full_name,
+        city=link.coach.city,
+        club=link.coach.club,
+        qualification=link.coach.qualification,
+        is_verified=link.coach.is_verified,
+        status=link.status,
+    )
+
+
+class CoachRequestPayload(BaseModel):
+    coach_id: str
+
+
+@router.post("/me/coach-request", response_model=MyCoachRead)
+async def request_coach_link(
+    payload: CoachRequestPayload,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    if not ctx.user.athlete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only athletes can request a coach link",
+        )
+
+    # Check no existing link
+    existing = await ctx.session.execute(select(CoachAthlete).where(CoachAthlete.athlete_id == ctx.user.athlete.id))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You already have a coach link (pending or accepted)",
+        )
+
+    # Validate coach exists
+    try:
+        coach_uuid = uuid_mod.UUID(payload.coach_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid coach_id") from err
+
+    coach_result = await ctx.session.execute(select(Coach).where(Coach.id == coach_uuid))
+    coach = coach_result.scalar_one_or_none()
+    if not coach:
+        raise HTTPException(status_code=404, detail="Coach not found")
+
+    link = CoachAthlete(
+        coach_id=coach.id,
+        athlete_id=ctx.user.athlete.id,
+        status="pending",
+    )
+    ctx.session.add(link)
+    await ctx.session.commit()
+    await ctx.session.refresh(link)
+
+    return MyCoachRead(
+        link_id=link.id,
+        coach_id=coach.id,
+        full_name=coach.full_name,
+        city=coach.city,
+        club=coach.club,
+        qualification=coach.qualification,
+        is_verified=coach.is_verified,
+        status=link.status,
+    )
+
+
+@router.delete("/me/my-coach")
+async def unlink_coach(ctx: AuthContext = Depends(get_current_user)):
+    if not ctx.user.athlete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only athletes can access this endpoint",
+        )
+
+    result = await ctx.session.execute(select(CoachAthlete).where(CoachAthlete.athlete_id == ctx.user.athlete.id))
+    link = result.scalar_one_or_none()
+    if not link:
+        raise HTTPException(status_code=404, detail="No coach link found")
+
+    await ctx.session.delete(link)
+    await ctx.session.commit()
+    return {"status": "unlinked"}
 
 
 # ── Registration ─────────────────────────────────────────────

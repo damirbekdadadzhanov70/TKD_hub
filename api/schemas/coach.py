@@ -38,6 +38,37 @@ class CoachAthleteRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CoachSearchResult(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    city: str
+    club: str
+    qualification: str
+    is_verified: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class MyCoachRead(BaseModel):
+    link_id: uuid.UUID
+    coach_id: uuid.UUID
+    full_name: str
+    city: str
+    club: str
+    qualification: str
+    is_verified: bool = False
+    status: str
+
+
+class PendingAthleteRead(BaseModel):
+    link_id: uuid.UUID
+    athlete_id: uuid.UUID
+    full_name: str
+    weight_category: str
+    sport_rank: str
+    club: Optional[str] = None
+
+
 class CoachEntryRead(BaseModel):
     id: uuid.UUID
     tournament_id: uuid.UUID

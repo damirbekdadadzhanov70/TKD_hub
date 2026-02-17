@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomSheet from '../components/BottomSheet';
 import { useToast } from '../components/Toast';
@@ -7,34 +7,51 @@ import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 import {
+  acceptAthleteRequest,
   approveRoleRequest,
   getCoachAthletes,
   getCoachEntries,
   getMe,
+  getMyCoach,
+  getPendingAthletes,
   getProfileStats,
   getRoleRequests,
+  rejectAthleteRequest,
   rejectRoleRequest,
+  requestCoachLink,
+  searchCoaches,
   submitRoleRequest,
   switchRole,
+  unlinkCoach,
   updateCoach,
   updateMe,
 } from '../api/endpoints';
 import {
+  acceptMockAthleteRequest,
   approveMockRoleRequest,
   mockCoachAthletes,
   mockCoachEntries,
+  mockCoachSearchResults,
   mockMe,
+  mockMyCoach,
+  mockPendingAthletes,
   mockProfileStats,
   mockRoleRequests,
+  rejectMockAthleteRequest,
   rejectMockRoleRequest,
+  requestMockCoachLink,
   switchMockRole,
+  unlinkMockCoach,
 } from '../api/mock';
 import type {
   AthleteUpdate,
   CoachAthlete,
   CoachEntry,
+  CoachSearchResult,
   CoachUpdate,
   MeResponse,
+  MyCoachLink,
+  PendingAthleteRequest,
   ProfileStats,
   RoleRequestItem,
 } from '../types';
@@ -209,8 +226,34 @@ function AthleteSection({
   setEditing: (v: boolean) => void;
 }) {
   const { t } = useI18n();
+  const { showToast } = useToast();
+  const { hapticNotification } = useTelegram();
   const athlete = me.athlete!;
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showCoachSearch, setShowCoachSearch] = useState(false);
+  const { data: myCoach, refetch: refetchCoach, mutate: mutateCoach } = useApi<MyCoachLink | null>(
+    getMyCoach,
+    mockMyCoach,
+    [],
+  );
+  const [unlinking, setUnlinking] = useState(false);
+
+  const handleUnlink = async () => {
+    if (!confirm(t('profile.unlinkCoachConfirm'))) return;
+    setUnlinking(true);
+    try {
+      await unlinkCoach();
+      hapticNotification('success');
+      unlinkMockCoach();
+      mutateCoach(null);
+      showToast(t('profile.coachUnlinked'));
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setUnlinking(false);
+    }
+  };
 
   return (
     <>
@@ -240,6 +283,59 @@ function AthleteSection({
         <InfoRow label={t('profile.weightLabel')} value={`${athlete.current_weight} kg`} />
         <InfoRow label={t('profile.genderLabel')} value={athlete.gender === 'M' ? t('profile.male') : t('profile.female')} />
       </div>
+
+      {/* My Coach */}
+      <div className="px-4 mb-4">
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.myCoach')}</p>
+        {myCoach ? (
+          <div className="p-3 rounded-xl bg-bg-secondary">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+                {myCoach.full_name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[15px] font-medium text-text truncate">{myCoach.full_name}</p>
+                  {myCoach.is_verified && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-light text-accent font-medium">{t('profile.verifiedCoach')}</span>
+                  )}
+                </div>
+                <p className="text-[13px] text-text-secondary">{myCoach.club} · {myCoach.city}</p>
+              </div>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                myCoach.status === 'accepted' ? 'bg-accent-light text-accent' : 'bg-bg-divider text-text-disabled'
+              }`}>
+                {myCoach.status === 'accepted' ? t('common.approved') : t('common.pending')}
+              </span>
+            </div>
+            <button
+              onClick={handleUnlink}
+              disabled={unlinking}
+              className="mt-2 text-sm text-text-disabled border-none bg-transparent cursor-pointer p-0 active:opacity-70 hover:text-text-secondary"
+            >
+              {t('profile.unlinkCoach')}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowCoachSearch(true)}
+            className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent hover:bg-accent-light active:bg-accent-light transition-colors"
+          >
+            {t('profile.findCoach')}
+          </button>
+        )}
+      </div>
+
+      {showCoachSearch && (
+        <CoachSearchSheet
+          onClose={() => setShowCoachSearch(false)}
+          onLinked={(link) => {
+            setShowCoachSearch(false);
+            mutateCoach(link);
+            showToast(t('profile.requestSentToCoach'));
+          }}
+        />
+      )}
 
       {/* Tournament History — collapsible */}
       <div className="px-4 mb-4">
@@ -299,11 +395,13 @@ function AthleteSection({
 
 function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) => void }) {
   const { t } = useI18n();
+  const { showToast } = useToast();
+  const { hapticNotification } = useTelegram();
   const coach = me.coach!;
   const navigate = useNavigate();
   const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState(false);
-  const { data: rawAthletes, loading: loadingAthletes } = useApi<CoachAthlete[]>(
+  const { data: rawAthletes, loading: loadingAthletes, refetch: refetchAthletes } = useApi<CoachAthlete[]>(
     getCoachAthletes,
     mockCoachAthletes,
     [],
@@ -313,6 +411,45 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
     mockCoachEntries,
     [],
   );
+  const { data: pendingRequests, refetch: refetchPending } = useApi<PendingAthleteRequest[]>(
+    getPendingAthletes,
+    mockPendingAthletes,
+    [],
+  );
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
+
+  const handleAcceptRequest = async (linkId: string) => {
+    setProcessingRequest(linkId);
+    try {
+      await acceptAthleteRequest(linkId);
+      hapticNotification('success');
+      acceptMockAthleteRequest(linkId);
+      showToast(t('profile.athleteRequestAccepted'));
+      refetchPending(true);
+      refetchAthletes(true);
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  const handleRejectRequest = async (linkId: string) => {
+    setProcessingRequest(linkId);
+    try {
+      await rejectAthleteRequest(linkId);
+      hapticNotification('success');
+      rejectMockAthleteRequest(linkId);
+      showToast(t('profile.athleteRequestRejected'));
+      refetchPending(true);
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
 
   // Sync user's own athlete data in the coach's lists
   const myAthleteId = me.athlete?.id;
@@ -388,6 +525,44 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
             mutate(newMe);
           }}
         />
+      )}
+
+      {/* Pending athlete requests */}
+      {pendingRequests && pendingRequests.length > 0 && (
+        <div className="px-4 mb-4">
+          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.pendingRequests')}</p>
+          {pendingRequests.map((r) => (
+            <div key={r.link_id} className="p-3 rounded-xl bg-bg-secondary mb-1.5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+                  {r.full_name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-medium text-text truncate">{r.full_name}</p>
+                  <p className="text-[13px] text-text-secondary">
+                    {r.weight_category} · {r.sport_rank}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleAcceptRequest(r.link_id)}
+                  disabled={processingRequest === r.link_id}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 disabled:opacity-40 transition-all"
+                >
+                  {t('profile.approve')}
+                </button>
+                <button
+                  onClick={() => handleRejectRequest(r.link_id)}
+                  disabled={processingRequest === r.link_id}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 disabled:opacity-40 transition-all"
+                >
+                  {t('profile.reject')}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Athletes list */}
@@ -475,6 +650,136 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
         </BottomSheet>
       )}
     </>
+  );
+}
+
+/* ---- Coach Search Sheet ---- */
+
+function CoachSearchSheet({
+  onClose,
+  onLinked,
+}: {
+  onClose: () => void;
+  onLinked: (link: MyCoachLink) => void;
+}) {
+  const { t } = useI18n();
+  const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<CoachSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [sending, setSending] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const data = await searchCoaches(q);
+      // Demo mode: searchCoaches returns {} when no API
+      if (Array.isArray(data)) {
+        setResults(data);
+      } else {
+        // Fallback to mock search
+        setResults(
+          mockCoachSearchResults.filter((c) =>
+            c.full_name.toLowerCase().includes(q.toLowerCase()),
+          ),
+        );
+      }
+    } catch {
+      setResults(
+        mockCoachSearchResults.filter((c) =>
+          c.full_name.toLowerCase().includes(q.toLowerCase()),
+        ),
+      );
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(query), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, doSearch]);
+
+  const handleSelect = async (coach: CoachSearchResult) => {
+    if (sending) return;
+    setSending(true);
+    try {
+      const data = await requestCoachLink(coach.id);
+      hapticNotification('success');
+      // Demo mode: returns {} — use mock
+      if (data && data.link_id) {
+        onLinked(data);
+      } else {
+        onLinked(requestMockCoachLink(coach.id));
+      }
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+      setSending(false);
+    }
+  };
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.findCoach')}</h2>
+      </div>
+
+      <div className="px-4 pb-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('profile.searchCoachPlaceholder')}
+          autoFocus
+          className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+        />
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+        {searching && <LoadingSpinner />}
+        {!searching && query.length >= 2 && results.length === 0 && (
+          <p className="text-sm text-text-secondary text-center py-4">{t('profile.noCoachesFound')}</p>
+        )}
+        {results.map((coach) => (
+          <button
+            key={coach.id}
+            onClick={() => handleSelect(coach)}
+            disabled={sending}
+            className="w-full flex items-center gap-3 py-3 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 disabled:opacity-40"
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+              {coach.full_name.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[15px] font-medium text-text truncate">{coach.full_name}</p>
+                {coach.is_verified && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-light text-accent font-medium">{t('profile.verifiedCoach')}</span>
+                )}
+              </div>
+              <p className="text-[13px] text-text-secondary">{coach.club} · {coach.city}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </BottomSheet>
   );
 }
 

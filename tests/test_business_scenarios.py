@@ -2450,3 +2450,235 @@ async def test_non_admin_cannot_list_requests(auth_client: AsyncClient):
     """Non-admin gets 403 on admin endpoints."""
     resp = await auth_client.get("/api/admin/role-requests")
     assert resp.status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════
+#  16. ATHLETE-COACH LINKING
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_search_coaches(auth_client: AsyncClient, coach_user: User):
+    """Athlete can search coaches by name."""
+    resp = await auth_client.get("/api/coaches/search", params={"q": "Test"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert data[0]["full_name"] == "Test Coach"
+    assert "id" in data[0]
+    assert "city" in data[0]
+
+
+@pytest.mark.asyncio
+async def test_search_coaches_requires_athlete(coach_client: AsyncClient):
+    """Coach without athlete profile gets 403 on search."""
+    resp = await coach_client.get("/api/coaches/search", params={"q": "Test"})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_search_coaches_min_query(auth_client: AsyncClient):
+    """Search requires at least 2 characters."""
+    resp = await auth_client.get("/api/coaches/search", params={"q": "T"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_my_coach_none(auth_client: AsyncClient):
+    """Returns null when athlete has no coach link."""
+    resp = await auth_client.get("/api/me/my-coach")
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+@pytest.mark.asyncio
+async def test_request_coach_link(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Athlete sends a request to coach, gets pending link."""
+    # Get coach id
+    from sqlalchemy.orm import selectinload
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+
+    resp = await auth_client.post(
+        "/api/me/coach-request",
+        json={"coach_id": str(coach_u.coach.id)},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "pending"
+    assert data["full_name"] == "Test Coach"
+    assert "link_id" in data
+
+
+@pytest.mark.asyncio
+async def test_request_coach_link_duplicate(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Cannot request a second coach link."""
+    from sqlalchemy.orm import selectinload
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+
+    # First request
+    resp = await auth_client.post(
+        "/api/me/coach-request",
+        json={"coach_id": str(coach_u.coach.id)},
+    )
+    assert resp.status_code == 200
+
+    # Second request → 400
+    resp2 = await auth_client.post(
+        "/api/me/coach-request",
+        json={"coach_id": str(coach_u.coach.id)},
+    )
+    assert resp2.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_get_my_coach_pending(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Returns pending link after request."""
+    from sqlalchemy.orm import selectinload
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+
+    await auth_client.post(
+        "/api/me/coach-request",
+        json={"coach_id": str(coach_u.coach.id)},
+    )
+
+    resp = await auth_client.get("/api/me/my-coach")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data is not None
+    assert data["status"] == "pending"
+    assert data["coach_id"] == str(coach_u.coach.id)
+
+
+@pytest.mark.asyncio
+async def test_unlink_coach(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Athlete can unlink from coach."""
+    from sqlalchemy.orm import selectinload
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+
+    await auth_client.post(
+        "/api/me/coach-request",
+        json={"coach_id": str(coach_u.coach.id)},
+    )
+
+    resp = await auth_client.delete("/api/me/my-coach")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "unlinked"
+
+    # Verify it's gone
+    resp2 = await auth_client.get("/api/me/my-coach")
+    assert resp2.json() is None
+
+
+@pytest.mark.asyncio
+async def test_coach_pending_athletes(coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User):
+    """Coach sees pending athlete requests."""
+    from sqlalchemy.orm import selectinload
+
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+    athlete_result = await db_session.execute(
+        select(User).where(User.id == test_user.id).options(selectinload(User.athlete))
+    )
+    athlete_u = athlete_result.scalar_one()
+
+    link = CoachAthlete(
+        coach_id=coach_u.coach.id,
+        athlete_id=athlete_u.athlete.id,
+        status="pending",
+    )
+    db_session.add(link)
+    await db_session.commit()
+
+    resp = await coach_client.get("/api/coach/pending-athletes")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["full_name"] == "Test Athlete"
+    assert data[0]["athlete_id"] == str(athlete_u.athlete.id)
+
+
+@pytest.mark.asyncio
+async def test_coach_accept_request(coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User):
+    """Coach accepts athlete request → status becomes accepted."""
+    from sqlalchemy.orm import selectinload
+
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+    athlete_result = await db_session.execute(
+        select(User).where(User.id == test_user.id).options(selectinload(User.athlete))
+    )
+    athlete_u = athlete_result.scalar_one()
+
+    link = CoachAthlete(
+        coach_id=coach_u.coach.id,
+        athlete_id=athlete_u.athlete.id,
+        status="pending",
+    )
+    db_session.add(link)
+    await db_session.commit()
+    await db_session.refresh(link)
+
+    link_id = link.id
+    resp = await coach_client.post(f"/api/coach/athletes/{link_id}/accept")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "accepted"
+
+    # Verify in DB — use a fresh session to avoid stale cache
+    async with TestSession() as fresh:
+        result = await fresh.execute(
+            select(CoachAthlete).where(CoachAthlete.id == link_id)
+        )
+        updated = result.scalar_one()
+        assert updated.status == "accepted"
+        assert updated.accepted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_coach_reject_request(coach_client: AsyncClient, db_session: AsyncSession, test_user: User, coach_user: User):
+    """Coach rejects athlete request → link is deleted."""
+    from sqlalchemy.orm import selectinload
+
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+    athlete_result = await db_session.execute(
+        select(User).where(User.id == test_user.id).options(selectinload(User.athlete))
+    )
+    athlete_u = athlete_result.scalar_one()
+
+    link = CoachAthlete(
+        coach_id=coach_u.coach.id,
+        athlete_id=athlete_u.athlete.id,
+        status="pending",
+    )
+    db_session.add(link)
+    await db_session.commit()
+    await db_session.refresh(link)
+    link_id = link.id
+
+    resp = await coach_client.post(f"/api/coach/athletes/{link_id}/reject")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "rejected"
+
+    # Verify deleted from DB
+    result = await db_session.execute(
+        select(CoachAthlete).where(CoachAthlete.id == link_id)
+    )
+    assert result.scalar_one_or_none() is None

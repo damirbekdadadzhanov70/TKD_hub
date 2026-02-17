@@ -4,10 +4,13 @@ import type {
   AthleteUpdate,
   CoachAthlete,
   CoachRegistration,
+  CoachSearchResult,
   CoachUpdate,
   CoachEntry,
   MeResponse,
+  MyCoachLink,
   PaginatedResponse,
+  PendingAthleteRequest,
   ProfileStats,
   RatingEntry,
   RoleRequestItem,
@@ -219,6 +222,41 @@ export async function getRatings(params?: {
   const qs = searchParams.toString();
   const res = await apiRequest<PaginatedResponse<RatingEntry>>(`/ratings${qs ? `?${qs}` : ''}`);
   return res.items;
+}
+
+// --- Coach ---
+
+// --- Coach Linking ---
+
+export function searchCoaches(q: string): Promise<CoachSearchResult[]> {
+  return apiRequest<CoachSearchResult[]>(`/coaches/search?q=${encodeURIComponent(q)}`);
+}
+
+export function getMyCoach(): Promise<MyCoachLink | null> {
+  return apiRequest<MyCoachLink | null>('/me/my-coach');
+}
+
+export function requestCoachLink(coachId: string): Promise<MyCoachLink> {
+  return apiRequest<MyCoachLink>('/me/coach-request', {
+    method: 'POST',
+    body: JSON.stringify({ coach_id: coachId }),
+  });
+}
+
+export function unlinkCoach(): Promise<void> {
+  return apiRequest<void>('/me/my-coach', { method: 'DELETE' });
+}
+
+export function getPendingAthletes(): Promise<PendingAthleteRequest[]> {
+  return apiRequest<PendingAthleteRequest[]>('/coach/pending-athletes');
+}
+
+export function acceptAthleteRequest(linkId: string): Promise<void> {
+  return apiRequest<void>(`/coach/athletes/${linkId}/accept`, { method: 'POST' });
+}
+
+export function rejectAthleteRequest(linkId: string): Promise<void> {
+  return apiRequest<void>(`/coach/athletes/${linkId}/reject`, { method: 'POST' });
 }
 
 // --- Coach ---
