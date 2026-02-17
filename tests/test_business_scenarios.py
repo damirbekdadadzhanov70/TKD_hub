@@ -2412,6 +2412,54 @@ async def test_admin_approve_creates_profile(
 
 
 @pytest.mark.asyncio
+async def test_admin_approve_coach_without_sport_rank(
+    db_session: AsyncSession,
+    admin_user: User,
+    test_user: User,
+):
+    """Approving a coach role request without sport_rank should use fallback."""
+    from api.main import app
+    from db.base import get_session
+    from tests.conftest import make_init_data, override_get_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        profile_data = {
+            "full_name": "Coach NoRank",
+            "date_of_birth": "1992-03-10",
+            "gender": "F",
+            "city": "Москва",
+            "club": "Test Club",
+        }
+        athlete_init = make_init_data(telegram_id=test_user.telegram_id)
+        resp = await c.post(
+            "/api/me/role-request",
+            json={"requested_role": "coach", "data": profile_data},
+            headers={"Authorization": f"tma {athlete_init}"},
+        )
+        assert resp.status_code == 200
+        request_id = resp.json()["id"]
+
+        admin_init = make_init_data(telegram_id=admin_user.telegram_id)
+        resp2 = await c.post(
+            f"/api/admin/role-requests/{request_id}/approve",
+            headers={"Authorization": f"tma {admin_init}"},
+        )
+        assert resp2.status_code == 200, f"Approve failed: {resp2.text}"
+        assert resp2.json()["status"] == "approved"
+
+    app.dependency_overrides.clear()
+
+    result = await db_session.execute(
+        select(User).where(User.id == test_user.id).options(selectinload(User.coach))
+    )
+    user = result.scalar_one()
+    assert user.coach is not None
+    assert user.coach.qualification == "Не указано"
+
+
+@pytest.mark.asyncio
 async def test_admin_reject(
     db_session: AsyncSession,
     admin_user: User,

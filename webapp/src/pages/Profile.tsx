@@ -1247,9 +1247,9 @@ function AdminRoleRequests() {
       approveMockRoleRequest(id);
       showToast(t('profile.roleRequestApproved'));
       refetch(true);
-    } catch {
+    } catch (err) {
       hapticNotification('error');
-      showToast(t('common.error'), 'error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
     } finally {
       setProcessing(null);
     }

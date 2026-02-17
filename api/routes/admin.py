@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -91,11 +92,24 @@ async def approve_role_request(
         raise HTTPException(status_code=400, detail="Request already processed")
 
     target_user = role_request.user
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "Approving role request %s: role=%s, data=%s",
+        request_id,
+        role_request.requested_role,
+        role_request.data,
+    )
 
-    if role_request.requested_role == "athlete":
-        if target_user.athlete:
-            raise HTTPException(status_code=400, detail="User already has athlete profile")
-        if role_request.data:
+    try:
+        if role_request.requested_role == "athlete":
+            if target_user.athlete:
+                raise HTTPException(
+                    status_code=400, detail="User already has athlete profile"
+                )
+            if not role_request.data:
+                raise HTTPException(
+                    status_code=400, detail="No profile data in request"
+                )
             reg = AthleteRegistration(**role_request.data)
             athlete = Athlete(
                 user_id=target_user.id,
@@ -109,14 +123,17 @@ async def approve_role_request(
                 city=reg.city,
                 club=reg.club,
             )
-        else:
-            raise HTTPException(status_code=400, detail="No profile data in request")
-        ctx.session.add(athlete)
+            ctx.session.add(athlete)
 
-    elif role_request.requested_role == "coach":
-        if target_user.coach:
-            raise HTTPException(status_code=400, detail="User already has coach profile")
-        if role_request.data:
+        elif role_request.requested_role == "coach":
+            if target_user.coach:
+                raise HTTPException(
+                    status_code=400, detail="User already has coach profile"
+                )
+            if not role_request.data:
+                raise HTTPException(
+                    status_code=400, detail="No profile data in request"
+                )
             reg = CoachRegistration(**role_request.data)
             coach = Coach(
                 user_id=target_user.id,
@@ -128,9 +145,21 @@ async def approve_role_request(
                 club=reg.club,
                 qualification=reg.sport_rank or "Не указано",
             )
+            ctx.session.add(coach)
+
         else:
-            raise HTTPException(status_code=400, detail="No profile data in request")
-        ctx.session.add(coach)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown role: {role_request.requested_role}",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to create profile from role request %s", request_id)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid profile data: {exc}",
+        ) from exc
 
     role_request.status = "approved"
     role_request.reviewed_at = datetime.now(timezone.utc)
