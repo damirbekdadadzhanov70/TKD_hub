@@ -126,7 +126,7 @@ async def approve_role_request(
                 country="Россия",
                 city=reg.city,
                 club=reg.club,
-                qualification=reg.sport_rank,
+                qualification=reg.sport_rank or "Не указано",
             )
         else:
             raise HTTPException(status_code=400, detail="No profile data in request")

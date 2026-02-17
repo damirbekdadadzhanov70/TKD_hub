@@ -987,6 +987,7 @@ function SettingsSheet({
   const [showRoleRequestForm, setShowRoleRequestForm] = useState(false);
 
   const isAdmin = me.is_admin;
+  const hasDualProfile = !!me.athlete && !!me.coach;
 
   const ROLE_LABELS: Record<MeResponse['role'], string> = {
     athlete: t('profile.roleAthlete'),
@@ -1116,8 +1117,30 @@ function SettingsSheet({
               );
             })}
           </div>
+        ) : hasDualProfile ? (
+          /* Regular user with both profiles: role switcher (athlete + coach only) */
+          <div className="space-y-1.5 mb-4">
+            {(['athlete', 'coach'] as const).map((role) => (
+              <button
+                key={role}
+                onClick={() => handleRoleSwitch(role)}
+                disabled={switching || me.role === role}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 disabled:cursor-default ${
+                  me.role === role ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
+                }`}
+              >
+                <div>
+                  <p className="text-sm font-medium">{ROLE_LABELS[role]}</p>
+                  <p className={`text-[11px] ${me.role === role ? 'text-white/70' : 'text-text-secondary'}`}>
+                    {ROLE_DESCRIPTIONS[role]}
+                  </p>
+                </div>
+                {me.role === role && <CheckIcon />}
+              </button>
+            ))}
+          </div>
         ) : (
-          /* Regular user: show current role, no switcher */
+          /* Regular user with single role: show current role, no switcher */
           <div className="mb-4 p-3 rounded-xl bg-bg-secondary">
             <p className="text-sm font-medium text-text">{ROLE_LABELS[me.role]}</p>
             <p className="text-[11px] text-text-secondary">{ROLE_DESCRIPTIONS[me.role]}</p>
