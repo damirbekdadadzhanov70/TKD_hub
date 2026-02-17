@@ -129,7 +129,9 @@ export default function TrainingLogPage() {
     if (month === 1) { setMonth(12); setYear(year - 1); }
     else setMonth(month - 1);
   };
+  const isFutureMonth = year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1);
   const nextMonth = () => {
+    if (isFutureMonth) return;
     setSelectedDay(null);
     if (month === 12) { setMonth(1); setYear(year + 1); }
     else setMonth(month + 1);
@@ -163,7 +165,7 @@ export default function TrainingLogPage() {
             <span className="font-semibold text-sm text-text">
               {MONTH_NAMES[month - 1]} {year}
             </span>
-            <button aria-label={t('training.nextMonth')} onClick={nextMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">›</button>
+            <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>›</button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
             {WEEKDAYS.map((d: string) => (
@@ -177,16 +179,19 @@ export default function TrainingLogPage() {
               const hasLog = logDates.has(day);
               const isToday = isCurrentMonth && day === today;
               const isSelected = selectedDay === day;
+              const isFuture = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1) || (isCurrentMonth && day > today);
               return (
                 <div
                   key={day}
-                  onClick={() => setSelectedDay(isSelected ? null : day)}
-                  className={`py-1.5 rounded-lg relative text-xs cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'bg-accent/20 text-accent font-bold'
-                      : isToday
-                        ? 'bg-accent text-white font-bold'
-                        : 'text-text'
+                  onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)}
+                  className={`py-1.5 rounded-lg relative text-xs transition-colors ${
+                    isFuture
+                      ? 'text-text-disabled cursor-default'
+                      : isSelected
+                        ? 'bg-accent/20 text-accent font-bold cursor-pointer'
+                        : isToday
+                          ? 'bg-accent text-white font-bold cursor-pointer'
+                          : 'text-text cursor-pointer'
                   }`}
                 >
                   {day}
