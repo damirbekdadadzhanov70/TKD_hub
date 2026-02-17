@@ -19,8 +19,12 @@ router = APIRouter()
 
 
 def _resolve_role(user) -> str:
-    """Determine user role: admin > coach > athlete > none."""
-    if user.telegram_id in settings.admin_ids:
+    """Determine user role: admin > coach > athlete > none.
+
+    Admin without any profile returns 'none' so they go through onboarding first.
+    """
+    has_profile = user.coach or user.athlete
+    if user.telegram_id in settings.admin_ids and has_profile:
         return "admin"
     if user.coach:
         return "coach"
