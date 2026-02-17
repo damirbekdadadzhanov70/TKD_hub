@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -103,13 +103,9 @@ async def approve_role_request(
     try:
         if role_request.requested_role == "athlete":
             if target_user.athlete:
-                raise HTTPException(
-                    status_code=400, detail="User already has athlete profile"
-                )
+                raise HTTPException(status_code=400, detail="User already has athlete profile")
             if not role_request.data:
-                raise HTTPException(
-                    status_code=400, detail="No profile data in request"
-                )
+                raise HTTPException(status_code=400, detail="No profile data in request")
             reg = AthleteRegistration(**role_request.data)
             athlete = Athlete(
                 user_id=target_user.id,
@@ -127,13 +123,9 @@ async def approve_role_request(
 
         elif role_request.requested_role == "coach":
             if target_user.coach:
-                raise HTTPException(
-                    status_code=400, detail="User already has coach profile"
-                )
+                raise HTTPException(status_code=400, detail="User already has coach profile")
             if not role_request.data:
-                raise HTTPException(
-                    status_code=400, detail="No profile data in request"
-                )
+                raise HTTPException(status_code=400, detail="No profile data in request")
             reg = CoachRegistration(**role_request.data)
             coach = Coach(
                 user_id=target_user.id,
@@ -162,7 +154,7 @@ async def approve_role_request(
         ) from exc
 
     role_request.status = "approved"
-    role_request.reviewed_at = datetime.now(timezone.utc)
+    role_request.reviewed_at = datetime.utcnow()
     role_request.reviewed_by = ctx.user.id
     ctx.session.add(role_request)
     await ctx.session.commit()
@@ -190,7 +182,7 @@ async def reject_role_request(
         raise HTTPException(status_code=400, detail="Request already processed")
 
     role_request.status = "rejected"
-    role_request.reviewed_at = datetime.now(timezone.utc)
+    role_request.reviewed_at = datetime.utcnow()
     role_request.reviewed_by = ctx.user.id
     ctx.session.add(role_request)
     await ctx.session.commit()

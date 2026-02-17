@@ -2451,9 +2451,7 @@ async def test_admin_approve_coach_without_sport_rank(
 
     app.dependency_overrides.clear()
 
-    result = await db_session.execute(
-        select(User).where(User.id == test_user.id).options(selectinload(User.coach))
-    )
+    result = await db_session.execute(select(User).where(User.id == test_user.id).options(selectinload(User.coach)))
     user = result.scalar_one()
     assert user.coach is not None
     assert user.coach.qualification == "Не указано"
