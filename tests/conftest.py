@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import hmac
 import json
@@ -6,7 +5,6 @@ import time
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
@@ -15,14 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from bot.config import settings
 from db.base import Base, get_session
 from db.models import Athlete, Coach, CoachAthlete, Tournament, User
-
-
-# Override uvloop — it monkey-patches asyncio.get_event_loop() and raises
-# RuntimeError on Python 3.11+ when no current event loop exists.
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    return asyncio.DefaultEventLoopPolicy()
-
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
