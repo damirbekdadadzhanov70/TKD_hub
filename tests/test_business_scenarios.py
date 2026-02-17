@@ -23,6 +23,7 @@ Sections:
   16. Athlete-Coach Linking
   17. API: Admin User Management
   18. API: Account Self-Deletion
+  19. API: Audit Logs
 """
 
 import uuid as uuid_mod
@@ -2841,3 +2842,37 @@ async def test_deleted_user_returns_404(client: AsyncClient, db_session: AsyncSe
     # GET /me returns 404 — user no longer exists
     resp2 = await client.get("/api/me")
     assert resp2.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════
+#  19. API: Audit Logs
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_audit_logs_admin_access(admin_client: AsyncClient, db_session: AsyncSession, admin_user: User):
+    """Admin can access audit logs."""
+    from db.models.audit_log import AuditLog
+
+    log = AuditLog(
+        user_id=admin_user.id,
+        action="test_action",
+        target_type="test",
+        target_id="123",
+    )
+    db_session.add(log)
+    await db_session.commit()
+
+    response = await admin_client.get("/api/admin/audit-logs")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] >= 1
+    assert len(body["items"]) >= 1
+    assert body["items"][0]["action"] == "test_action"
+
+
+@pytest.mark.asyncio
+async def test_audit_logs_non_admin_rejected(auth_client: AsyncClient):
+    """Non-admin users get 403."""
+    response = await auth_client.get("/api/admin/audit-logs")
+    assert response.status_code == 403
