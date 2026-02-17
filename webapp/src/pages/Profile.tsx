@@ -9,7 +9,6 @@ import { useI18n } from '../i18n/I18nProvider';
 import {
   acceptAthleteRequest,
   approveRoleRequest,
-  deleteAdminUser,
   deleteMyAccount,
   getAdminUsers,
   getCoachAthletes,
@@ -33,7 +32,6 @@ import {
   acceptMockAthleteRequest,
   approveMockRoleRequest,
   deleteMockAccount,
-  deleteMockAdminUser,
   mockAdminUsers,
   mockCoachAthletes,
   mockCoachEntries,
@@ -222,6 +220,133 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 /* ---- Main ---- */
 
+function SearchIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+function AdminUserSearchSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const fetchUsers = useCallback(async (q: string) => {
+    setSearchLoading(true);
+    try {
+      const data = await getAdminUsers(q || undefined);
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        const filtered = q
+          ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
+          : mockAdminUsers;
+        setUsers(filtered);
+      }
+    } catch {
+      const filtered = q
+        ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
+        : mockAdminUsers;
+      setUsers(filtered);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers('');
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchUsers(query), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, fetchUsers]);
+
+  const ROLE_BADGE: Record<string, string> = {
+    admin: 'bg-accent-light text-accent',
+    coach: 'bg-blue-500/10 text-blue-500',
+    athlete: 'bg-green-500/10 text-green-500',
+    none: 'bg-bg-divider text-text-disabled',
+  };
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-heading text-text-heading">{t('profile.users')}</h2>
+      </div>
+
+      <div className="px-4 pb-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('profile.searchUsers')}
+          autoFocus
+          className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
+        />
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+        {searchLoading && <LoadingSpinner />}
+
+        {!searchLoading && users.length === 0 && (
+          <p className="text-sm text-text-secondary text-center py-4">{t('profile.noUsersFound')}</p>
+        )}
+
+        {!searchLoading && users.map((u) => (
+          <button
+            key={u.id}
+            onClick={() => {
+              onClose();
+              navigate(`/admin/user/${u.id}`);
+            }}
+            className="w-full flex items-center gap-3 py-2.5 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 hover:bg-bg-secondary transition-colors"
+          >
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+              {(u.full_name || u.username || '?').charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-medium text-text truncate">{u.full_name || u.username || `ID ${u.telegram_id}`}</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role] || ROLE_BADGE.none}`}>
+                  {u.role}
+                </span>
+                {u.city && <span className="text-[12px] text-text-secondary">{u.city}</span>}
+              </div>
+            </div>
+            <span className="text-text-disabled text-sm">→</span>
+          </button>
+        ))}
+      </div>
+    </BottomSheet>
+  );
+}
+
 export default function Profile() {
   const { user: tgUser } = useTelegram();
   const { t } = useI18n();
@@ -229,6 +354,16 @@ export default function Profile() {
   const { data: stats } = useApi<ProfileStats>(getProfileStats, mockProfileStats, []);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showRoleRequests, setShowRoleRequests] = useState(false);
+
+  // Fetch role requests count for admin badge
+  const { data: roleRequests } = useApi<RoleRequestItem[]>(
+    getRoleRequests,
+    mockRoleRequests,
+    [],
+  );
+  const pendingCount = me?.is_admin ? (roleRequests?.length ?? 0) : 0;
 
   if (loading) return <LoadingSpinner />;
   if (!me) return (
@@ -254,16 +389,41 @@ export default function Profile() {
 
   return (
     <div className="pb-20">
-      {/* Settings gear — top right */}
-      <div className="flex justify-end px-4 pt-4">
-        <button
-          aria-label={t('profile.settings')}
-          onClick={() => setShowSettings(true)}
-          className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
-        >
-          <GearIcon />
-        </button>
-      </div>
+      {/* Admin header: search + notifications */}
+      {isAdmin ? (
+        <div className="flex justify-between items-center px-4 pt-4">
+          <button
+            aria-label={t('profile.searchUsers')}
+            onClick={() => setShowUserSearch(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+          >
+            <SearchIcon />
+          </button>
+          <button
+            aria-label={t('profile.notifications')}
+            onClick={() => setShowRoleRequests(true)}
+            className="relative w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+          >
+            <BellIcon />
+            {pendingCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-bold px-1">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
+      ) : (
+        /* Non-admin: settings gear — top right */
+        <div className="flex justify-end px-4 pt-4">
+          <button
+            aria-label={t('profile.settings')}
+            onClick={() => setShowSettings(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+          >
+            <GearIcon />
+          </button>
+        </div>
+      )}
 
       {/* Avatar + name */}
       <div className="flex flex-col items-center pb-4 px-4">
@@ -297,6 +457,17 @@ export default function Profile() {
         )}
         {isAdmin && (
           <p className="text-sm text-text-secondary mt-0.5">{t('profile.administrator')}</p>
+        )}
+
+        {/* Admin: settings button below name */}
+        {isAdmin && (
+          <button
+            onClick={() => setShowSettings(true)}
+            className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors text-sm"
+          >
+            <GearIcon />
+            {t('profile.settings')}
+          </button>
         )}
       </div>
 
@@ -333,6 +504,31 @@ export default function Profile() {
           onClose={() => setShowSettings(false)}
           onRoleChange={handleRoleChange}
         />
+      )}
+
+      {/* Admin: User search sheet */}
+      {showUserSearch && (
+        <AdminUserSearchSheet onClose={() => setShowUserSearch(false)} />
+      )}
+
+      {/* Admin: Role requests sheet */}
+      {showRoleRequests && (
+        <BottomSheet onClose={() => setShowRoleRequests(false)}>
+          <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
+            <button
+              onClick={() => setShowRoleRequests(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+              </svg>
+            </button>
+            <h2 className="text-lg font-heading text-text-heading">{t('profile.roleRequests')}</h2>
+          </div>
+          <div className="px-4 pb-4">
+            <AdminRoleRequests />
+          </div>
+        </BottomSheet>
       )}
     </div>
   );
@@ -1147,12 +1343,6 @@ function SettingsSheet({
           </div>
         )}
 
-        {/* Admin: Role requests section */}
-        {isAdmin && <AdminRoleRequests />}
-
-        {/* Admin: Users button → sheet */}
-        {isAdmin && <AdminUsersButton me={me} />}
-
         {/* Language */}
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.language')}</p>
         <div className="space-y-1 mb-4">
@@ -1356,185 +1546,6 @@ function AdminRoleRequests() {
         })
       )}
     </div>
-  );
-}
-
-/* ---- Admin Users Button + Sheet ---- */
-
-function AdminUsersButton({ me }: { me: MeResponse }) {
-  const { t } = useI18n();
-  const [showSheet, setShowSheet] = useState(false);
-  const [count, setCount] = useState<number | null>(null);
-
-  // Fetch user count on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await getAdminUsers();
-        if (Array.isArray(data)) {
-          setCount(data.length);
-        } else {
-          setCount(mockAdminUsers.length);
-        }
-      } catch {
-        setCount(mockAdminUsers.length);
-      }
-    })();
-  }, []);
-
-  return (
-    <div className="mb-4">
-      <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2">{t('profile.users')}</p>
-      <button
-        onClick={() => setShowSheet(true)}
-        className="w-full flex items-center justify-between p-3 rounded-xl bg-bg-secondary border-none cursor-pointer text-left active:opacity-80 hover:bg-bg-divider transition-colors"
-      >
-        <span className="text-sm font-medium text-text">{t('profile.users')}</span>
-        <span className="text-sm text-text-secondary">
-          {count !== null ? `${count} ${t('profile.usersCount')}` : '...'} →
-        </span>
-      </button>
-
-      {showSheet && (
-        <AdminUsersSheet me={me} onClose={() => setShowSheet(false)} />
-      )}
-    </div>
-  );
-}
-
-function AdminUsersSheet({ me, onClose }: { me: MeResponse; onClose: () => void }) {
-  const { t } = useI18n();
-  const { showToast } = useToast();
-  const { hapticNotification } = useTelegram();
-  const [query, setQuery] = useState('');
-  const [users, setUsers] = useState<AdminUserItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-
-  const fetchUsers = useCallback(async (q: string) => {
-    setLoading(true);
-    try {
-      const data = await getAdminUsers(q || undefined);
-      if (Array.isArray(data)) {
-        setUsers(data);
-      } else {
-        const filtered = q
-          ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
-          : mockAdminUsers;
-        setUsers(filtered);
-      }
-    } catch {
-      const filtered = q
-        ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
-        : mockAdminUsers;
-      setUsers(filtered);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUsers('');
-  }, [fetchUsers]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchUsers(query), 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, fetchUsers]);
-
-  const handleDelete = async (user: AdminUserItem) => {
-    if (user.id === me.athlete?.id || user.telegram_id === me.telegram_id) {
-      showToast(t('profile.cannotDeleteSelf'), 'error');
-      return;
-    }
-    if (!confirm(t('profile.deleteUserConfirm'))) return;
-    setDeleting(user.id);
-    try {
-      await deleteAdminUser(user.id);
-      hapticNotification('success');
-      deleteMockAdminUser(user.id);
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      showToast(t('profile.userDeleted'));
-    } catch {
-      hapticNotification('error');
-      showToast(t('common.error'), 'error');
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const ROLE_BADGE: Record<string, string> = {
-    admin: 'bg-accent-light text-accent',
-    coach: 'bg-blue-500/10 text-blue-500',
-    athlete: 'bg-green-500/10 text-green-500',
-    none: 'bg-bg-divider text-text-disabled',
-  };
-
-  return (
-    <BottomSheet onClose={onClose}>
-      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
-        <button
-          onClick={onClose}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
-          </svg>
-        </button>
-        <h2 className="text-lg font-heading text-text-heading">{t('profile.users')}</h2>
-      </div>
-
-      <div className="px-4 pb-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('profile.searchUsers')}
-          autoFocus
-          className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
-        />
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
-        {loading && <LoadingSpinner />}
-
-        {!loading && users.length === 0 && (
-          <p className="text-sm text-text-secondary text-center py-4">{t('profile.noUsersFound')}</p>
-        )}
-
-        {!loading && users.map((u) => {
-          const isSelf = u.telegram_id === me.telegram_id;
-          return (
-            <div key={u.id} className="flex items-center gap-3 py-2.5 border-b border-dashed border-border">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
-                {(u.full_name || u.username || '?').charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-medium text-text truncate">{u.full_name || u.username || `ID ${u.telegram_id}`}</p>
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROLE_BADGE[u.role] || ROLE_BADGE.none}`}>
-                    {u.role}
-                  </span>
-                  {u.city && <span className="text-[12px] text-text-secondary">{u.city}</span>}
-                </div>
-              </div>
-              {!isSelf && (
-                <button
-                  onClick={() => handleDelete(u)}
-                  disabled={deleting === u.id}
-                  className="text-[12px] text-rose-500 border-none bg-transparent cursor-pointer p-1 active:opacity-70 disabled:opacity-40 hover:text-rose-600"
-                >
-                  {t('profile.deleteUser')}
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </BottomSheet>
   );
 }
 

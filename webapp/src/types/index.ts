@@ -276,6 +276,21 @@ export interface AdminUserItem {
   created_at: string;
 }
 
+export interface AdminUserDetail {
+  id: string;
+  telegram_id: number;
+  username: string | null;
+  role: string;
+  is_admin: boolean;
+  athlete: AthleteProfile | null;
+  coach: CoachProfile | null;
+  created_at: string;
+  stats: {
+    tournaments_count: number;
+    medals_count: number;
+  };
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

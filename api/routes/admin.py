@@ -5,11 +5,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import or_, select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from api.dependencies import AuthContext, get_current_user
 from api.routes.me import AthleteRegistration, CoachRegistration, _resolve_role
+from api.schemas.athlete import AthleteRead
+from api.schemas.coach import CoachRead
 from bot.config import settings
 from bot.utils.notifications import (
     notify_admins_account_deleted_by_admin,
@@ -18,6 +20,7 @@ from bot.utils.notifications import (
 from db.models.athlete import Athlete
 from db.models.coach import Coach
 from db.models.role_request import RoleRequest
+from db.models.tournament import TournamentEntry, TournamentResult
 from db.models.user import User
 
 router = APIRouter()
@@ -188,6 +191,79 @@ async def reject_role_request(
     await ctx.session.commit()
 
     return {"status": "rejected"}
+
+
+# ── Admin user detail ────────────────────────────────────────
+
+
+class AdminUserDetailResponse(BaseModel):
+    id: str
+    telegram_id: int
+    username: Optional[str] = None
+    role: str
+    is_admin: bool = False
+    athlete: Optional[AthleteRead] = None
+    coach: Optional[CoachRead] = None
+    created_at: str
+    stats: dict
+
+
+@router.get("/admin/users/{user_id}", response_model=AdminUserDetailResponse)
+async def get_user_detail(
+    user_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _require_admin(ctx.user)
+
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid user ID") from err
+
+    result = await ctx.session.execute(
+        select(User)
+        .where(User.id == uid)
+        .options(selectinload(User.athlete), selectinload(User.coach))
+    )
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    role = _resolve_role(target)
+    athlete_data = AthleteRead.model_validate(target.athlete) if target.athlete else None
+    coach_data = CoachRead.model_validate(target.coach) if target.coach else None
+
+    # Stats
+    tournaments_count = 0
+    medals_count = 0
+    if target.athlete:
+        t_count = await ctx.session.execute(
+            select(func.count(distinct(TournamentEntry.tournament_id))).where(
+                TournamentEntry.athlete_id == target.athlete.id,
+                TournamentEntry.status == "approved",
+            )
+        )
+        tournaments_count = t_count.scalar_one()
+
+        m_count = await ctx.session.execute(
+            select(func.count(TournamentResult.id)).where(
+                TournamentResult.athlete_id == target.athlete.id,
+                TournamentResult.place <= 3,
+            )
+        )
+        medals_count = m_count.scalar_one()
+
+    return AdminUserDetailResponse(
+        id=str(target.id),
+        telegram_id=target.telegram_id,
+        username=target.username,
+        role=role,
+        is_admin=target.telegram_id in settings.admin_ids,
+        athlete=athlete_data,
+        coach=coach_data,
+        created_at=str(target.created_at),
+        stats={"tournaments_count": tournaments_count, "medals_count": medals_count},
+    )
 
 
 # ── Admin user management ────────────────────────────────────

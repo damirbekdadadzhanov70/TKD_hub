@@ -252,6 +252,9 @@ const en = {
     roleRequestWeight: 'Weight Category',
     roleRequestCurrentWeight: 'Current Weight',
     roleRequestSportRank: 'Sport Rank',
+    notifications: 'Notifications',
+    userProfile: 'User Profile',
+    memberSince: 'Member Since',
   },
   onboarding: {
     chooseLanguage: 'Choose language',

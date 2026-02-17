@@ -2826,6 +2826,44 @@ async def test_non_admin_cannot_delete_user(client: AsyncClient, test_user: User
     assert resp.status_code == 403
 
 
+# ── Admin User Detail ──
+
+
+@pytest.mark.asyncio
+async def test_admin_get_user_detail(admin_client: AsyncClient, test_user: User):
+    """Admin can view full profile of any user."""
+    resp = await admin_client.get(f"/api/admin/users/{test_user.id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == str(test_user.id)
+    assert data["telegram_id"] == test_user.telegram_id
+    assert data["athlete"] is not None
+    assert data["athlete"]["full_name"] == "Test Athlete"
+    assert "stats" in data
+    assert "tournaments_count" in data["stats"]
+    assert "medals_count" in data["stats"]
+
+
+@pytest.mark.asyncio
+async def test_admin_get_user_detail_not_found(admin_client: AsyncClient):
+    """Admin gets 404 for non-existent user."""
+    fake_id = str(uuid_mod.uuid4())
+    resp = await admin_client.get(f"/api/admin/users/{fake_id}")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_view_user_detail(client: AsyncClient, test_user: User, admin_user: User):
+    """Non-admin users get 403 trying to view user detail."""
+    from tests.conftest import make_init_data
+
+    init_data = make_init_data(telegram_id=test_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    resp = await client.get(f"/api/admin/users/{admin_user.id}")
+    assert resp.status_code == 403
+
+
 # ═══════════════════════════════════════════════════════════════
 #  18. API: Account Self-Deletion
 # ═══════════════════════════════════════════════════════════════

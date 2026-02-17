@@ -6,6 +6,7 @@ import TournamentDetail from './pages/TournamentDetail';
 import TrainingLogPage from './pages/TrainingLog';
 import Rating from './pages/Rating';
 import Profile from './pages/Profile';
+import AdminUserProfile from './pages/AdminUserProfile';
 import Onboarding from './pages/Onboarding';
 import { useTelegram } from './hooks/useTelegram';
 import { useApi } from './hooks/useApi';
@@ -99,6 +100,7 @@ function AppRoutes() {
           <Route path="/training" element={<TrainingLogPage />} />
           <Route path="/rating" element={<Rating />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin/user/:id" element={<AdminUserProfile />} />
           <Route
             path="*"
             element={<NotFoundPage />}

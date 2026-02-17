@@ -1,4 +1,5 @@
 import type {
+  AdminUserDetail,
   AdminUserItem,
   AthleteRegistration,
   CoachAthlete,
@@ -226,6 +227,49 @@ export let mockAdminUsers: AdminUserItem[] = [
 
 export function deleteMockAdminUser(userId: string) {
   mockAdminUsers = mockAdminUsers.filter((u) => u.id !== userId);
+}
+
+export function getMockAdminUserDetail(userId: string): AdminUserDetail | null {
+  const user = mockAdminUsers.find((u) => u.id === userId);
+  if (!user) return null;
+
+  // Build detail from list item + mockMe if it's the current user
+  const isSelf = user.telegram_id === mockMe.telegram_id;
+  return {
+    id: user.id,
+    telegram_id: user.telegram_id,
+    username: user.username,
+    role: user.role,
+    is_admin: user.role === 'admin',
+    athlete: isSelf ? mockMe.athlete : (user.role === 'athlete' ? {
+      id: user.id,
+      full_name: user.full_name || 'Unknown',
+      date_of_birth: '2000-01-01',
+      gender: 'M',
+      weight_category: '-68kg',
+      current_weight: 68,
+      sport_rank: 'КМС',
+      country: 'Россия',
+      city: user.city || 'Москва',
+      club: null,
+      photo_url: null,
+      rating_points: 0,
+    } : null),
+    coach: isSelf ? mockMe.coach : (user.role === 'coach' ? {
+      id: user.id,
+      full_name: user.full_name || 'Unknown',
+      date_of_birth: '1990-01-01',
+      gender: 'M',
+      country: 'Россия',
+      city: user.city || 'Москва',
+      club: 'Club',
+      qualification: 'Не указано',
+      photo_url: null,
+      is_verified: false,
+    } : null),
+    created_at: user.created_at,
+    stats: { tournaments_count: 0, medals_count: 0 },
+  };
 }
 
 // ── Profile Stats ───────────────────────────────────────────

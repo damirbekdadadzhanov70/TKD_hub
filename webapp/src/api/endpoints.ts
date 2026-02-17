@@ -1,5 +1,6 @@
 import { apiRequest } from './client';
 import type {
+  AdminUserDetail,
   AdminUserItem,
   AthleteRegistration,
   AthleteUpdate,
@@ -101,6 +102,10 @@ export function rejectRoleRequest(id: string): Promise<void> {
 export function getAdminUsers(q?: string): Promise<AdminUserItem[]> {
   const qs = q ? `?q=${encodeURIComponent(q)}` : '';
   return apiRequest<AdminUserItem[]>(`/admin/users${qs}`);
+}
+
+export function getAdminUserDetail(userId: string): Promise<AdminUserDetail> {
+  return apiRequest<AdminUserDetail>(`/admin/users/${userId}`);
 }
 
 export function deleteAdminUser(userId: string): Promise<void> {

@@ -252,6 +252,9 @@ const ru = {
     roleRequestWeight: 'Весовая категория',
     roleRequestCurrentWeight: 'Текущий вес',
     roleRequestSportRank: 'Спортивное звание',
+    notifications: 'Уведомления',
+    userProfile: 'Профиль пользователя',
+    memberSince: 'Дата регистрации',
   },
   onboarding: {
     chooseLanguage: 'Выберите язык',
