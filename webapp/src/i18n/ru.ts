@@ -17,6 +17,8 @@ const ru = {
     rejected: 'Отклонено',
     optional: 'Необязательно',
     comingSoon: 'Скоро',
+    accountDeleted: 'Аккаунт удалён',
+    accountDeletedDesc: 'Чтобы создать новый профиль, нажмите /start в боте.',
     pageNotFound: 'Страница не найдена',
     couldNotLoad: 'Не удалось загрузить профиль. Пожалуйста, откройте приложение из Telegram.',
     min: 'мин',

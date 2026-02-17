@@ -17,6 +17,8 @@ const en = {
     rejected: 'Rejected',
     optional: 'Optional',
     comingSoon: 'Coming soon',
+    accountDeleted: 'Account deleted',
+    accountDeletedDesc: 'To create a new profile, press /start in the bot.',
     pageNotFound: 'Page not found',
     couldNotLoad: 'Could not load profile. Please reopen the app from Telegram.',
     min: 'min',

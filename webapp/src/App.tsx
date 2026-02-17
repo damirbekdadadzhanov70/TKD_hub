@@ -36,12 +36,30 @@ function NotFoundPage() {
   );
 }
 
+function AccountDeletedScreen() {
+  const { t } = useI18n();
+  return (
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-6">
+      <div className="w-16 h-16 rounded-full bg-bg-secondary flex items-center justify-center mb-5">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <line x1="17" y1="11" x2="23" y2="11" />
+        </svg>
+      </div>
+      <h2 className="text-xl font-heading text-text-heading mb-2">{t('common.accountDeleted')}</h2>
+      <p className="text-sm text-text-secondary text-center leading-relaxed">{t('common.accountDeletedDesc')}</p>
+    </div>
+  );
+}
+
 function AppRoutes() {
-  const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
+  const { data: me, loading, error, mutate } = useApi<MeResponse>(getMe, mockMe, []);
   const location = useLocation();
   const navigate = useNavigate();
 
   const isNone = me?.role === 'none';
+  const isDeleted = !loading && !me && error;
 
   // Guard: redirect to /onboarding if role is 'none'
   useEffect(() => {
@@ -58,6 +76,9 @@ function AppRoutes() {
   }, [loading, me, isNone, location.pathname, navigate]);
 
   if (loading) return <FullScreenSpinner />;
+
+  // User not found in DB (deleted account) — show /start prompt
+  if (isDeleted) return <AccountDeletedScreen />;
 
   return (
     <Routes>

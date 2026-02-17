@@ -163,5 +163,8 @@
   "new_entry_admin_notification": "📋 New tournament entry for <b>{tournament}</b>\n\nCoach: {coach}\nAthletes: {count}",
   "entry_approved_notification": "✅ Entry approved!\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}",
   "entry_rejected_notification": "❌ Entry rejected.\n\nTournament: <b>{tournament}</b>\nAthlete: {athlete}",
-  "account_deleted_admin_notification": "🗑 User <b>{name}</b> (@{username}) has deleted their account."
+  "account_deleted_admin_notification": "User {name} (@{username}) has deleted their account.",
+  "account_deleted_by_admin_notification": "Admin deleted the account of user {name} (@{username}).",
+  "account_created_admin_notification": "New user {name} (@{username}) registered as {role}.",
+  "account_deleted_user_notification": "Your account has been deleted. If you want to create a new profile, press /start."
 }

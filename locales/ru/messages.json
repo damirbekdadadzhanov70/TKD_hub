@@ -163,5 +163,8 @@
   "new_entry_admin_notification": "📋 Новая заявка на турнир <b>{tournament}</b>\n\nТренер: {coach}\nСпортсменов: {count}",
   "entry_approved_notification": "✅ Заявка одобрена!\n\nТурнир: <b>{tournament}</b>\nСпортсмен: {athlete}",
   "entry_rejected_notification": "❌ Заявка отклонена.\n\nТурнир: <b>{tournament}</b>\nСпортсмен: {athlete}",
-  "account_deleted_admin_notification": "🗑 Пользователь <b>{name}</b> (@{username}) удалил свой аккаунт."
+  "account_deleted_admin_notification": "Пользователь {name} (@{username}) удалил свой аккаунт.",
+  "account_deleted_by_admin_notification": "Администратор удалил аккаунт пользователя {name} (@{username}).",
+  "account_created_admin_notification": "Новый пользователь {name} (@{username}) зарегистрировался как {role}.",
+  "account_deleted_user_notification": "Ваш аккаунт был удалён. Если вы хотите создать новый профиль, нажмите /start."
 }

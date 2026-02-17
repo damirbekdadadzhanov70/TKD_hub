@@ -10,6 +10,10 @@ from sqlalchemy.orm import selectinload
 from api.dependencies import AuthContext, get_current_user
 from api.routes.me import AthleteRegistration, CoachRegistration, _resolve_role
 from bot.config import settings
+from bot.utils.notifications import (
+    notify_admins_account_deleted_by_admin,
+    notify_user_account_deleted,
+)
 from db.models.athlete import Athlete
 from db.models.coach import Coach
 from db.models.role_request import RoleRequest
@@ -245,10 +249,46 @@ async def delete_user(
     if uid == ctx.user.id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
 
-    result = await ctx.session.execute(select(User).where(User.id == uid))
+    result = await ctx.session.execute(
+        select(User)
+        .where(User.id == uid)
+        .options(selectinload(User.athlete), selectinload(User.coach))
+    )
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+
+    full_name = (
+        target.athlete.full_name
+        if target.athlete
+        else target.coach.full_name
+        if target.coach
+        else target.username or str(target.telegram_id)
+    )
+    telegram_id = target.telegram_id
+    lang = target.language or "ru"
+
+    # Notify admins and user about deletion
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            await notify_admins_account_deleted_by_admin(
+                bot,
+                full_name=full_name,
+                username=target.username or "",
+                lang="ru",
+            )
+            await notify_user_account_deleted(bot, telegram_id, lang)
+        finally:
+            await bot.session.close()
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Failed to send notification for admin account deletion"
+        )
 
     await ctx.session.delete(target)
     await ctx.session.commit()

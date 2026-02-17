@@ -14,7 +14,11 @@ from api.schemas.athlete import AthleteRead, AthleteUpdate
 from api.schemas.coach import CoachRead, CoachUpdate, MyCoachRead
 from api.schemas.user import MeResponse
 from bot.config import settings
-from bot.utils.notifications import notify_admins_account_deleted
+from bot.utils.notifications import (
+    notify_admins_account_created,
+    notify_admins_account_deleted,
+    notify_user_account_deleted,
+)
 from db.models.athlete import Athlete
 from db.models.coach import Coach, CoachAthlete
 from db.models.role_request import RoleRequest
@@ -85,6 +89,9 @@ async def delete_me(ctx: AuthContext = Depends(get_current_user)):
         else user.username or str(user.telegram_id)
     )
 
+    telegram_id = user.telegram_id
+    lang = user.language or "ru"
+
     # Notify admins before deletion
     try:
         from aiogram import Bot
@@ -97,6 +104,7 @@ async def delete_me(ctx: AuthContext = Depends(get_current_user)):
                 username=user.username or "",
                 lang="ru",
             )
+            await notify_user_account_deleted(bot, telegram_id, lang)
         finally:
             await bot.session.close()
     except Exception:
@@ -465,6 +473,26 @@ async def register_profile(
         await ctx.session.refresh(user, ["athlete", "coach"])
 
     await ctx.session.commit()
+
+    # Notify admins about new profile
+    reg_name = payload.data.get("full_name", "")
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            await notify_admins_account_created(
+                bot,
+                full_name=reg_name,
+                username=user.username or "",
+                role=payload.role,
+                lang="ru",
+            )
+        finally:
+            await bot.session.close()
+    except Exception:
+        logger.warning("Failed to send admin notification for account creation")
+
     return _build_me_response(user)
 
 
