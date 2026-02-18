@@ -1,11 +1,33 @@
 import logging
+import uuid
 
 from aiogram import Bot
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import settings
 from bot.utils.helpers import t
 
 logger = logging.getLogger(__name__)
+
+
+async def create_notification(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    type: str,
+    title: str,
+    body: str,
+) -> None:
+    """Insert a notification row. Import model lazily to avoid circular imports."""
+    from db.models.notification import Notification
+
+    notification = Notification(
+        user_id=user_id,
+        type=type,
+        title=title,
+        body=body,
+    )
+    session.add(notification)
+    await session.flush()
 
 
 async def notify_admins_new_entry(
@@ -111,6 +133,34 @@ async def notify_admins_role_request(
             await bot.send_message(admin_id, text)
         except Exception:
             logger.warning("Failed to notify admin %s about role request", admin_id)
+
+
+async def notify_user_role_approved(
+    bot: Bot,
+    telegram_id: int,
+    role: str,
+    lang: str = "ru",
+) -> None:
+    role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(role, role) if lang == "ru" else role
+    text = t("role_request_approved_notification", lang).format(role=role_label)
+    try:
+        await bot.send_message(telegram_id, text)
+    except Exception:
+        logger.warning("Failed to notify user %s about role approval", telegram_id)
+
+
+async def notify_user_role_rejected(
+    bot: Bot,
+    telegram_id: int,
+    role: str,
+    lang: str = "ru",
+) -> None:
+    role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(role, role) if lang == "ru" else role
+    text = t("role_request_rejected_notification", lang).format(role=role_label)
+    try:
+        await bot.send_message(telegram_id, text)
+    except Exception:
+        logger.warning("Failed to notify user %s about role rejection", telegram_id)
 
 
 async def notify_athlete_interest(

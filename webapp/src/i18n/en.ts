@@ -253,6 +253,8 @@ const en = {
     roleRequestCurrentWeight: 'Current Weight',
     roleRequestSportRank: 'Sport Rank',
     notifications: 'Notifications',
+    noNotifications: 'No notifications',
+    markAllRead: 'Mark all read',
     userProfile: 'User Profile',
     memberSince: 'Member Since',
   },

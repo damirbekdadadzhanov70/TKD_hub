@@ -1,0 +1,81 @@
+from typing import Optional
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy import func, select, update
+
+from api.dependencies import AuthContext, get_current_user
+from db.models.notification import Notification
+
+router = APIRouter()
+
+
+class NotificationOut(BaseModel):
+    id: str
+    type: str
+    title: str
+    body: str
+    read: bool
+    created_at: str
+
+
+class UnreadCountResponse(BaseModel):
+    count: int
+
+
+@router.get("/notifications", response_model=list[NotificationOut])
+async def get_notifications(
+    page: int = 1,
+    limit: int = 20,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    offset = (max(page, 1) - 1) * limit
+    result = await ctx.session.execute(
+        select(Notification)
+        .where(Notification.user_id == ctx.user.id)
+        .order_by(Notification.created_at.desc())
+        .offset(offset)
+        .limit(min(limit, 50))
+    )
+    items = result.scalars().all()
+    return [
+        NotificationOut(
+            id=str(n.id),
+            type=n.type,
+            title=n.title,
+            body=n.body,
+            read=n.read,
+            created_at=str(n.created_at),
+        )
+        for n in items
+    ]
+
+
+@router.get("/notifications/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(
+    ctx: AuthContext = Depends(get_current_user),
+):
+    result = await ctx.session.execute(
+        select(func.count(Notification.id)).where(
+            Notification.user_id == ctx.user.id,
+            Notification.read == False,  # noqa: E712
+        )
+    )
+    count = result.scalar_one()
+    return UnreadCountResponse(count=count)
+
+
+@router.post("/notifications/read")
+async def mark_all_read(
+    ctx: AuthContext = Depends(get_current_user),
+):
+    await ctx.session.execute(
+        update(Notification)
+        .where(
+            Notification.user_id == ctx.user.id,
+            Notification.read == False,  # noqa: E712
+        )
+        .values(read=True)
+    )
+    await ctx.session.commit()
+    return {"status": "ok"}

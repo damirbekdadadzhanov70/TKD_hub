@@ -5,9 +5,9 @@ import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useI18n } from '../i18n/I18nProvider';
-import { getAdminUserDetail, deleteAdminUser } from '../api/endpoints';
-import { getMockAdminUserDetail, deleteMockAdminUser } from '../api/mock';
-import type { AdminUserDetail } from '../types';
+import { getUserDetail, deleteAdminUser, getMe } from '../api/endpoints';
+import { getMockAdminUserDetail, deleteMockAdminUser, mockMe } from '../api/mock';
+import type { AdminUserDetail, MeResponse } from '../types';
 
 const ROLE_BADGE: Record<string, string> = {
   admin: 'bg-accent-light text-accent',
@@ -38,12 +38,14 @@ export default function AdminUserProfile() {
     return showBackButton(() => navigate(-1));
   }, []);
 
+  const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
   const mockDetail = getMockAdminUserDetail(id!);
   const { data: user, loading } = useApi<AdminUserDetail>(
-    () => getAdminUserDetail(id!),
+    () => getUserDetail(id!),
     mockDetail,
     [id],
   );
+  const isAdmin = me?.is_admin ?? false;
 
   if (loading) return <LoadingSpinner />;
   if (!user) return (
@@ -155,36 +157,38 @@ export default function AdminUserProfile() {
         <InfoRow label={t('profile.memberSince')} value={createdDate} />
       </div>
 
-      {/* Delete button */}
-      <div className="px-4 mt-6">
-        {!showDeleteConfirm ? (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
-          >
-            {t('profile.deleteUser')}
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-text-secondary text-center">{t('profile.deleteUserConfirm')}</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 disabled:opacity-40 transition-all"
-              >
-                {deleting ? t('common.deleting') : t('common.delete')}
-              </button>
+      {/* Delete button — admin only */}
+      {isAdmin && (
+        <div className="px-4 mt-6">
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
+            >
+              {t('profile.deleteUser')}
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-text-secondary text-center">{t('profile.deleteUserConfirm')}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 disabled:opacity-40 transition-all"
+                >
+                  {deleting ? t('common.deleting') : t('common.delete')}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

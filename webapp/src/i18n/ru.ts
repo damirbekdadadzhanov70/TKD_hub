@@ -253,6 +253,8 @@ const ru = {
     roleRequestCurrentWeight: 'Текущий вес',
     roleRequestSportRank: 'Спортивное звание',
     notifications: 'Уведомления',
+    noNotifications: 'Нет уведомлений',
+    markAllRead: 'Прочитать все',
     userProfile: 'Профиль пользователя',
     memberSince: 'Дата регистрации',
   },

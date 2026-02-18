@@ -8,6 +8,7 @@ import type {
   CoachSearchResult,
   MeResponse,
   MyCoachLink,
+  NotificationItem,
   PendingAthleteRequest,
   ProfileStats,
   RatingEntry,
@@ -21,6 +22,7 @@ import type {
   TrainingLogCreate,
   TrainingLogStats,
   TrainingLogUpdate,
+  UserSearchItem,
 } from '../types';
 
 // ── localStorage helpers ────────────────────────────────────
@@ -683,4 +685,55 @@ export function removeMockEntryAthlete(tournamentId: string, entryId: string): T
   }
   mockCoachEntries = mockCoachEntries.filter((e) => e.id !== entryId);
   return detail ? { ...detail } : null;
+}
+
+// ── Notifications ────────────────────────────────────────────
+
+export let mockNotifications: NotificationItem[] = [
+  {
+    id: 'mock-notif-1',
+    type: 'role_approved',
+    title: 'Роль одобрена',
+    body: 'Ваша заявка на роль тренер одобрена!',
+    read: false,
+    created_at: '2026-02-17T14:00:00',
+  },
+  {
+    id: 'mock-notif-2',
+    type: 'entry_approved',
+    title: 'Заявка одобрена',
+    body: 'Заявка на Кубок России (Alikhanov Damir) одобрена.',
+    read: true,
+    created_at: '2026-02-16T10:00:00',
+  },
+  {
+    id: 'mock-notif-3',
+    type: 'interest_confirmed',
+    title: 'Интерес отмечен',
+    body: 'Вы отметили интерес к турниру Кубок Казани.',
+    read: true,
+    created_at: '2026-02-15T08:30:00',
+  },
+];
+
+export function mockMarkNotificationsRead() {
+  mockNotifications = mockNotifications.map((n) => ({ ...n, read: true }));
+}
+
+export function getMockUnreadCount(): number {
+  return mockNotifications.filter((n) => !n.read).length;
+}
+
+// ── User Search (all roles) ─────────────────────────────────
+
+export function searchMockUsers(q?: string): UserSearchItem[] {
+  const items: UserSearchItem[] = mockAdminUsers.map((u) => ({
+    id: u.id,
+    full_name: u.full_name,
+    role: u.role,
+    city: u.city,
+    club: null,
+  }));
+  if (!q) return items;
+  return items.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()));
 }

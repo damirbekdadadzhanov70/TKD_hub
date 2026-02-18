@@ -21,6 +21,7 @@ from api.schemas.tournament import (
 from api.utils.pagination import paginate_query
 from bot.config import settings
 from bot.utils.notifications import (
+    create_notification,
     notify_athlete_interest,
     notify_coach_athlete_interest,
     notify_coach_entry_status,
@@ -261,9 +262,35 @@ async def mark_interest(
         athlete_id=ctx.user.athlete.id,
     )
     ctx.session.add(interest)
+
+    # In-app notification for athlete
+    await create_notification(
+        ctx.session,
+        user_id=ctx.user.id,
+        type="interest_confirmed",
+        title="Интерес отмечен",
+        body=f"Вы отметили интерес к турниру {tournament.name}.",
+    )
+
+    # In-app notification for coach if linked
+    coach_link_pre = await ctx.session.execute(
+        select(CoachAthlete)
+        .where(CoachAthlete.athlete_id == ctx.user.athlete.id, CoachAthlete.status == "accepted")
+        .options(selectinload(CoachAthlete.coach).selectinload(Coach.user))
+    )
+    coach_link_pre_row = coach_link_pre.scalar_one_or_none()
+    if coach_link_pre_row and coach_link_pre_row.coach and coach_link_pre_row.coach.user:
+        await create_notification(
+            ctx.session,
+            user_id=coach_link_pre_row.coach.user.id,
+            type="coach_athlete_interest",
+            title="Спортсмен заинтересован",
+            body=f"{ctx.user.athlete.full_name} заинтересован в турнире {tournament.name}.",
+        )
+
     await ctx.session.commit()
 
-    # Notify athlete and their coach
+    # Notify athlete and their coach via Telegram
     user = ctx.user
     athlete = user.athlete
     lang = user.language or "ru"
@@ -518,9 +545,28 @@ async def approve_coach_entries(
 
     for entry in entries:
         entry.status = "approved"
+
+    # In-app notification for coach
+    coach_result = await ctx.session.execute(
+        select(Coach).where(Coach.id == coach_id).options(selectinload(Coach.user))
+    )
+    coach_obj = coach_result.scalar_one_or_none()
+    t_result_q = await ctx.session.execute(select(Tournament.name).where(Tournament.id == tournament_id))
+    t_name_q = t_result_q.scalar_one_or_none() or "?"
+    if coach_obj and coach_obj.user:
+        for entry in entries:
+            a_name = entry.athlete.full_name if entry.athlete else "?"
+            await create_notification(
+                ctx.session,
+                user_id=coach_obj.user.id,
+                type="entry_approved",
+                title="Заявка одобрена",
+                body=f"Заявка на {t_name_q} ({a_name}) одобрена.",
+            )
+
     await ctx.session.commit()
 
-    # Notify coach about approval
+    # Notify coach about approval via Telegram
     await _notify_coach_entries(ctx.session, coach_id, tournament_id, entries, "approved")
 
 
@@ -552,9 +598,28 @@ async def reject_coach_entries(
 
     for entry in entries:
         entry.status = "rejected"
+
+    # In-app notification for coach
+    coach_result2 = await ctx.session.execute(
+        select(Coach).where(Coach.id == coach_id).options(selectinload(Coach.user))
+    )
+    coach_obj2 = coach_result2.scalar_one_or_none()
+    t_result_q2 = await ctx.session.execute(select(Tournament.name).where(Tournament.id == tournament_id))
+    t_name_q2 = t_result_q2.scalar_one_or_none() or "?"
+    if coach_obj2 and coach_obj2.user:
+        for entry in entries:
+            a_name = entry.athlete.full_name if entry.athlete else "?"
+            await create_notification(
+                ctx.session,
+                user_id=coach_obj2.user.id,
+                type="entry_rejected",
+                title="Заявка отклонена",
+                body=f"Заявка на {t_name_q2} ({a_name}) отклонена.",
+            )
+
     await ctx.session.commit()
 
-    # Notify coach about rejection
+    # Notify coach about rejection via Telegram
     await _notify_coach_entries(ctx.session, coach_id, tournament_id, entries, "rejected")
 
 

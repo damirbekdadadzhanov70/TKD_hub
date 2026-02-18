@@ -15,6 +15,7 @@ from api.schemas.coach import CoachRead, CoachUpdate, MyCoachRead
 from api.schemas.user import MeResponse
 from bot.config import settings
 from bot.utils.notifications import (
+    create_notification,
     notify_admins_account_created,
     notify_admins_account_deleted,
     notify_admins_role_request,
@@ -473,10 +474,21 @@ async def register_profile(
         await ctx.session.flush()
         await ctx.session.refresh(user, ["athlete", "coach"])
 
+    # In-app notification for admins about new registration
+    reg_name = payload.data.get("full_name", "")
+    admin_result = await ctx.session.execute(select(User).where(User.telegram_id.in_(list(settings.admin_ids))))
+    for admin_user in admin_result.scalars().all():
+        await create_notification(
+            ctx.session,
+            user_id=admin_user.id,
+            type="account_created",
+            title="Новый пользователь",
+            body=f"{reg_name} (@{user.username or ''}) зарегистрировался как {payload.role}.",
+        )
+
     await ctx.session.commit()
 
-    # Notify admins about new profile
-    reg_name = payload.data.get("full_name", "")
+    # Notify admins about new profile via Telegram
     try:
         from aiogram import Bot
 
@@ -549,11 +561,23 @@ async def request_role_change(
         data=payload.data if payload.data else None,
     )
     ctx.session.add(role_request)
+
+    # In-app notification for admins
+    full_name = payload.data.get("full_name", "") if payload.data else ""
+    admin_result = await ctx.session.execute(select(User).where(User.telegram_id.in_(list(settings.admin_ids))))
+    for admin_user in admin_result.scalars().all():
+        await create_notification(
+            ctx.session,
+            user_id=admin_user.id,
+            type="new_role_request",
+            title="Запрос на роль",
+            body=f"{full_name} (@{user.username or ''}) запрашивает роль {payload.requested_role}.",
+        )
+
     await ctx.session.commit()
     await ctx.session.refresh(role_request)
 
-    # Notify admins about role request
-    full_name = payload.data.get("full_name", "") if payload.data else ""
+    # Notify admins about role request via Telegram
     try:
         from aiogram import Bot
 

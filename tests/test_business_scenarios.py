@@ -2960,3 +2960,195 @@ async def test_audit_logs_non_admin_rejected(auth_client: AsyncClient):
     """Non-admin users get 403."""
     response = await auth_client.get("/api/admin/audit-logs")
     assert response.status_code == 403
+
+
+# ══════════════════════════════════════════════════════════════
+#  SECTION: Notifications API
+# ══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_get_notifications_empty(auth_client: AsyncClient):
+    """New user has no notifications."""
+    response = await auth_client.get("/api/notifications")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_unread_count_zero(auth_client: AsyncClient):
+    """New user has 0 unread notifications."""
+    response = await auth_client.get("/api/notifications/unread-count")
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_notification_on_role_approve(
+    admin_client: AsyncClient,
+    db_session,
+    bare_user,
+    admin_user,
+):
+    """Approving a role request creates an in-app notification for the user."""
+    from db.models.role_request import RoleRequest
+
+    rr = RoleRequest(
+        user_id=bare_user.id,
+        requested_role="athlete",
+        status="pending",
+        data={
+            "full_name": "Test New",
+            "date_of_birth": "2000-01-01",
+            "gender": "M",
+            "weight_category": "68kg",
+            "current_weight": 68,
+            "sport_rank": "КМС",
+            "city": "Москва",
+        },
+    )
+    db_session.add(rr)
+    await db_session.commit()
+    await db_session.refresh(rr)
+
+    resp = await admin_client.post(f"/api/admin/role-requests/{rr.id}/approve")
+    assert resp.status_code == 200
+
+    # Check notification was created for bare_user
+    from db.models.notification import Notification
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(Notification).where(Notification.user_id == bare_user.id)
+    )
+    notifs = result.scalars().all()
+    assert len(notifs) >= 1
+    assert any(n.type == "role_approved" for n in notifs)
+
+
+@pytest.mark.asyncio
+async def test_notification_on_role_reject(
+    admin_client: AsyncClient,
+    db_session,
+    bare_user,
+    admin_user,
+):
+    """Rejecting a role request creates an in-app notification for the user."""
+    from db.models.role_request import RoleRequest
+
+    rr = RoleRequest(
+        user_id=bare_user.id,
+        requested_role="coach",
+        status="pending",
+        data={"full_name": "Test Coach", "date_of_birth": "1990-01-01", "gender": "M", "city": "Москва", "club": "X"},
+    )
+    db_session.add(rr)
+    await db_session.commit()
+    await db_session.refresh(rr)
+
+    resp = await admin_client.post(f"/api/admin/role-requests/{rr.id}/reject")
+    assert resp.status_code == 200
+
+    from db.models.notification import Notification
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(Notification).where(Notification.user_id == bare_user.id)
+    )
+    notifs = result.scalars().all()
+    assert len(notifs) >= 1
+    assert any(n.type == "role_rejected" for n in notifs)
+
+
+@pytest.mark.asyncio
+async def test_mark_notifications_read(auth_client: AsyncClient, db_session, test_user):
+    """Mark all notifications as read."""
+    from db.models.notification import Notification
+
+    n = Notification(
+        user_id=test_user.id,
+        type="test",
+        title="Test",
+        body="Test body",
+        read=False,
+    )
+    db_session.add(n)
+    await db_session.commit()
+
+    # Verify unread
+    resp = await auth_client.get("/api/notifications/unread-count")
+    assert resp.json()["count"] == 1
+
+    # Mark read
+    resp = await auth_client.post("/api/notifications/read")
+    assert resp.status_code == 200
+
+    # Verify read
+    resp = await auth_client.get("/api/notifications/unread-count")
+    assert resp.json()["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_notifications_list(auth_client: AsyncClient, db_session, test_user):
+    """Notifications returned newest first."""
+    from db.models.notification import Notification
+
+    n1 = Notification(user_id=test_user.id, type="a", title="First", body="Body1")
+    n2 = Notification(user_id=test_user.id, type="b", title="Second", body="Body2")
+    db_session.add_all([n1, n2])
+    await db_session.commit()
+
+    resp = await auth_client.get("/api/notifications")
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) == 2
+
+
+# ══════════════════════════════════════════════════════════════
+#  SECTION: Users Search API (all roles)
+# ══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_user_search_all_roles(auth_client: AsyncClient):
+    """Any authenticated user can search users."""
+    response = await auth_client.get("/api/users/search")
+    assert response.status_code == 200
+    items = response.json()
+    assert isinstance(items, list)
+    assert len(items) >= 1  # at least test_user itself
+
+
+@pytest.mark.asyncio
+async def test_user_search_by_query(auth_client: AsyncClient, test_user):
+    """Search by name returns matching users."""
+    response = await auth_client.get("/api/users/search?q=Test")
+    assert response.status_code == 200
+    items = response.json()
+    assert any(u["full_name"] == "Test Athlete" for u in items)
+
+
+@pytest.mark.asyncio
+async def test_user_detail_all_roles(auth_client: AsyncClient, test_user):
+    """Any authenticated user can view user detail."""
+    response = await auth_client.get(f"/api/users/{test_user.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(test_user.id)
+    assert data["athlete"] is not None
+
+
+@pytest.mark.asyncio
+async def test_user_detail_not_found(auth_client: AsyncClient):
+    """Non-existent user returns 404."""
+    import uuid
+
+    response = await auth_client.get(f"/api/users/{uuid.uuid4()}")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_coach_can_search_users(coach_client: AsyncClient):
+    """Coach role can also search users."""
+    response = await coach_client.get("/api/users/search")
+    assert response.status_code == 200

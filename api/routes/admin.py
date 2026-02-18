@@ -14,8 +14,11 @@ from api.schemas.athlete import AthleteRead
 from api.schemas.coach import CoachRead
 from bot.config import settings
 from bot.utils.notifications import (
+    create_notification,
     notify_admins_account_deleted_by_admin,
     notify_user_account_deleted,
+    notify_user_role_approved,
+    notify_user_role_rejected,
 )
 from db.models.athlete import Athlete
 from db.models.coach import Coach
@@ -24,6 +27,7 @@ from db.models.tournament import TournamentEntry, TournamentResult
 from db.models.user import User
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _require_admin(user: User) -> None:
@@ -95,7 +99,6 @@ async def approve_role_request(
         raise HTTPException(status_code=400, detail="Request already processed")
 
     target_user = role_request.user
-    logger = logging.getLogger(__name__)
     logger.info(
         "Approving role request %s: role=%s, data=%s",
         request_id,
@@ -160,7 +163,37 @@ async def approve_role_request(
     role_request.reviewed_at = datetime.utcnow()
     role_request.reviewed_by = ctx.user.id
     ctx.session.add(role_request)
+
+    # In-app notification for user
+    role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(
+        role_request.requested_role, role_request.requested_role
+    )
+    await create_notification(
+        ctx.session,
+        user_id=target_user.id,
+        type="role_approved",
+        title="Роль одобрена",
+        body=f"Ваша заявка на роль {role_label} одобрена!",
+    )
+
     await ctx.session.commit()
+
+    # Notify user via Telegram bot
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=settings.BOT_TOKEN)
+        try:
+            await notify_user_role_approved(
+                bot,
+                telegram_id=target_user.telegram_id,
+                role=role_request.requested_role,
+                lang=target_user.language or "ru",
+            )
+        finally:
+            await bot.session.close()
+    except Exception:
+        logger.warning("Failed to send role approval notification to user %s", target_user.telegram_id)
 
     return {"status": "approved"}
 
@@ -177,18 +210,54 @@ async def reject_role_request(
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid request ID") from err
 
-    result = await ctx.session.execute(select(RoleRequest).where(RoleRequest.id == rid))
+    result = await ctx.session.execute(
+        select(RoleRequest).where(RoleRequest.id == rid).options(selectinload(RoleRequest.user))
+    )
     role_request = result.scalar_one_or_none()
     if not role_request:
         raise HTTPException(status_code=404, detail="Role request not found")
     if role_request.status != "pending":
         raise HTTPException(status_code=400, detail="Request already processed")
 
+    target_user = role_request.user
+
     role_request.status = "rejected"
     role_request.reviewed_at = datetime.utcnow()
     role_request.reviewed_by = ctx.user.id
     ctx.session.add(role_request)
+
+    # In-app notification for user
+    if target_user:
+        role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(
+            role_request.requested_role, role_request.requested_role
+        )
+        await create_notification(
+            ctx.session,
+            user_id=target_user.id,
+            type="role_rejected",
+            title="Роль отклонена",
+            body=f"Ваша заявка на роль {role_label} отклонена.",
+        )
+
     await ctx.session.commit()
+
+    # Notify user via Telegram bot
+    if target_user:
+        try:
+            from aiogram import Bot
+
+            bot = Bot(token=settings.BOT_TOKEN)
+            try:
+                await notify_user_role_rejected(
+                    bot,
+                    telegram_id=target_user.telegram_id,
+                    role=role_request.requested_role,
+                    lang=target_user.language or "ru",
+                )
+            finally:
+                await bot.session.close()
+        except Exception:
+            logger.warning("Failed to send role rejection notification to user %s", target_user.telegram_id)
 
     return {"status": "rejected"}
 
@@ -377,9 +446,7 @@ async def delete_user(
         finally:
             await bot.session.close()
     except Exception:
-        import logging
-
-        logging.getLogger(__name__).warning("Failed to send notification for admin account deletion")
+        logger.warning("Failed to send notification for admin account deletion")
 
     await ctx.session.delete(target)
     await ctx.session.commit()

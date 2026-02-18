@@ -10,18 +10,21 @@ import {
   acceptAthleteRequest,
   approveRoleRequest,
   deleteMyAccount,
-  getAdminUsers,
   getCoachAthletes,
   getCoachEntries,
   getMe,
   getMyCoach,
+  getNotifications,
   getPendingAthletes,
   getProfileStats,
   getRoleRequests,
+  getUnreadCount,
+  markNotificationsRead,
   rejectAthleteRequest,
   rejectRoleRequest,
   requestCoachLink,
   searchCoaches,
+  searchUsers,
   submitRoleRequest,
   switchRole,
   unlinkCoach,
@@ -32,23 +35,25 @@ import {
   acceptMockAthleteRequest,
   approveMockRoleRequest,
   deleteMockAccount,
-  mockAdminUsers,
+  getMockUnreadCount,
   mockCoachAthletes,
   mockCoachEntries,
   mockCoachSearchResults,
+  mockMarkNotificationsRead,
   mockMe,
   mockMyCoach,
+  mockNotifications,
   mockPendingAthletes,
   mockProfileStats,
   mockRoleRequests,
   rejectMockAthleteRequest,
   rejectMockRoleRequest,
   requestMockCoachLink,
+  searchMockUsers,
   switchMockRole,
   unlinkMockCoach,
 } from '../api/mock';
 import type {
-  AdminUserItem,
   AthleteUpdate,
   CoachAthlete,
   CoachEntry,
@@ -56,9 +61,11 @@ import type {
   CoachUpdate,
   MeResponse,
   MyCoachLink,
+  NotificationItem,
   PendingAthleteRequest,
   ProfileStats,
   RoleRequestItem,
+  UserSearchItem,
 } from '../types';
 
 const ROLES: MeResponse['role'][] = ['athlete', 'coach', 'admin'];
@@ -238,31 +245,25 @@ function BellIcon() {
   );
 }
 
-function AdminUserSearchSheet({ onClose }: { onClose: () => void }) {
+function UserSearchSheet({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [users, setUsers] = useState<UserSearchItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const fetchUsers = useCallback(async (q: string) => {
     setSearchLoading(true);
     try {
-      const data = await getAdminUsers(q || undefined);
+      const data = await searchUsers(q || undefined);
       if (Array.isArray(data)) {
         setUsers(data);
       } else {
-        const filtered = q
-          ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
-          : mockAdminUsers;
-        setUsers(filtered);
+        setUsers(searchMockUsers(q));
       }
     } catch {
-      const filtered = q
-        ? mockAdminUsers.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()))
-        : mockAdminUsers;
-      setUsers(filtered);
+      setUsers(searchMockUsers(q));
     } finally {
       setSearchLoading(false);
     }
@@ -323,7 +324,7 @@ function AdminUserSearchSheet({ onClose }: { onClose: () => void }) {
             key={u.id}
             onClick={() => {
               onClose();
-              setTimeout(() => navigate(`/admin/user/${u.id}`), 50);
+              setTimeout(() => navigate(`/user/${u.id}`), 50);
             }}
             className="w-full flex items-center gap-3 py-2.5 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 hover:bg-bg-secondary transition-colors"
           >
@@ -347,6 +348,100 @@ function AdminUserSearchSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; onClose: () => void; onRead: () => void }) {
+  const { t } = useI18n();
+  const { hapticFeedback } = useTelegram();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [nLoading, setNLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getNotifications();
+        if (Array.isArray(data)) {
+          setNotifications(data);
+        } else {
+          setNotifications(mockNotifications);
+        }
+      } catch {
+        setNotifications(mockNotifications);
+      } finally {
+        setNLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleMarkRead = async () => {
+    try {
+      await markNotificationsRead();
+      mockMarkNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      onRead();
+      hapticFeedback('light');
+    } catch { /* ignore */ }
+  };
+
+  const hasUnread = notifications.some((n) => !n.read);
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex items-center justify-between p-4 pb-2 shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 className="text-lg font-heading text-text-heading">{t('profile.notifications')}</h2>
+        </div>
+        {hasUnread && (
+          <button
+            onClick={handleMarkRead}
+            className="text-xs text-accent border-none bg-transparent cursor-pointer hover:underline"
+          >
+            {t('profile.markAllRead')}
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+        {/* Admin: Role Requests section */}
+        {isAdmin && <AdminRoleRequests />}
+
+        {/* Notifications list */}
+        {nLoading && <LoadingSpinner />}
+
+        {!nLoading && notifications.length === 0 && !isAdmin && (
+          <p className="text-sm text-text-secondary text-center py-4">{t('profile.noNotifications')}</p>
+        )}
+
+        {!nLoading && notifications.length > 0 && (
+          <div className="mt-2">
+            {isAdmin && notifications.length > 0 && (
+              <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-4">{t('profile.notifications')}</p>
+            )}
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                className={`py-3 border-b border-dashed border-border ${!n.read ? 'bg-accent-light/30' : ''}`}
+              >
+                <p className="text-[14px] font-medium text-text">{n.title}</p>
+                <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
+                <p className="text-[11px] text-text-disabled mt-1">
+                  {new Date(n.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </BottomSheet>
+  );
+}
+
 export default function Profile() {
   const { user: tgUser } = useTelegram();
   const { t } = useI18n();
@@ -355,7 +450,15 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
-  const [showRoleRequests, setShowRoleRequests] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Fetch unread notifications count
+  const { data: unreadData, mutate: mutateUnread } = useApi<{ count: number }>(
+    getUnreadCount,
+    { count: getMockUnreadCount() },
+    [],
+  );
+  const unreadCount = unreadData?.count ?? 0;
 
   // Fetch role requests count for admin badge
   const { data: roleRequests } = useApi<RoleRequestItem[]>(
@@ -363,7 +466,8 @@ export default function Profile() {
     mockRoleRequests,
     [],
   );
-  const pendingCount = me?.is_admin ? (roleRequests?.length ?? 0) : 0;
+  const pendingRoleRequests = me?.is_admin ? (roleRequests?.length ?? 0) : 0;
+  const badgeCount = unreadCount + pendingRoleRequests;
 
   if (loading) return <LoadingSpinner />;
   if (!me) return (
@@ -389,41 +493,28 @@ export default function Profile() {
 
   return (
     <div>
-      {/* Admin header: search + notifications */}
-      {isAdmin ? (
-        <div className="flex justify-between items-center px-4 pt-4">
-          <button
-            aria-label={t('profile.searchUsers')}
-            onClick={() => setShowUserSearch(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
-          >
-            <SearchIcon />
-          </button>
-          <button
-            aria-label={t('profile.notifications')}
-            onClick={() => setShowRoleRequests(true)}
-            className="relative w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
-          >
-            <BellIcon />
-            {pendingCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-bold px-1">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-        </div>
-      ) : (
-        /* Non-admin: settings gear — top right */
-        <div className="flex justify-end px-4 pt-4">
-          <button
-            aria-label={t('profile.settings')}
-            onClick={() => setShowSettings(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
-          >
-            <GearIcon />
-          </button>
-        </div>
-      )}
+      {/* Header: search + notifications — for ALL roles */}
+      <div className="flex justify-between items-center px-4 pt-4">
+        <button
+          aria-label={t('profile.searchUsers')}
+          onClick={() => setShowUserSearch(true)}
+          className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+        >
+          <SearchIcon />
+        </button>
+        <button
+          aria-label={t('profile.notifications')}
+          onClick={() => setShowNotifications(true)}
+          className="relative w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+        >
+          <BellIcon />
+          {badgeCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-bold px-1">
+              {badgeCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Avatar + name */}
       <div className="flex flex-col items-center pb-4 px-4">
@@ -459,16 +550,14 @@ export default function Profile() {
           <p className="text-sm text-text-secondary mt-0.5">{t('profile.administrator')}</p>
         )}
 
-        {/* Admin: settings button below name */}
-        {isAdmin && (
-          <button
-            onClick={() => setShowSettings(true)}
-            className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors text-sm"
-          >
-            <GearIcon />
-            {t('profile.settings')}
-          </button>
-        )}
+        {/* Settings button below name — for ALL roles */}
+        <button
+          onClick={() => setShowSettings(true)}
+          className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors text-sm"
+        >
+          <GearIcon />
+          {t('profile.settings')}
+        </button>
       </div>
 
       {/* Athlete profile */}
@@ -506,29 +595,18 @@ export default function Profile() {
         />
       )}
 
-      {/* Admin: User search sheet */}
+      {/* User search sheet — for ALL roles */}
       {showUserSearch && (
-        <AdminUserSearchSheet onClose={() => setShowUserSearch(false)} />
+        <UserSearchSheet onClose={() => setShowUserSearch(false)} />
       )}
 
-      {/* Admin: Role requests sheet */}
-      {showRoleRequests && (
-        <BottomSheet onClose={() => setShowRoleRequests(false)}>
-          <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
-            <button
-              onClick={() => setShowRoleRequests(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-heading text-text-heading">{t('profile.roleRequests')}</h2>
-          </div>
-          <div className="px-4 pb-4">
-            <AdminRoleRequests />
-          </div>
-        </BottomSheet>
+      {/* Notifications sheet — for ALL roles */}
+      {showNotifications && (
+        <NotificationsSheet
+          isAdmin={isAdmin}
+          onClose={() => setShowNotifications(false)}
+          onRead={() => mutateUnread({ count: 0 })}
+        />
       )}
     </div>
   );

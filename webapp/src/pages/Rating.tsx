@@ -17,7 +17,8 @@ const PODIUM_COLORS = [
 const PODIUM_ORDER = [1, 0, 2]; // 2nd, 1st, 3rd
 
 const CITY_OPTIONS = ['Москва', 'Санкт-Петербург', 'Казань', 'Нижний Новгород', 'Махачкала', 'Рязань'];
-const WEIGHT_OPTIONS = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
+const WEIGHT_M = ['54kg', '58kg', '63kg', '68kg', '74kg', '80kg', '87kg', '+87kg'];
+const WEIGHT_F = ['46kg', '49kg', '53kg', '57kg', '62kg', '67kg', '73kg', '+73kg'];
 
 /* ---- Chevron icon ---- */
 
@@ -294,6 +295,8 @@ export default function Rating() {
     { value: 'F', label: t('rating.genderFemale') },
   ];
 
+  const weightOptions = gender === 'F' ? WEIGHT_F : WEIGHT_M;
+
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
   const { data: ratings, loading, refetch } = useApi<RatingEntry[]>(
     () => getRatings({
@@ -364,7 +367,7 @@ export default function Rating() {
         <DropdownFilter
           label={t('rating.weight')}
           value={weight}
-          options={WEIGHT_OPTIONS.map((w) => ({ value: w, label: w }))}
+          options={weightOptions.map((w) => ({ value: w, label: w }))}
           allLabel={t('common.all')}
           onChange={setWeight}
         />
@@ -373,7 +376,10 @@ export default function Rating() {
           value={gender}
           options={GENDER_OPTIONS}
           allLabel={t('common.all')}
-          onChange={setGender}
+          onChange={(v) => {
+            setGender(v);
+            setWeight('');
+          }}
         />
       </div>
 

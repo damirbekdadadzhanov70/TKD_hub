@@ -100,7 +100,7 @@ function AppRoutes() {
           <Route path="/training" element={<TrainingLogPage />} />
           <Route path="/rating" element={<Rating />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/admin/user/:id" element={<AdminUserProfile />} />
+          <Route path="/user/:id" element={<AdminUserProfile />} />
           <Route
             path="*"
             element={<NotFoundPage />}

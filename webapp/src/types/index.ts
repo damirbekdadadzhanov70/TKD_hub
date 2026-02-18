@@ -291,6 +291,23 @@ export interface AdminUserDetail {
   };
 }
 
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface UserSearchItem {
+  id: string;
+  full_name: string | null;
+  role: string;
+  city: string | null;
+  club: string | null;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

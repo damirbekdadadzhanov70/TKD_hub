@@ -169,5 +169,7 @@
   "account_deleted_by_admin_notification": "Admin deleted the account of user {name} (@{username}).",
   "account_created_admin_notification": "New user {name} (@{username}) registered as {role}.",
   "account_deleted_user_notification": "Your account has been deleted. If you want to create a new profile, press /start.",
-  "role_request_admin_notification": "User {name} (@{username}) is requesting the role of {role}."
+  "role_request_admin_notification": "User {name} (@{username}) is requesting the role of {role}.",
+  "role_request_approved_notification": "🎉 Your request for the {role} role has been approved! Open the app to get started.",
+  "role_request_rejected_notification": "Unfortunately, your request for the {role} role has been rejected."
 }

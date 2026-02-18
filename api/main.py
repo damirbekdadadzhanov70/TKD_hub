@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import IntegrityError
 
-from api.routes import admin, audit, coach, me, ratings, tournaments, training
+from api.routes import admin, audit, coach, me, notifications, ratings, tournaments, training, users
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -107,6 +107,8 @@ app.include_router(ratings.router, prefix="/api", tags=["ratings"])
 app.include_router(coach.router, prefix="/api", tags=["coach"])
 app.include_router(audit.router, prefix="/api", tags=["audit"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
+app.include_router(notifications.router, prefix="/api", tags=["notifications"])
+app.include_router(users.router, prefix="/api", tags=["users"])
 
 
 @app.get("/api/health")

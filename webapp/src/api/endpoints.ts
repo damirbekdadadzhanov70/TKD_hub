@@ -11,6 +11,7 @@ import type {
   CoachEntry,
   MeResponse,
   MyCoachLink,
+  NotificationItem,
   PaginatedResponse,
   PendingAthleteRequest,
   ProfileStats,
@@ -26,6 +27,7 @@ import type {
   TrainingLogCreate,
   TrainingLogStats,
   TrainingLogUpdate,
+  UserSearchItem,
 } from '../types';
 
 // --- Profile ---
@@ -290,4 +292,29 @@ export async function getCoachAthletes(): Promise<CoachAthlete[]> {
 export async function getCoachEntries(): Promise<CoachEntry[]> {
   const res = await apiRequest<PaginatedResponse<CoachEntry>>('/coach/entries');
   return res.items;
+}
+
+// --- Notifications ---
+
+export function getNotifications(page = 1): Promise<NotificationItem[]> {
+  return apiRequest<NotificationItem[]>(`/notifications?page=${page}&limit=20`);
+}
+
+export function getUnreadCount(): Promise<{ count: number }> {
+  return apiRequest<{ count: number }>('/notifications/unread-count');
+}
+
+export function markNotificationsRead(): Promise<void> {
+  return apiRequest<void>('/notifications/read', { method: 'POST' });
+}
+
+// --- Users (all roles) ---
+
+export function searchUsers(q?: string): Promise<UserSearchItem[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+  return apiRequest<UserSearchItem[]>(`/users/search${qs}`);
+}
+
+export function getUserDetail(userId: string): Promise<AdminUserDetail> {
+  return apiRequest<AdminUserDetail>(`/users/${userId}`);
 }

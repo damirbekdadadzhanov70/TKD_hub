@@ -4,7 +4,7 @@ import BottomNav from './BottomNav';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 
-const DETAIL_ROUTES = ['/tournament/', '/admin/user/'];
+const DETAIL_ROUTES = ['/tournament/', '/user/'];
 
 function isDetailRoute(path: string) {
   return DETAIL_ROUTES.some((r) => path.startsWith(r));
