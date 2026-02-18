@@ -702,7 +702,7 @@ export function removeMockEntryAthlete(tournamentId: string, entryId: string): T
 
 // ── Notifications ────────────────────────────────────────────
 
-export let mockNotifications: NotificationItem[] = [
+const defaultNotifications: NotificationItem[] = [
   {
     id: 'mock-notif-1',
     type: 'role_approved',
@@ -755,12 +755,24 @@ export let mockNotifications: NotificationItem[] = [
   },
 ];
 
+function loadNotifications(): NotificationItem[] {
+  const deletedIds: string[] = load('notif_deleted', []);
+  const readIds: string[] = load('notif_read', []);
+  return defaultNotifications
+    .filter((n) => !deletedIds.includes(n.id))
+    .map((n) => (readIds.includes(n.id) ? { ...n, read: true } : n));
+}
+
 export function mockMarkNotificationsRead() {
-  mockNotifications = mockNotifications.map((n) => ({ ...n, read: true }));
+  const all = loadNotifications();
+  save('notif_read', all.map((n) => n.id));
 }
 
 export function deleteMockNotification(id: string) {
-  mockNotifications = mockNotifications.filter((n) => n.id !== id);
+  const deletedIds: string[] = load('notif_deleted', []);
+  if (!deletedIds.includes(id)) {
+    save('notif_deleted', [...deletedIds, id]);
+  }
 }
 
 function filterByRole(items: NotificationItem[]): NotificationItem[] {
@@ -769,11 +781,11 @@ function filterByRole(items: NotificationItem[]): NotificationItem[] {
 }
 
 export function getMockNotificationsForRole(): NotificationItem[] {
-  return filterByRole(mockNotifications);
+  return filterByRole(loadNotifications());
 }
 
 export function getMockUnreadCount(): number {
-  return filterByRole(mockNotifications).filter((n) => !n.read).length;
+  return filterByRole(loadNotifications()).filter((n) => !n.read).length;
 }
 
 // ── User Search (all roles) ─────────────────────────────────
