@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -180,7 +180,7 @@ async def accept_athlete_request(
         raise HTTPException(status_code=404, detail="Pending request not found")
 
     link.status = "accepted"
-    link.accepted_at = datetime.now(timezone.utc)
+    link.accepted_at = datetime.utcnow()
     ctx.session.add(link)
     await ctx.session.commit()
     return {"status": "accepted"}
