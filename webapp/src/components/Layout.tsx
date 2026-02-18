@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import BottomNav from './BottomNav';
 import { resetBottomSheetOverflow } from './bottomSheetState';
@@ -18,10 +18,14 @@ export default function Layout() {
   const mainRef = useRef<HTMLElement>(null);
   const prevPath = useRef(location.pathname);
 
-  // Scroll to top on route change + clear any stale overflow from BottomSheet
+  // Clear stale overflow from BottomSheet synchronously before paint
+  useLayoutEffect(() => {
+    resetBottomSheetOverflow();
+  }, [location.pathname]);
+
+  // Scroll to top on route change
   useEffect(() => {
     window.scrollTo(0, 0);
-    resetBottomSheetOverflow();
   }, [location.pathname]);
 
   useEffect(() => {
