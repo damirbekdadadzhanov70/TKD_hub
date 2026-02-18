@@ -10,7 +10,6 @@ function restoreOverflow() {
   document.documentElement.style.overflow = '';
   document.documentElement.style.paddingRight = '';
   document.body.style.overflow = '';
-  document.body.style.paddingRight = '';
 }
 
 export function lockOverflow() {
@@ -19,7 +18,6 @@ export function lockOverflow() {
   document.body.style.overflow = 'hidden';
   if (scrollbarWidth > 0) {
     document.documentElement.style.paddingRight = `${scrollbarWidth}px`;
-    document.body.style.paddingRight = `${scrollbarWidth}px`;
   }
 }
 
