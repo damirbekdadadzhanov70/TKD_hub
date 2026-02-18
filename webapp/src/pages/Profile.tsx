@@ -256,6 +256,12 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
   const [users, setUsers] = useState<UserSearchItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input after mount without scrolling the background page
+  useEffect(() => {
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const fetchUsers = useCallback(async (q: string) => {
     setSearchLoading(true);
@@ -308,10 +314,10 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
 
       <div className="px-4 pb-2">
         <input
+          ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('profile.searchUsers')}
-          autoFocus
           className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
         />
       </div>
@@ -1234,6 +1240,11 @@ function CoachSearchSheet({
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const coachInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    coachInputRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) {
@@ -1308,10 +1319,10 @@ function CoachSearchSheet({
 
       <div className="px-4 pb-2">
         <input
+          ref={coachInputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('profile.searchCoachPlaceholder')}
-          autoFocus
           className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
         />
       </div>
