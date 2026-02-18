@@ -3102,6 +3102,33 @@ async def test_get_notifications_list(auth_client: AsyncClient, db_session, test
     assert len(items) == 2
 
 
+@pytest.mark.asyncio
+async def test_delete_notification(auth_client: AsyncClient, db_session, test_user):
+    """User can delete their own notification."""
+    from db.models.notification import Notification
+
+    n = Notification(user_id=test_user.id, type="test", title="To delete", body="Body")
+    db_session.add(n)
+    await db_session.commit()
+    await db_session.refresh(n)
+
+    resp = await auth_client.delete(f"/api/notifications/{n.id}")
+    assert resp.status_code == 200
+
+    # Verify it's gone
+    resp2 = await auth_client.get("/api/notifications")
+    assert all(item["id"] != str(n.id) for item in resp2.json())
+
+
+@pytest.mark.asyncio
+async def test_delete_notification_not_found(auth_client: AsyncClient):
+    """Deleting non-existent notification returns 404."""
+    import uuid
+
+    resp = await auth_client.delete(f"/api/notifications/{uuid.uuid4()}")
+    assert resp.status_code == 404
+
+
 # ══════════════════════════════════════════════════════════════
 #  SECTION: Users Search API (all roles)
 # ══════════════════════════════════════════════════════════════

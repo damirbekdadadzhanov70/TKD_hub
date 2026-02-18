@@ -720,6 +720,10 @@ export function mockMarkNotificationsRead() {
   mockNotifications = mockNotifications.map((n) => ({ ...n, read: true }));
 }
 
+export function deleteMockNotification(id: string) {
+  mockNotifications = mockNotifications.filter((n) => n.id !== id);
+}
+
 export function getMockUnreadCount(): number {
   return mockNotifications.filter((n) => !n.read).length;
 }

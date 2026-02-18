@@ -10,6 +10,7 @@ import {
   acceptAthleteRequest,
   approveRoleRequest,
   deleteMyAccount,
+  deleteNotification,
   getCoachAthletes,
   getCoachEntries,
   getMe,
@@ -35,6 +36,7 @@ import {
   acceptMockAthleteRequest,
   approveMockRoleRequest,
   deleteMockAccount,
+  deleteMockNotification,
   getMockUnreadCount,
   mockCoachAthletes,
   mockCoachEntries,
@@ -347,9 +349,94 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+function SwipeNotificationItem({
+  n,
+  onDelete,
+}: {
+  n: NotificationItem;
+  onDelete: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  const [offsetX, setOffsetX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const locked = useRef(false);
+
+  const DELETE_THRESHOLD = 80;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    locked.current = false;
+    setSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swiping) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+
+    // Lock direction on first significant move
+    if (!locked.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      locked.current = true;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        setSwiping(false);
+        return;
+      }
+    }
+
+    if (dx < 0) {
+      setOffsetX(Math.max(dx, -120));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setSwiping(false);
+    if (offsetX < -DELETE_THRESHOLD) {
+      setOffsetX(-120);
+    } else {
+      setOffsetX(0);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* Delete button behind */}
+      <div className="absolute inset-y-0 right-0 flex items-center">
+        <button
+          onClick={() => onDelete(n.id)}
+          className="h-full px-5 bg-rose-500 text-white text-xs font-medium border-none cursor-pointer active:bg-rose-600 transition-colors"
+        >
+          {t('common.delete')}
+        </button>
+      </div>
+      {/* Swipeable content */}
+      <div
+        className={`relative bg-bg-secondary ${!n.read ? 'bg-accent-light/30' : ''}`}
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: swiping ? 'none' : 'transform 0.2s ease-out',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="py-3 px-0 border-b border-dashed border-border">
+          <p className="text-[14px] font-medium text-text">{n.title}</p>
+          <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
+          <p className="text-[11px] text-text-disabled mt-1">
+            {new Date(n.created_at).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; onClose: () => void; onRead: () => void }) {
   const { t } = useI18n();
-  const { hapticFeedback } = useTelegram();
+  const { hapticFeedback, hapticNotification } = useTelegram();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [nLoading, setNLoading] = useState(true);
 
@@ -378,6 +465,19 @@ function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; on
       onRead();
       hapticFeedback('light');
     } catch { /* ignore */ }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteNotification(id);
+      deleteMockNotification(id);
+      const wasUnread = notifications.find((n) => n.id === id && !n.read);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (wasUnread) onRead();
+      hapticNotification('success');
+    } catch {
+      hapticNotification('error');
+    }
   };
 
   const hasUnread = notifications.some((n) => !n.read);
@@ -423,16 +523,7 @@ function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; on
               <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-4">{t('profile.notifications')}</p>
             )}
             {notifications.map((n) => (
-              <div
-                key={n.id}
-                className={`py-3 border-b border-dashed border-border ${!n.read ? 'bg-accent-light/30' : ''}`}
-              >
-                <p className="text-[14px] font-medium text-text">{n.title}</p>
-                <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
-                <p className="text-[11px] text-text-disabled mt-1">
-                  {new Date(n.created_at).toLocaleDateString()}
-                </p>
-              </div>
+              <SwipeNotificationItem key={n.id} n={n} onDelete={handleDelete} />
             ))}
           </div>
         )}

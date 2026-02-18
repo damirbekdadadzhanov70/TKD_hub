@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from api.dependencies import AuthContext, get_current_user
 from db.models.notification import Notification
@@ -77,3 +79,25 @@ async def mark_all_read(
     )
     await ctx.session.commit()
     return {"status": "ok"}
+
+
+@router.delete("/notifications/{notification_id}")
+async def delete_notification(
+    notification_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    try:
+        nid = uuid.UUID(notification_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid notification ID") from err
+
+    result = await ctx.session.execute(
+        delete(Notification).where(
+            Notification.id == nid,
+            Notification.user_id == ctx.user.id,
+        )
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    await ctx.session.commit()
+    return {"status": "deleted"}

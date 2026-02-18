@@ -308,6 +308,10 @@ export function markNotificationsRead(): Promise<void> {
   return apiRequest<void>('/notifications/read', { method: 'POST' });
 }
 
+export function deleteNotification(id: string): Promise<void> {
+  return apiRequest<void>(`/notifications/${id}`, { method: 'DELETE' });
+}
+
 // --- Users (all roles) ---
 
 export function searchUsers(q?: string): Promise<UserSearchItem[]> {

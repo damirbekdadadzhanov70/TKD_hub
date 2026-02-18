@@ -32,12 +32,13 @@ export default function BottomSheet({
 
   // Prevent background scroll — only the first sheet locks, only the last unlocks
   useEffect(() => {
-    const html = document.documentElement;
     incrementOpen();
-    const scrollbarWidth = window.innerWidth - html.clientWidth;
-    html.style.overflow = 'hidden';
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
     if (scrollbarWidth > 0) {
-      html.style.paddingRight = `${scrollbarWidth}px`;
+      document.documentElement.style.paddingRight = `${scrollbarWidth}px`;
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
     return () => {
       decrementOpen();

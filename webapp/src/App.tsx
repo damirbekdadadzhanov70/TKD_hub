@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { resetBottomSheetOverflow } from './components/bottomSheetState';
 import Layout from './components/Layout';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
@@ -120,8 +121,7 @@ export default function App() {
     setHeaderColor('#FAFAF9');
     setBackgroundColor('#FAFAF9');
     // Safety: clear stale overflow:hidden left by BottomSheet from previous session
-    document.documentElement.style.overflow = '';
-    document.documentElement.style.paddingRight = '';
+    resetBottomSheetOverflow();
   }, []);
 
   return (
