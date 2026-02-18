@@ -25,6 +25,17 @@ from db.models.role_request import RoleRequest
 
 router = Router()
 
+MAX_NAME = 255
+MAX_TEXT = 500
+MAX_CITY = 100
+MAX_CLUB = 255
+
+
+def _check_len(text: str, max_len: int) -> str | None:
+    """Return stripped text if within limit, else None."""
+    stripped = text.strip()
+    return stripped if len(stripped) <= max_len else None
+
 
 # ──────────────────────────────────────────────
 #  ATHLETE REGISTRATION
@@ -35,7 +46,11 @@ router = Router()
 async def athlete_full_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(full_name=html.escape(message.text.strip()))
+    name = _check_len(message.text, MAX_NAME)
+    if not name:
+        await message.answer(t("input_too_long", lang).format(max=MAX_NAME))
+        return
+    await state.update_data(full_name=html.escape(name))
     await message.answer(t("enter_dob", lang))
     await state.set_state(AthleteRegistration.date_of_birth)
 
@@ -162,7 +177,11 @@ async def athlete_city_callback(callback: CallbackQuery, state: FSMContext):
 async def athlete_city_custom(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(city=html.escape(message.text.strip()))
+    city = _check_len(message.text, MAX_CITY)
+    if not city:
+        await message.answer(t("input_too_long", lang).format(max=MAX_CITY))
+        return
+    await state.update_data(city=html.escape(city))
     await message.answer(
         t("enter_club", lang),
         reply_markup=club_skip_keyboard(lang),
@@ -187,7 +206,11 @@ async def athlete_club_skip(callback: CallbackQuery, state: FSMContext):
 async def athlete_club_text(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(club=html.escape(message.text.strip()))
+    club = _check_len(message.text, MAX_CLUB)
+    if not club:
+        await message.answer(t("input_too_long", lang).format(max=MAX_CLUB))
+        return
+    await state.update_data(club=html.escape(club))
     await message.answer(
         t("send_photo", lang),
         reply_markup=photo_skip_keyboard(lang),
@@ -248,7 +271,11 @@ async def _save_athlete(message: Message, state: FSMContext):
 async def coach_full_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(full_name=html.escape(message.text.strip()))
+    name = _check_len(message.text, MAX_NAME)
+    if not name:
+        await message.answer(t("input_too_long", lang).format(max=MAX_NAME))
+        return
+    await state.update_data(full_name=html.escape(name))
     await message.answer(t("enter_dob", lang))
     await state.set_state(CoachRegistration.date_of_birth)
 
@@ -337,7 +364,11 @@ async def coach_city_callback(callback: CallbackQuery, state: FSMContext):
 async def coach_city_custom(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(city=html.escape(message.text.strip()))
+    city = _check_len(message.text, MAX_CITY)
+    if not city:
+        await message.answer(t("input_too_long", lang).format(max=MAX_CITY))
+        return
+    await state.update_data(city=html.escape(city))
     await message.answer(t("enter_club", lang))
     await state.set_state(CoachRegistration.club)
 
@@ -346,7 +377,11 @@ async def coach_city_custom(message: Message, state: FSMContext):
 async def coach_club(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(club=html.escape(message.text.strip()))
+    club = _check_len(message.text, MAX_CLUB)
+    if not club:
+        await message.answer(t("input_too_long", lang).format(max=MAX_CLUB))
+        return
+    await state.update_data(club=html.escape(club))
     await message.answer(
         t("send_photo", lang),
         reply_markup=photo_skip_keyboard(lang),

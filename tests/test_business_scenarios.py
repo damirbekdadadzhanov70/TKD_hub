@@ -2624,8 +2624,7 @@ async def test_unlink_coach(auth_client: AsyncClient, coach_user: User, db_sessi
     )
 
     resp = await auth_client.delete("/api/me/my-coach")
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "unlinked"
+    assert resp.status_code == 204
 
     # Verify it's gone
     resp2 = await auth_client.get("/api/me/my-coach")
@@ -2778,8 +2777,7 @@ async def test_admin_delete_user(admin_client: AsyncClient, db_session: AsyncSes
     user_id = str(test_user.id)
 
     resp = await admin_client.delete(f"/api/admin/users/{user_id}")
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "deleted"
+    assert resp.status_code == 204
 
     # User gone from DB
     result = await db_session.execute(select(User).where(User.id == test_user.id))
@@ -2871,10 +2869,7 @@ async def test_delete_athlete_profile_keeps_coach(
     user_id = str(dual_profile_user.id)
 
     resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/athlete")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "deleted"
-    assert data["remaining_role"] == "coach"
+    assert resp.status_code == 204
 
     # Verify via admin detail endpoint — user still exists with coach only
     detail = await admin_client.get(f"/api/admin/users/{user_id}")
@@ -2893,10 +2888,7 @@ async def test_delete_coach_profile_keeps_athlete(
     user_id = str(dual_profile_user.id)
 
     resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/coach")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "deleted"
-    assert data["remaining_role"] == "athlete"
+    assert resp.status_code == 204
 
     # Verify via admin detail endpoint — user still exists with athlete only
     detail = await admin_client.get(f"/api/admin/users/{user_id}")
@@ -2914,9 +2906,7 @@ async def test_delete_profile_resets_active_role(admin_client: AsyncClient, db_s
 
     # test_user has only athlete profile
     resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/athlete")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["remaining_role"] is None
+    assert resp.status_code == 204
 
     # Verify via admin detail endpoint — user now has role 'none'
     detail = await admin_client.get(f"/api/admin/users/{user_id}")
@@ -3219,7 +3209,7 @@ async def test_delete_notification(auth_client: AsyncClient, db_session, test_us
     await db_session.refresh(n)
 
     resp = await auth_client.delete(f"/api/notifications/{n.id}")
-    assert resp.status_code == 200
+    assert resp.status_code == 204
 
     # Verify it's gone
     resp2 = await auth_client.get("/api/notifications")

@@ -1,5 +1,5 @@
 from aiogram import Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
@@ -17,6 +17,20 @@ from db.base import async_session
 from db.models.user import User
 
 router = Router()
+
+
+@router.message(Command("cancel"))
+async def cmd_cancel(message: Message, state: FSMContext):
+    """Global /cancel — clears FSM state from any flow."""
+    current = await state.get_state()
+    data = await state.get_data()
+    lang = data.get("language", "ru") if data else "ru"
+    await state.clear()
+
+    if current:
+        await message.answer(t("cancel_done", lang))
+    else:
+        await message.answer(t("cancel_nothing", lang))
 
 
 def _webapp_keyboard(lang: str) -> InlineKeyboardMarkup:

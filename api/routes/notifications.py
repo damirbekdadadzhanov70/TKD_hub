@@ -96,7 +96,7 @@ async def mark_all_read(
     return {"status": "ok"}
 
 
-@router.delete("/notifications/{notification_id}")
+@router.delete("/notifications/{notification_id}", status_code=204)
 async def delete_notification(
     notification_id: str,
     ctx: AuthContext = Depends(get_current_user),
@@ -115,4 +115,3 @@ async def delete_notification(
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Notification not found")
     await ctx.session.commit()
-    return {"status": "deleted"}

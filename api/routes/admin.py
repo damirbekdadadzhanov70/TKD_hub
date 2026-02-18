@@ -398,7 +398,7 @@ async def list_users(
     return items
 
 
-@router.delete("/admin/users/{user_id}")
+@router.delete("/admin/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
     ctx: AuthContext = Depends(get_current_user),
@@ -451,13 +451,11 @@ async def delete_user(
     await ctx.session.delete(target)
     await ctx.session.commit()
 
-    return {"status": "deleted"}
-
 
 # ── Delete single profile (athlete or coach) ────────────────
 
 
-@router.delete("/admin/users/{user_id}/profile/{role}")
+@router.delete("/admin/users/{user_id}/profile/{role}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_profile(
     user_id: str,
     role: str,
@@ -496,8 +494,6 @@ async def delete_user_profile(
     target.active_role = remaining
     ctx.session.add(target)
     await ctx.session.commit()
-
-    return {"status": "deleted", "remaining_role": remaining}
 
 
 # ── Coach verification ──────────────────────────────────────

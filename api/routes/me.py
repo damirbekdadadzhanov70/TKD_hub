@@ -377,7 +377,7 @@ async def request_coach_link(
     )
 
 
-@router.delete("/me/my-coach")
+@router.delete("/me/my-coach", status_code=status.HTTP_204_NO_CONTENT)
 async def unlink_coach(ctx: AuthContext = Depends(get_current_user)):
     if not ctx.user.athlete:
         raise HTTPException(
@@ -392,7 +392,6 @@ async def unlink_coach(ctx: AuthContext = Depends(get_current_user)):
 
     await ctx.session.delete(link)
     await ctx.session.commit()
-    return {"status": "unlinked"}
 
 
 # ── Registration ─────────────────────────────────────────────

@@ -28,6 +28,17 @@ from db.models.user import User
 
 router = Router()
 
+MAX_NAME = 255
+MAX_TEXT = 2000
+MAX_CITY = 100
+MAX_VENUE = 255
+
+
+def _check_len(text: str, max_len: int) -> str | None:
+    """Return stripped text if within limit, else None."""
+    stripped = text.strip()
+    return stripped if len(stripped) <= max_len else None
+
 
 async def _get_admin_lang(telegram_id: int) -> str:
     async with async_session() as session:
@@ -60,7 +71,11 @@ async def cmd_add_tournament(message: Message, state: FSMContext):
 async def add_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(t_name=message.text.strip())
+    name = _check_len(message.text, MAX_NAME)
+    if not name:
+        await message.answer(t("input_too_long", lang).format(max=MAX_NAME))
+        return
+    await state.update_data(t_name=name)
     await message.answer(t("enter_tournament_description", lang))
     await state.set_state(AddTournament.description)
 
@@ -69,7 +84,11 @@ async def add_name(message: Message, state: FSMContext):
 async def add_description(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(t_description=message.text.strip())
+    desc = _check_len(message.text, MAX_TEXT)
+    if not desc:
+        await message.answer(t("input_too_long", lang).format(max=MAX_TEXT))
+        return
+    await state.update_data(t_description=desc)
     await message.answer(t("enter_start_date", lang))
     await state.set_state(AddTournament.start_date)
 
@@ -115,7 +134,11 @@ async def add_end_date(message: Message, state: FSMContext):
 async def add_city(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(t_city=message.text.strip())
+    city = _check_len(message.text, MAX_CITY)
+    if not city:
+        await message.answer(t("input_too_long", lang).format(max=MAX_CITY))
+        return
+    await state.update_data(t_city=city)
     await message.answer(t("choose_country", lang), reply_markup=country_keyboard(lang))
     await state.set_state(AddTournament.country)
 
@@ -156,7 +179,11 @@ async def add_country_text(message: Message, state: FSMContext):
 async def add_venue(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(t_venue=message.text.strip())
+    venue = _check_len(message.text, MAX_VENUE)
+    if not venue:
+        await message.answer(t("input_too_long", lang).format(max=MAX_VENUE))
+        return
+    await state.update_data(t_venue=venue)
     await message.answer(t("enter_age_categories", lang))
     await state.set_state(AddTournament.age_categories)
 

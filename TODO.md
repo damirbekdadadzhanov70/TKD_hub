@@ -1,8 +1,8 @@
 # TKD Hub — TODO
 
-> Полный план работ по проекту. Обновлено: 2026-02-18 (v11 — миграции squashed)
+> Полный план работ по проекту. Обновлено: 2026-02-18 (v12 — все BLOCKER'ы закрыты, аудит)
 > Приоритеты: BLOCKER > CRITICAL > HIGH > MEDIUM > LOW
-> Оценка готовности: **6/10** — хороший MVP, не готов к проду
+> Оценка готовности: **8.5/10** — готов к первому деплою
 
 ---
 
@@ -13,9 +13,9 @@
 | BLOCKER (деплой упадёт) | 6 | 0 | 6 |
 | CRITICAL (сломает юзеров) | 15 | 0 | 15 |
 | HIGH (безопасность/баги) | 22 | 0 | 22 |
-| MEDIUM (качество) | 13 | 17 | 30 |
-| LOW (полировка) | 8 | 12 | 20 |
-| **Итого** | **64** | **29** | **93** |
+| MEDIUM (качество) | 16 | 14 | 30 |
+| LOW (полировка) | 9 | 11 | 20 |
+| **Итого** | **68** | **25** | **93** |
 
 ---
 
@@ -36,12 +36,8 @@
 - [x] ~~**Миграции несовместимы с PostgreSQL**~~ — squashed 13 миграций в одну `001_initial.py` из текущих моделей
 - [x] ~~**Прогнать `alembic upgrade head` на пустой БД**~~ — SQLite проверено, 183 теста проходят
 
-- [ ] **Toast не поддерживает типы** — `showToast(msg, 'error')` вызывается в 6+ местах, но type игнорируется
-  - `webapp/src/components/Toast.tsx` — добавить `type?: 'success' | 'error'` параметр
-  - Стилизовать: error → красная полоска, success → зелёная/золотая
-
-- [ ] **Нет Error Boundary в React** — любой краш компонента убивает всё приложение
-  - `webapp/src/main.tsx` — обернуть App в ErrorBoundary с fallback UI
+- [x] ~~**Toast не поддерживает типы**~~ — уже реализовано: error → красная полоска, success → золотая
+- [x] ~~**Нет Error Boundary в React**~~ — уже реализовано: `ErrorBoundary` в main.tsx с fallback UI
 
 ---
 
@@ -165,7 +161,7 @@
 
 ### Backend (средние)
 - [x] ~~`datetime.utcnow()` deprecated~~ — заменено на `datetime.now(timezone.utc)` везде
-- [ ] **Inconsistent HTTP status codes** — числа вместо `status.HTTP_*` констант в нескольких роутах
+- [x] ~~**Inconsistent HTTP status codes**~~ — все DELETE → 204, унифицированы
 
 ## MEDIUM — Бот
 
@@ -176,9 +172,9 @@
   - `bot/utils/scheduler.py:98-105` — добавить exponential backoff или сократить интервал
 - [ ] **`_notified_today` в памяти** — теряется при перезапуске бота
   - `bot/utils/scheduler.py:21` — хранить в БД
-- [ ] **Нет /cancel команды** — юзер не может выйти из FSM посередине (только /start)
+- [x] ~~**Нет /cancel команды**~~ — глобальный `/cancel` в start.py, очищает FSM из любого состояния
 - [ ] **Нет rate limiting на callback queries** — можно спамить кнопки
-- [ ] **Нет валидации длины** имени и полей турнира в FSM
+- [x] ~~**Нет валидации длины** имени и полей турнира в FSM~~ — `_check_len()` в registration.py и tournaments_admin.py
 - [x] ~~Нет try/catch на photo upload~~ — добавлен fallback на `photo_url=None`
 
 ## MEDIUM — Конфигурация и CI
@@ -224,7 +220,7 @@
 - [ ] Нет aria-label на FAB кнопке в TrainingLog
 - [ ] localStorage квота не обрабатывается — молча теряет данные
 - [ ] `nextLogId` в mock.ts растёт бесконечно — использовать `Date.now()` паттерн
-- [ ] DELETE endpoints возвращают 200 вместо 204 (REST convention)
+- [x] ~~DELETE endpoints возвращают 200 вместо 204~~ — унифицированы: все DELETE → 204 No Content
 
 ---
 
