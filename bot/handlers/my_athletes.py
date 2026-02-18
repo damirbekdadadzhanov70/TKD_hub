@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from bot.keyboards.my_athletes import athlete_detail_keyboard, athletes_list_keyboard
-from bot.utils.callback import CallbackParseError, parse_callback
+from bot.utils.callback import CallbackParseError, parse_callback, parse_callback_uuid
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.athlete import Athlete
@@ -75,13 +75,25 @@ async def on_view_athlete(callback: CallbackQuery):
         return
 
     try:
-        parts = parse_callback(callback.data, "view_athlete")
+        _, athlete_id = parse_callback_uuid(callback.data, "view_athlete")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    athlete_id = parts[1]
 
     async with async_session() as session:
+        # Verify coach owns this athlete via CoachAthlete link
+        link_result = await session.execute(
+            select(CoachAthlete).where(
+                CoachAthlete.coach_id == coach.id,
+                CoachAthlete.athlete_id == athlete_id,
+                CoachAthlete.status == "accepted",
+            )
+        )
+        if not link_result.scalar_one_or_none():
+            await callback.message.edit_text(t("athlete_not_found", lang))
+            await callback.answer()
+            return
+
         result = await session.execute(select(Athlete).where(Athlete.id == athlete_id))
         athlete = result.scalar_one_or_none()
 
@@ -113,11 +125,10 @@ async def on_unlink_athlete(callback: CallbackQuery):
         return
 
     try:
-        parts = parse_callback(callback.data, "unlink_athlete")
+        _, athlete_id = parse_callback_uuid(callback.data, "unlink_athlete")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    athlete_id = parts[1]
 
     async with async_session() as session:
         result = await session.execute(

@@ -299,7 +299,7 @@ export default function Rating() {
   const weightOptions = gender === 'F' ? WEIGHT_F : WEIGHT_M;
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
-  const { data: ratings, loading, refetch } = useApi<RatingEntry[]>(
+  const { data: ratings, loading, isDemo, refetch } = useApi<RatingEntry[]>(
     () => getRatings({
       country: city || undefined,
       weight_category: weight || undefined,
@@ -311,13 +311,15 @@ export default function Rating() {
 
   const myAthleteId = me?.athlete?.id;
 
-  // Sync user's rating entry with current profile data + client-side filtering
+  // Sync user's rating entry with current profile data
   const entries = useMemo(() => {
     let raw = ratings || [];
-    // Client-side filtering for demo mode
-    if (city) raw = raw.filter((e) => e.city === city);
-    if (weight) raw = raw.filter((e) => e.weight_category === weight);
-    if (gender) raw = raw.filter((e) => e.gender === gender);
+    // Client-side filtering only in demo mode (API already filters in production)
+    if (isDemo) {
+      if (city) raw = raw.filter((e) => e.city === city);
+      if (weight) raw = raw.filter((e) => e.weight_category === weight);
+      if (gender) raw = raw.filter((e) => e.gender === gender);
+    }
     // Sync current user's data
     if (myAthleteId && me?.athlete) {
       const a = me.athlete;
@@ -331,7 +333,7 @@ export default function Rating() {
     return raw
       .sort((a, b) => b.rating_points - a.rating_points)
       .map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [ratings, myAthleteId, me, city, weight, gender]);
+  }, [ratings, myAthleteId, me, city, weight, gender, isDemo]);
 
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);

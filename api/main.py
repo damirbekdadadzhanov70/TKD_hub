@@ -57,7 +57,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 _env = os.getenv("ENVIRONMENT", "development")
 _cors_extra = os.getenv("CORS_ORIGINS", "")
 
-allowed_origins: list[str] = ["https://web.telegram.org"]
+allowed_origins: list[str] = [
+    "https://web.telegram.org",
+    "https://tkd-hub.vercel.app",
+]
 _origin_regex: str | None = None
 
 if _cors_extra:
@@ -71,7 +74,7 @@ if _env != "production":
             "https://localhost:5174",
         ]
     )
-    _origin_regex = r"https://.*\.(vercel\.app|ngrok-free\.app|ngrok\.io)"
+    _origin_regex = r"https://tkd-hub[a-z0-9-]*\.vercel\.app|https://.*\.(ngrok-free\.app|ngrok\.io)"
 
 app.add_middleware(
     CORSMiddleware,

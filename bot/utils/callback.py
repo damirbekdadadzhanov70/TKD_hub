@@ -1,3 +1,6 @@
+import uuid
+
+
 class CallbackParseError(Exception):
     pass
 
@@ -24,3 +27,19 @@ def parse_callback(data: str | None, prefix: str, expected_parts: int = 2) -> li
     if len(parts) != expected_parts:
         raise CallbackParseError(f"Expected {expected_parts} parts, got {len(parts)}: {data!r}")
     return parts
+
+
+def parse_callback_uuid(data: str | None, prefix: str) -> tuple[str, uuid.UUID]:
+    """Parse callback_data and validate the second part as UUID.
+
+    Returns:
+        Tuple of (prefix, uuid.UUID).
+
+    Raises:
+        CallbackParseError: if parsing fails or UUID is invalid.
+    """
+    parts = parse_callback(data, prefix, expected_parts=2)
+    try:
+        return parts[0], uuid.UUID(parts[1])
+    except ValueError:
+        raise CallbackParseError(f"Invalid UUID in callback: {parts[1]!r}")

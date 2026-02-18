@@ -18,10 +18,14 @@ export async function apiRequest<T>(
     ...options.headers,
   };
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-  });
+    signal: options.signal || controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));

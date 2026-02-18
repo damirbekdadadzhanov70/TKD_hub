@@ -86,6 +86,7 @@ export default function TrainingLogPage() {
   const [editingLog, setEditingLog] = useState<TrainingLogType | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'edit' | 'delete'; log: TrainingLogType } | null>(null);
   const [actionLog, setActionLog] = useState<TrainingLogType | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const { data: logs, loading, refetch } = useApi<TrainingLogType[]>(
@@ -138,6 +139,8 @@ export default function TrainingLogPage() {
   };
 
   const handleDelete = async (logId: string) => {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await deleteTrainingLog(logId);
       hapticNotification('success');
@@ -145,6 +148,8 @@ export default function TrainingLogPage() {
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -380,6 +385,7 @@ export default function TrainingLogPage() {
                 {t('common.cancel')}
               </button>
               <button
+                disabled={deleting}
                 onClick={() => {
                   if (confirmAction.type === 'delete') {
                     handleDelete(confirmAction.log.id);
@@ -388,7 +394,7 @@ export default function TrainingLogPage() {
                   }
                   setConfirmAction(null);
                 }}
-                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer active:opacity-80 transition-all ${
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer active:opacity-80 transition-all disabled:opacity-40 ${
                   confirmAction.type === 'delete'
                     ? 'bg-rose-500 text-white'
                     : 'bg-accent text-accent-text'

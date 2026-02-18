@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from bot.config import settings
 from bot.keyboards.invite import invite_decision_keyboard
-from bot.utils.callback import CallbackParseError, parse_callback
+from bot.utils.callback import CallbackParseError, parse_callback, parse_callback_uuid
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.coach import Coach, CoachAthlete
@@ -141,11 +141,10 @@ async def handle_invite_deep_link(message: Message, state: FSMContext, args: str
 @router.callback_query(F.data.startswith("invite_accept:"))
 async def on_invite_accept(callback: CallbackQuery):
     try:
-        parts = parse_callback(callback.data, "invite_accept")
+        _, coach_id = parse_callback_uuid(callback.data, "invite_accept")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    coach_id = parts[1]
 
     async with async_session() as session:
         # Get athlete

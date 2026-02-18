@@ -20,7 +20,7 @@ from bot.keyboards.tournaments import (
 )
 from bot.states.tournaments import AddTournament, DeleteTournament, EditTournament
 from bot.utils.audit import write_audit_log
-from bot.utils.callback import CallbackParseError, parse_callback
+from bot.utils.callback import CallbackParseError, parse_callback, parse_callback_uuid
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.tournament import Tournament
@@ -347,11 +347,11 @@ async def cmd_edit_tournament(message: Message, state: FSMContext):
 @router.callback_query(EditTournament.select_tournament, F.data.startswith("t_edit:"))
 async def edit_select(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "t_edit")
+        _, tid = parse_callback_uuid(callback.data, "t_edit")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    tid = parts[1]
+    tid = str(tid)
     data = await state.get_data()
     lang = data.get("language", "ru")
     await state.update_data(edit_tid=tid)
@@ -398,6 +398,9 @@ async def edit_enter_value(message: Message, state: FSMContext):
             await state.clear()
             return
 
+        # Whitelist of editable string fields
+        EDITABLE_TEXT_FIELDS = {"name", "description", "city", "country", "venue", "currency", "organizer_contact"}
+
         # Parse and set the value based on field type
         try:
             if field in ("start_date", "end_date", "registration_deadline"):
@@ -414,8 +417,11 @@ async def edit_enter_value(message: Message, state: FSMContext):
             elif field in ("age_categories", "weight_categories"):
                 cats = [c.strip() for c in raw.split(",") if c.strip()]
                 setattr(tournament, field, cats)
-            else:
+            elif field in EDITABLE_TEXT_FIELDS:
                 setattr(tournament, field, raw)
+            else:
+                await message.answer(t("invalid_value", lang))
+                return
 
             await write_audit_log(
                 session,
@@ -466,11 +472,11 @@ async def cmd_delete_tournament(message: Message, state: FSMContext):
 @router.callback_query(DeleteTournament.select_tournament, F.data.startswith("t_delete:"))
 async def delete_select(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "t_delete")
+        _, tid = parse_callback_uuid(callback.data, "t_delete")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    tid = parts[1]
+    tid = str(tid)
     data = await state.get_data()
     lang = data.get("language", "ru")
 
@@ -485,11 +491,11 @@ async def delete_select(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(DeleteTournament.confirm, F.data.startswith("t_confirm_delete:"))
 async def delete_confirm(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "t_confirm_delete")
+        _, tid = parse_callback_uuid(callback.data, "t_confirm_delete")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    tid = parts[1]
+    tid = str(tid)
     data = await state.get_data()
     lang = data.get("language", "ru")
 

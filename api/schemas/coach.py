@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CoachRead(BaseModel):
@@ -21,10 +21,10 @@ class CoachRead(BaseModel):
 
 
 class CoachUpdate(BaseModel):
-    full_name: Optional[str] = None
-    city: Optional[str] = None
-    club: Optional[str] = None
-    qualification: Optional[str] = None
+    full_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    city: Optional[str] = Field(None, min_length=1, max_length=100)
+    club: Optional[str] = Field(None, min_length=1, max_length=100)
+    qualification: Optional[str] = Field(None, min_length=1, max_length=100)
 
 
 class CoachAthleteRead(BaseModel):

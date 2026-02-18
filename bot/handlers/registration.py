@@ -162,7 +162,7 @@ async def athlete_city_callback(callback: CallbackQuery, state: FSMContext):
 async def athlete_city_custom(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(city=message.text.strip())
+    await state.update_data(city=html.escape(message.text.strip()))
     await message.answer(
         t("enter_club", lang),
         reply_markup=club_skip_keyboard(lang),
@@ -187,7 +187,7 @@ async def athlete_club_skip(callback: CallbackQuery, state: FSMContext):
 async def athlete_club_text(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(club=message.text.strip())
+    await state.update_data(club=html.escape(message.text.strip()))
     await message.answer(
         t("send_photo", lang),
         reply_markup=photo_skip_keyboard(lang),
@@ -337,7 +337,7 @@ async def coach_city_callback(callback: CallbackQuery, state: FSMContext):
 async def coach_city_custom(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(city=message.text.strip())
+    await state.update_data(city=html.escape(message.text.strip()))
     await message.answer(t("enter_club", lang))
     await state.set_state(CoachRegistration.club)
 
@@ -346,7 +346,7 @@ async def coach_city_custom(message: Message, state: FSMContext):
 async def coach_club(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    await state.update_data(club=message.text.strip())
+    await state.update_data(club=html.escape(message.text.strip()))
     await message.answer(
         t("send_photo", lang),
         reply_markup=photo_skip_keyboard(lang),

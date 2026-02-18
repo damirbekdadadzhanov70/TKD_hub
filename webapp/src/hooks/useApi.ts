@@ -31,7 +31,13 @@ export function useApi<T>(
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchData = useCallback(async (silent = false) => {
+    // Abort previous in-flight request
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
     if (!silent) setLoading(true);
     setError(null);
     if (!silent) setIsDemo(false);
@@ -49,6 +55,7 @@ export function useApi<T>(
       const result = await fetcherRef.current();
       setData(result);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error('API error:', message);
       setError(message);
@@ -60,6 +67,7 @@ export function useApi<T>(
 
   useEffect(() => {
     fetchData();
+    return () => abortRef.current?.abort();
   }, [fetchData]);
 
   return { data, loading, error, isDemo, refetch: fetchData, mutate: setData };

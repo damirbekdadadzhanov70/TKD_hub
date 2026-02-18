@@ -685,7 +685,7 @@ function EnterAthletesModal({
     [],
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [selectedAge, setSelectedAge] = useState(ageCategories[0] || 'Seniors');
+  const [selectedAge, setSelectedAge] = useState(ageCategories[0] || '');
   const [submitting, setSubmitting] = useState(false);
 
   const toggle = (id: string) => {
@@ -699,7 +699,7 @@ function EnterAthletesModal({
   };
 
   const handleSubmit = async () => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || !selectedAge) return;
     setSubmitting(true);
     try {
       await enterTournament(tournamentId, Array.from(selected), selectedAge);

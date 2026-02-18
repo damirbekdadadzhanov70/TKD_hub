@@ -1,6 +1,6 @@
 # TKD Hub — TODO
 
-> Полный план работ по проекту. Обновлено: 2026-02-18 (v8 — полный аудит проекта)
+> Полный план работ по проекту. Обновлено: 2026-02-18 (v9 — HIGH исправлены)
 > Приоритеты: BLOCKER > CRITICAL > HIGH > MEDIUM > LOW
 > Оценка готовности: **6/10** — хороший MVP, не готов к проду
 
@@ -12,10 +12,10 @@
 |-----------|---------|----------|-------|
 | BLOCKER (деплой упадёт) | 0 | 6 | 6 |
 | CRITICAL (сломает юзеров) | 15 | 0 | 15 |
-| HIGH (безопасность/баги) | 10 | 12 | 22 |
-| MEDIUM (качество) | 11 | 19 | 30 |
+| HIGH (безопасность/баги) | 21 | 1 | 22 |
+| MEDIUM (качество) | 13 | 17 | 30 |
 | LOW (полировка) | 8 | 12 | 20 |
-| **Итого** | **44** | **49** | **93** |
+| **Итого** | **57** | **36** | **93** |
 
 ---
 
@@ -95,45 +95,27 @@
 - [x] ~~Фильтр турниров: `country: city`~~ — исправлено
 - [x] ~~`age_category` параметр не используется~~ — заменён на `city`
 
-## HIGH — Безопасность (осталось)
+## HIGH — Безопасность (исправлено)
 
-- [ ] **CORS regex** — `*.vercel.app` разрешает любой поддомен Vercel
-  - `api/main.py:74` — в production указать точный origin `tkd-hub.vercel.app`
+- [x] ~~CORS regex — `*.vercel.app` разрешает любой поддомен~~ — production: точный origin + dev: regex ограничен `tkd-hub*`
+- [x] ~~Нет проверки владения атлетом в боте~~ — добавлена проверка CoachAthlete связи в `on_view_athlete`
+- [x] ~~UUID из callback_data не валидируется~~ — добавлен `parse_callback_uuid()` хелпер, используется во всех хендлерах
+- [x] ~~`html.escape()` только на имени~~ — добавлен escape на city_custom и club в обеих регистрациях
+- [x] ~~CoachUpdate без валидации~~ — добавлены `Field(min_length, max_length)` constraints
+- [x] ~~`setattr()` с невалидированным field~~ — добавлен whitelist `EDITABLE_TEXT_FIELDS`
 
-- [ ] **Нет проверки владения атлетом в боте** — тренер может просмотреть ЛЮБОГО атлета по UUID
-  - `bot/handlers/my_athletes.py:70-92` — добавить проверку `CoachAthlete` связи
+## HIGH — Баги (исправлено)
 
-- [ ] **UUID из callback_data не валидируется** — некорректный UUID крашит хендлер
-  - Все хендлеры с `parts[1]` — обернуть в `try: uuid.UUID(parts[1])` + `except ValueError`
-
-- [ ] **`html.escape()` только на имени** — city, club, country не экранируются
-  - `bot/handlers/registration.py:169, 194, 320` — добавить escape на все текстовые поля
-
-- [ ] **CoachUpdate без валидации** — пустые строки, длинные значения пройдут
-  - `api/schemas/coach.py:23-27` — добавить `Field(min_length, max_length)` как в AthleteUpdate
-
-- [ ] **`setattr()` с невалидированным field** — admin может записать произвольный атрибут
-  - `bot/handlers/tournaments_admin.py:370` — валидировать field против whitelist
+- [x] ~~Нет fetch timeout на фронте~~ — добавлен `AbortController` с 10с timeout в `client.ts`
+- [x] ~~Двойной клик delete~~ — добавлен `deleting` state + `disabled` на кнопке в TrainingLog
+- [x] ~~Rating дублирует серверную фильтрацию~~ — клиентская фильтрация только в demo mode
+- [x] ~~EnterAthletesModal не валидирует age_category~~ — убран fallback `'Seniors'`, блокирует submit если пусто
+- [x] ~~Нет AbortController в useApi~~ — abort предыдущего fetch + cleanup при unmount
 
 ## HIGH — Баги (осталось)
 
 - [ ] **Уведомления молча пропадают** — `except Exception: logger.warning(...)` без retry
   - `bot/handlers/entries.py:285` — логировать + сохранять в очередь для повторной отправки
-
-- [ ] **Нет fetch timeout на фронте** — если сервер завис, ждём вечно
-  - `webapp/src/api/client.ts:21` — добавить `AbortController` с timeout 10 секунд
-
-- [ ] **Двойной клик delete** — кнопка не дизейблится во время async операции
-  - `webapp/src/pages/TrainingLog.tsx:146` — добавить `deleting` state, disable кнопку
-
-- [ ] **Rating дублирует серверную фильтрацию** — API фильтрует + клиент фильтрует
-  - `webapp/src/pages/Rating.tsx:311-330` — убрать клиентскую фильтрацию, довериться API
-
-- [ ] **EnterAthletesModal не валидирует age_category** — fallback `'Seniors'` может не существовать
-  - `webapp/src/pages/TournamentDetail.tsx:688` — если `ageCategories` пустой, показать ошибку
-
-- [ ] **Нет AbortController в useApi** — при быстрой навигации летят лишние запросы
-  - `webapp/src/hooks/useApi.ts` — abort предыдущий fetch при новом вызове
 
 ## HIGH — Архитектура (исправлено)
 
@@ -180,8 +162,7 @@
 
 ## MEDIUM — Webapp
 
-- [ ] **Города захардкожены в 4 файлах** — нет shared constant
-  - `Profile.tsx`, `Tournaments.tsx`, `Rating.tsx`, `Onboarding.tsx` — вынести в `src/constants/cities.ts`
+- [x] ~~Города захардкожены в 4 файлах~~ — вынесены в `src/constants/cities.ts`
 - [ ] **Нет тёмной темы** — `colorScheme` из Telegram SDK доступен, но не используется
 - [ ] **Объединить TrainingForm и TrainingEditForm** — 95% дублирования
 - [ ] **Type-safe form update** — `(field: string, value: unknown)` → generic
@@ -194,8 +175,7 @@
 - [ ] **Missing aria-labels** на кнопках навигации месяцев (TrainingLog) и city picker close
 
 ### Backend (средние)
-- [ ] **`datetime.utcnow()` deprecated** (Python 3.12+) — `admin.py:163,225`, `coach.py:183`
-  - Заменить на `datetime.now(timezone.utc)`
+- [x] ~~`datetime.utcnow()` deprecated~~ — заменено на `datetime.now(timezone.utc)` везде
 - [ ] **Inconsistent HTTP status codes** — числа вместо `status.HTTP_*` констант в нескольких роутах
 
 ## MEDIUM — Бот

@@ -17,7 +17,7 @@ from bot.keyboards.entries import (
     my_entries_keyboard,
 )
 from bot.states.entries import EnterAthletes
-from bot.utils.callback import CallbackParseError, parse_callback
+from bot.utils.callback import CallbackParseError, parse_callback, parse_callback_uuid
 from bot.utils.helpers import t
 from bot.utils.notifications import notify_admins_new_entry
 from db.base import async_session
@@ -79,11 +79,10 @@ async def on_tournament_enter(callback: CallbackQuery, state: FSMContext):
         return
 
     try:
-        parts = parse_callback(callback.data, "tournament_enter")
+        _, tid = parse_callback_uuid(callback.data, "tournament_enter")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    tid = parts[1]
 
     async with async_session() as session:
         result = await session.execute(select(Tournament).where(Tournament.id == tid))
@@ -123,11 +122,11 @@ async def on_tournament_enter(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(EnterAthletes.select_athletes, F.data.startswith("toggle_athlete:"))
 async def on_toggle_athlete(callback: CallbackQuery, state: FSMContext):
     try:
-        parts = parse_callback(callback.data, "toggle_athlete")
+        _, athlete_id = parse_callback_uuid(callback.data, "toggle_athlete")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    athlete_id = parts[1]
+    athlete_id = str(athlete_id)  # FSM stores selected_athletes as strings
     data = await state.get_data()
     lang = data.get("language", "ru")
     selected = set(data.get("selected_athletes", []))
@@ -362,11 +361,10 @@ async def on_view_entries(callback: CallbackQuery):
         return
 
     try:
-        parts = parse_callback(callback.data, "view_entries")
+        _, tid = parse_callback_uuid(callback.data, "view_entries")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    tid = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
@@ -411,11 +409,10 @@ async def on_withdraw_entry(callback: CallbackQuery):
         return
 
     try:
-        parts = parse_callback(callback.data, "withdraw")
+        _, entry_id = parse_callback_uuid(callback.data, "withdraw")
     except CallbackParseError:
         await callback.answer("Error")
         return
-    entry_id = parts[1]
 
     async with async_session() as session:
         result = await session.execute(
