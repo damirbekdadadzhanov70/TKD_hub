@@ -3,8 +3,10 @@ import hmac
 import json
 import time
 from datetime import date, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import urlencode
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
@@ -28,6 +30,17 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 
 
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@pytest.fixture(autouse=True)
+def _mock_telegram_bot():
+    """Prevent tests from sending real Telegram messages."""
+    mock_bot = MagicMock()
+    mock_bot.send_message = AsyncMock()
+    mock_bot.session = MagicMock()
+    mock_bot.session.close = AsyncMock()
+    with patch("aiogram.Bot", return_value=mock_bot):
+        yield mock_bot
 
 
 async def override_get_session():
