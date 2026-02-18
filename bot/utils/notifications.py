@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 
@@ -8,6 +9,23 @@ from bot.config import settings
 from bot.utils.helpers import t
 
 logger = logging.getLogger(__name__)
+
+
+async def _safe_send(bot: Bot, chat_id: int, text: str, retries: int = 1) -> None:
+    """Send message with retry and full traceback on failure."""
+    for attempt in range(1 + retries):
+        try:
+            await bot.send_message(chat_id, text)
+            return
+        except Exception:
+            if attempt < retries:
+                await asyncio.sleep(1)
+            else:
+                logger.exception(
+                    "Failed to send message to %s after %d attempts",
+                    chat_id,
+                    1 + retries,
+                )
 
 
 async def create_notification(
@@ -53,10 +71,7 @@ async def notify_admins_new_entry(
         count=count,
     )
     for admin_id in settings.admin_ids:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            logger.warning("Failed to notify admin %s", admin_id)
+        await _safe_send(bot, admin_id, text)
 
 
 async def notify_admins_account_deleted(
@@ -70,10 +85,7 @@ async def notify_admins_account_deleted(
         username=username,
     )
     for admin_id in settings.admin_ids:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            logger.warning("Failed to notify admin %s about account deletion", admin_id)
+        await _safe_send(bot, admin_id, text)
 
 
 async def notify_admins_account_deleted_by_admin(
@@ -87,10 +99,7 @@ async def notify_admins_account_deleted_by_admin(
         username=username,
     )
     for admin_id in settings.admin_ids:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            logger.warning("Failed to notify admin %s about admin account deletion", admin_id)
+        await _safe_send(bot, admin_id, text)
 
 
 async def notify_user_account_deleted(
@@ -99,10 +108,7 @@ async def notify_user_account_deleted(
     lang: str = "ru",
 ) -> None:
     text = t("account_deleted_user_notification", lang)
-    try:
-        await bot.send_message(telegram_id, text)
-    except Exception:
-        logger.warning("Failed to notify user %s about account deletion", telegram_id)
+    await _safe_send(bot, telegram_id, text)
 
 
 async def notify_admins_account_created(
@@ -119,10 +125,7 @@ async def notify_admins_account_created(
         role=role_label,
     )
     for admin_id in settings.admin_ids:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            logger.warning("Failed to notify admin %s about account creation", admin_id)
+        await _safe_send(bot, admin_id, text)
 
 
 async def notify_admins_role_request(
@@ -139,10 +142,7 @@ async def notify_admins_role_request(
         role=role_label,
     )
     for admin_id in settings.admin_ids:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            logger.warning("Failed to notify admin %s about role request", admin_id)
+        await _safe_send(bot, admin_id, text)
 
 
 async def notify_user_role_approved(
@@ -153,10 +153,7 @@ async def notify_user_role_approved(
 ) -> None:
     role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(role, role) if lang == "ru" else role
     text = t("role_request_approved_notification", lang).format(role=role_label)
-    try:
-        await bot.send_message(telegram_id, text)
-    except Exception:
-        logger.warning("Failed to notify user %s about role approval", telegram_id)
+    await _safe_send(bot, telegram_id, text)
 
 
 async def notify_user_role_rejected(
@@ -167,10 +164,7 @@ async def notify_user_role_rejected(
 ) -> None:
     role_label = {"athlete": "спортсмен", "coach": "тренер"}.get(role, role) if lang == "ru" else role
     text = t("role_request_rejected_notification", lang).format(role=role_label)
-    try:
-        await bot.send_message(telegram_id, text)
-    except Exception:
-        logger.warning("Failed to notify user %s about role rejection", telegram_id)
+    await _safe_send(bot, telegram_id, text)
 
 
 async def notify_athlete_interest(
@@ -180,10 +174,7 @@ async def notify_athlete_interest(
     lang: str = "ru",
 ) -> None:
     text = t("interest_confirmed_athlete", lang).format(tournament=tournament_name)
-    try:
-        await bot.send_message(athlete_telegram_id, text)
-    except Exception:
-        logger.warning("Failed to notify athlete %s about interest", athlete_telegram_id)
+    await _safe_send(bot, athlete_telegram_id, text)
 
 
 async def notify_coach_athlete_interest(
@@ -197,10 +188,7 @@ async def notify_coach_athlete_interest(
         athlete=athlete_name,
         tournament=tournament_name,
     )
-    try:
-        await bot.send_message(coach_telegram_id, text)
-    except Exception:
-        logger.warning("Failed to notify coach %s about athlete interest", coach_telegram_id)
+    await _safe_send(bot, coach_telegram_id, text)
 
 
 async def notify_coach_entry_status(
@@ -216,7 +204,4 @@ async def notify_coach_entry_status(
         tournament=tournament_name,
         athlete=athlete_name,
     )
-    try:
-        await bot.send_message(coach_telegram_id, text)
-    except Exception:
-        logger.warning("Failed to notify coach %s", coach_telegram_id)
+    await _safe_send(bot, coach_telegram_id, text)

@@ -110,7 +110,7 @@ async def delete_me(ctx: AuthContext = Depends(get_current_user)):
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to send admin notification for account deletion")
+        logger.exception("Failed to send admin notification for account deletion")
 
     await ctx.session.delete(user)
     await ctx.session.commit()
@@ -519,7 +519,7 @@ async def register_profile(
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to send admin notification for account creation")
+        logger.exception("Failed to send admin notification for account creation")
 
     return _build_me_response(user)
 
@@ -609,7 +609,7 @@ async def request_role_change(
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to send admin notification for role request")
+        logger.exception("Failed to send admin notification for role request")
 
     return RoleRequestResponse(
         id=str(role_request.id),

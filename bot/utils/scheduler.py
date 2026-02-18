@@ -92,7 +92,7 @@ async def check_deadline_reminders(bot: Bot) -> None:
                 )
                 _notified_today.add(key)
             except Exception:
-                logger.warning("Failed to send deadline reminder to coach %s", coach.id)
+                logger.exception("Failed to send deadline reminder to coach %s", coach.id)
 
 
 async def scheduler_loop(bot: Bot) -> None:

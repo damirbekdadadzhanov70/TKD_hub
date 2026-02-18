@@ -224,7 +224,7 @@ async def on_approve_coach(callback: CallbackQuery):
                 t("your_coach_approved", coach_lang),
             )
         except Exception:
-            logger.warning("Failed to notify coach %s about approval", req.user.telegram_id)
+            logger.exception("Failed to notify coach %s about approval", req.user.telegram_id)
 
 
 @router.callback_query(F.data.startswith("decline_coach:"))
@@ -299,4 +299,4 @@ async def on_decline_reason(message: Message, state: FSMContext):
                 t("your_coach_declined_reason", coach_lang).format(reason=reason),
             )
         except Exception:
-            logger.warning("Failed to notify coach %s about decline", req.user.telegram_id)
+            logger.exception("Failed to notify coach %s about decline", req.user.telegram_id)

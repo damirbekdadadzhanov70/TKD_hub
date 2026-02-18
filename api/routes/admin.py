@@ -193,7 +193,7 @@ async def approve_role_request(
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to send role approval notification to user %s", target_user.telegram_id)
+        logger.exception("Failed to send role approval notification to user %s", target_user.telegram_id)
 
     return {"status": "approved"}
 
@@ -257,7 +257,7 @@ async def reject_role_request(
             finally:
                 await bot.session.close()
         except Exception:
-            logger.warning("Failed to send role rejection notification to user %s", target_user.telegram_id)
+            logger.exception("Failed to send role rejection notification to user %s", target_user.telegram_id)
 
     return {"status": "rejected"}
 
@@ -446,7 +446,7 @@ async def delete_user(
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to send notification for admin account deletion")
+        logger.exception("Failed to send notification for admin account deletion")
 
     await ctx.session.delete(target)
     await ctx.session.commit()

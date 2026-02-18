@@ -3386,3 +3386,39 @@ async def test_verify_coach_creates_notification(admin_client: AsyncClient, db_s
     notification = result.scalar_one_or_none()
     assert notification is not None
     assert notification.role == "coach"
+
+
+# ═══════════════════════════════════════════════════════════════
+#  20. NOTIFICATIONS — _safe_send retry + logging
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_safe_send_retries_on_first_failure():
+    """_safe_send succeeds on second attempt after first failure."""
+    from bot.utils.notifications import _safe_send
+
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(side_effect=[Exception("network error"), None])
+
+    await _safe_send(bot, 12345, "hello", retries=1)
+
+    assert bot.send_message.call_count == 2
+    bot.send_message.assert_called_with(12345, "hello")
+
+
+@pytest.mark.asyncio
+async def test_safe_send_logs_exception_after_exhausted_retries():
+    """_safe_send logs full traceback after all retries fail."""
+    from bot.utils.notifications import _safe_send
+
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(side_effect=Exception("permanent failure"))
+
+    with patch("bot.utils.notifications.logger") as mock_logger:
+        await _safe_send(bot, 12345, "hello", retries=1)
+
+        mock_logger.exception.assert_called_once()
+        args = mock_logger.exception.call_args[0]
+        assert "12345" in str(args)
+        assert "2" in str(args)  # 1 + retries = 2 attempts

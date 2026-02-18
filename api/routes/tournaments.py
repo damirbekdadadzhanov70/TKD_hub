@@ -331,7 +331,7 @@ async def mark_interest(
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to send interest notifications for athlete %s", athlete.id)
+        logger.exception("Failed to send interest notifications for athlete %s", athlete.id)
 
     return TournamentInterestResponse(
         tournament_id=tournament_id,
@@ -507,7 +507,7 @@ async def _notify_coach_entries(session, coach_id, tournament_id, entries, entry
         finally:
             await bot.session.close()
     except Exception:
-        logger.warning("Failed to notify coach %s about entry %s", coach_id, entry_status)
+        logger.exception("Failed to notify coach %s about entry %s", coach_id, entry_status)
 
 
 def _check_admin(user) -> None:

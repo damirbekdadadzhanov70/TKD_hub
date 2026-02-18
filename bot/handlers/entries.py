@@ -288,7 +288,7 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
                     t("you_entered_tournament", a_lang).format(tournament=t_name),
                 )
             except Exception:
-                logger.warning("Failed to notify athlete %s about tournament entry", athlete.user.telegram_id)
+                logger.exception("Failed to notify athlete %s about tournament entry", athlete.user.telegram_id)
 
     # Notify admins about new entry
     if created > 0:
@@ -300,7 +300,7 @@ async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
                 count=created,
             )
         except Exception:
-            logger.warning("Failed to notify admins about new entry")
+            logger.exception("Failed to notify admins about new entry")
 
 
 @router.callback_query(F.data == "entry_cancel")
@@ -454,7 +454,7 @@ async def on_withdraw_entry(callback: CallbackQuery):
                 t("you_withdrawn_from_tournament", a_lang).format(tournament=t_name),
             )
         except Exception:
-            logger.warning("Failed to notify athlete %s about withdrawal", athlete_user.telegram_id)
+            logger.exception("Failed to notify athlete %s about withdrawal", athlete_user.telegram_id)
 
     # Refresh entry list
     async with async_session() as session:

@@ -198,7 +198,7 @@ async def on_invite_accept(callback: CallbackQuery):
                 t("athlete_accepted_invite", coach_lang).format(name=user.athlete.full_name),
             )
         except Exception:
-            logger.warning("Failed to notify coach %s about accepted invite", coach.user.telegram_id)
+            logger.exception("Failed to notify coach %s about accepted invite", coach.user.telegram_id)
 
 
 @router.callback_query(F.data.startswith("invite_decline:"))
