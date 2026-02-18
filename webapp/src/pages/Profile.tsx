@@ -583,47 +583,10 @@ export default function Profile() {
 
   return (
     <div>
-      {/* Header: avatar + info (left), icons column (right) */}
-      <div className="flex items-start gap-3 px-4 pt-4 pb-4">
-        {/* Avatar + name + subtitle */}
-        <div className="flex-1 min-w-0 flex items-start gap-3">
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={displayName}
-              className="w-[72px] h-[72px] rounded-full object-cover shrink-0"
-              style={{ border: '1px solid var(--color-accent)' }}
-            />
-          ) : (
-            <div
-              className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-2xl font-medium bg-accent-light text-accent shrink-0"
-              style={{ border: '1px solid var(--color-accent)' }}
-            >
-              {initial}
-            </div>
-          )}
-          <div className="min-w-0 pt-1">
-            <h1 className="text-[20px] font-heading text-text-heading truncate leading-tight">
-              {displayName}
-            </h1>
-            {isAthlete && me.athlete && (
-              <p className="text-[13px] text-text-secondary mt-1 truncate">
-                {me.athlete.sport_rank} · {me.athlete.weight_category}
-              </p>
-            )}
-            {isCoach && me.coach && (
-              <p className="text-[13px] text-text-secondary mt-1 truncate">
-                {me.coach.qualification}
-              </p>
-            )}
-            {isAdmin && (
-              <p className="text-[13px] text-text-secondary mt-1">{t('profile.administrator')}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Icons: search, notifications, settings — stacked vertically */}
-        <div className="flex flex-col items-center gap-2 shrink-0">
+      {/* Profile header */}
+      <div className="relative px-4 pt-3 pb-4">
+        {/* Icons: search, notifications, settings — top right */}
+        <div className="absolute top-3 right-4 flex flex-col items-center gap-2">
           <button
             aria-label={t('profile.searchUsers')}
             onClick={() => setShowUserSearch(true)}
@@ -650,6 +613,41 @@ export default function Profile() {
           >
             <GearIcon />
           </button>
+        </div>
+
+        {/* Avatar + name — centered */}
+        <div className="flex flex-col items-center pt-1">
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt={displayName}
+              className="w-24 h-24 rounded-full object-cover mb-3"
+              style={{ border: '1px solid var(--color-accent)' }}
+            />
+          ) : (
+            <div
+              className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-medium bg-accent-light text-accent mb-3"
+              style={{ border: '1px solid var(--color-accent)' }}
+            >
+              {initial}
+            </div>
+          )}
+          <h1 className="text-[22px] font-heading text-text-heading text-center">
+            {displayName}
+          </h1>
+          {isAthlete && me.athlete && (
+            <p className="text-sm text-text-secondary mt-0.5">
+              {me.athlete.sport_rank} · {me.athlete.weight_category}
+            </p>
+          )}
+          {isCoach && me.coach && (
+            <p className="text-sm text-text-secondary mt-0.5">
+              {me.coach.qualification}
+            </p>
+          )}
+          {isAdmin && (
+            <p className="text-sm text-text-secondary mt-0.5">{t('profile.administrator')}</p>
+          )}
         </div>
       </div>
 
