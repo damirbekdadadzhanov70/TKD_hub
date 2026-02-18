@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from bot.config import settings
 from bot.keyboards.invite import invite_decision_keyboard
-from bot.utils.callback import CallbackParseError, parse_callback, parse_callback_uuid
+from bot.utils.callback import CallbackParseError, parse_callback_uuid
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.coach import Coach, CoachAthlete

@@ -1478,7 +1478,6 @@ async def test_invite_accept_creates_link(db_session: AsyncSession):
 
     with (
         patch("bot.handlers.invite.async_session", TestSession),
-        patch("bot.handlers.invite.parse_callback", _patched_parse_callback),
     ):
         from bot.handlers.invite import on_invite_accept
 
@@ -1519,7 +1518,6 @@ async def test_invite_accept_already_linked(db_session: AsyncSession):
 
     with (
         patch("bot.handlers.invite.async_session", TestSession),
-        patch("bot.handlers.invite.parse_callback", _patched_parse_callback),
     ):
         from bot.handlers.invite import on_invite_accept
 
@@ -1650,7 +1648,6 @@ async def test_view_athlete_detail(db_session: AsyncSession):
 
     with (
         patch("bot.handlers.my_athletes.async_session", TestSession),
-        patch("bot.handlers.my_athletes.parse_callback", _patched_parse_callback),
     ):
         from bot.handlers.my_athletes import on_view_athlete
 
@@ -1681,7 +1678,6 @@ async def test_unlink_athlete(db_session: AsyncSession):
 
     with (
         patch("bot.handlers.my_athletes.async_session", TestSession),
-        patch("bot.handlers.my_athletes.parse_callback", _patched_parse_callback),
     ):
         from bot.handlers.my_athletes import on_unlink_athlete
 

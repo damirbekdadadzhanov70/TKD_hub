@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from bot.keyboards.my_athletes import athlete_detail_keyboard, athletes_list_keyboard
-from bot.utils.callback import CallbackParseError, parse_callback, parse_callback_uuid
+from bot.utils.callback import CallbackParseError, parse_callback_uuid
 from bot.utils.helpers import t
 from db.base import async_session
 from db.models.athlete import Athlete

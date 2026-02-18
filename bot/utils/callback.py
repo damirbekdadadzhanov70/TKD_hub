@@ -42,4 +42,4 @@ def parse_callback_uuid(data: str | None, prefix: str) -> tuple[str, uuid.UUID]:
     try:
         return parts[0], uuid.UUID(parts[1])
     except ValueError:
-        raise CallbackParseError(f"Invalid UUID in callback: {parts[1]!r}")
+        raise CallbackParseError(f"Invalid UUID in callback: {parts[1]!r}") from None
