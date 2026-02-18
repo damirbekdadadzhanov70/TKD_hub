@@ -1,15 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-
-// Track how many sheets are open so we only restore overflow when the last one closes
-let openCount = 0;
-
-/** Reset overflow lock — call on route change to handle navigating away while a sheet is open */
-export function resetBottomSheetOverflow() {
-  openCount = 0;
-  document.documentElement.style.overflow = '';
-  document.documentElement.style.paddingRight = '';
-}
+import { incrementOpen, decrementOpen } from './bottomSheetState';
 
 export default function BottomSheet({
   children,
@@ -42,21 +33,14 @@ export default function BottomSheet({
   // Prevent background scroll — only the first sheet locks, only the last unlocks
   useEffect(() => {
     const html = document.documentElement;
-    openCount++;
-    if (openCount === 1) {
-      const scrollbarWidth = window.innerWidth - html.clientWidth;
-      html.style.overflow = 'hidden';
-      if (scrollbarWidth > 0) {
-        html.style.paddingRight = `${scrollbarWidth}px`;
-      }
+    incrementOpen();
+    const scrollbarWidth = window.innerWidth - html.clientWidth;
+    html.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      html.style.paddingRight = `${scrollbarWidth}px`;
     }
     return () => {
-      openCount--;
-      if (openCount <= 0) {
-        openCount = 0;
-        html.style.overflow = '';
-        html.style.paddingRight = '';
-      }
+      decrementOpen();
     };
   }, []);
 

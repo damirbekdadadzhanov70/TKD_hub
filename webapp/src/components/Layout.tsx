@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import BottomNav from './BottomNav';
-import { resetBottomSheetOverflow } from './BottomSheet';
+import { resetBottomSheetOverflow } from './bottomSheetState';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 
