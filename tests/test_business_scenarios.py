@@ -3015,8 +3015,9 @@ async def test_notification_on_role_approve(
     assert resp.status_code == 200
 
     # Check notification was created for bare_user
-    from db.models.notification import Notification
     from sqlalchemy import select
+
+    from db.models.notification import Notification
 
     result = await db_session.execute(
         select(Notification).where(Notification.user_id == bare_user.id)
@@ -3049,8 +3050,9 @@ async def test_notification_on_role_reject(
     resp = await admin_client.post(f"/api/admin/role-requests/{rr.id}/reject")
     assert resp.status_code == 200
 
-    from db.models.notification import Notification
     from sqlalchemy import select
+
+    from db.models.notification import Notification
 
     result = await db_session.execute(
         select(Notification).where(Notification.user_id == bare_user.id)
