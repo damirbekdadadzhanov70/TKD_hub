@@ -1,4 +1,4 @@
-export const CITIES = [
+export const CITIES: string[] = [
   'Москва',
   'Санкт-Петербург',
   'Казань',
@@ -9,6 +9,4 @@ export const CITIES = [
   'Новосибирск',
   'Краснодар',
   'Владивосток',
-] as const;
-
-export type City = (typeof CITIES)[number];
+];
