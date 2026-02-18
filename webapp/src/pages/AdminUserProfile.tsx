@@ -5,8 +5,8 @@ import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useI18n } from '../i18n/I18nProvider';
-import { getUserDetail, deleteAdminUser, getMe } from '../api/endpoints';
-import { getMockAdminUserDetail, deleteMockAdminUser, mockMe } from '../api/mock';
+import { getUserDetail, deleteAdminUser, deleteAdminUserProfile, getMe } from '../api/endpoints';
+import { getMockAdminUserDetail, deleteMockAdminUser, deleteMockAdminUserProfile, mockMe } from '../api/mock';
 import type { AdminUserDetail, MeResponse } from '../types';
 
 const ROLE_BADGE: Record<string, string> = {
@@ -25,6 +25,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+type DeleteTarget = 'user' | 'athlete' | 'coach';
+
 export default function AdminUserProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -32,7 +34,7 @@ export default function AdminUserProfile() {
   const { showToast } = useToast();
   const { t } = useI18n();
   const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<DeleteTarget | null>(null);
 
   useEffect(() => {
     return showBackButton(() => navigate(-1));
@@ -40,7 +42,7 @@ export default function AdminUserProfile() {
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
   const mockDetail = getMockAdminUserDetail(id!);
-  const { data: user, loading } = useApi<AdminUserDetail>(
+  const { data: user, loading, refetch } = useApi<AdminUserDetail>(
     () => getUserDetail(id!),
     mockDetail,
     [id],
@@ -58,8 +60,9 @@ export default function AdminUserProfile() {
 
   const displayName = user.athlete?.full_name || user.coach?.full_name || user.username || `ID ${user.telegram_id}`;
   const initial = displayName.charAt(0);
+  const hasBothProfiles = !!user.athlete && !!user.coach;
 
-  const handleDelete = async () => {
+  const handleDeleteUser = async () => {
     setDeleting(true);
     try {
       await deleteAdminUser(user.id);
@@ -73,6 +76,35 @@ export default function AdminUserProfile() {
       setDeleting(false);
     }
   };
+
+  const handleDeleteProfile = async (role: 'athlete' | 'coach') => {
+    setDeleting(true);
+    try {
+      await deleteAdminUserProfile(user.id, role);
+      hapticNotification('success');
+      deleteMockAdminUserProfile(user.id, role);
+      showToast(t('profile.profileDeleted'));
+      setConfirmTarget(null);
+      setDeleting(false);
+      refetch();
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+      setDeleting(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (confirmTarget === 'user') handleDeleteUser();
+    else if (confirmTarget === 'athlete') handleDeleteProfile('athlete');
+    else if (confirmTarget === 'coach') handleDeleteProfile('coach');
+  };
+
+  const confirmMessage = confirmTarget === 'athlete'
+    ? t('profile.deleteAthleteConfirm')
+    : confirmTarget === 'coach'
+      ? t('profile.deleteCoachConfirm')
+      : t('profile.deleteUserConfirm');
 
   const createdDate = new Date(user.created_at).toLocaleDateString();
 
@@ -157,28 +189,21 @@ export default function AdminUserProfile() {
         <InfoRow label={t('profile.memberSince')} value={createdDate} />
       </div>
 
-      {/* Delete button — admin only */}
+      {/* Delete buttons — admin only */}
       {isAdmin && (
-        <div className="px-4 mt-6">
-          {!showDeleteConfirm ? (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
-            >
-              {t('profile.deleteUser')}
-            </button>
-          ) : (
+        <div className="px-4 mt-6 space-y-2">
+          {confirmTarget ? (
             <div className="space-y-2">
-              <p className="text-sm text-text-secondary text-center">{t('profile.deleteUserConfirm')}</p>
+              <p className="text-sm text-text-secondary text-center">{confirmMessage}</p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowDeleteConfirm(false)}
+                  onClick={() => setConfirmTarget(null)}
                   className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={handleConfirm}
                   disabled={deleting}
                   className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 disabled:opacity-40 transition-all"
                 >
@@ -186,6 +211,34 @@ export default function AdminUserProfile() {
                 </button>
               </div>
             </div>
+          ) : hasBothProfiles ? (
+            <>
+              <button
+                onClick={() => setConfirmTarget('athlete')}
+                className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
+              >
+                {t('profile.deleteAthleteProfile')}
+              </button>
+              <button
+                onClick={() => setConfirmTarget('coach')}
+                className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
+              >
+                {t('profile.deleteCoachProfile')}
+              </button>
+              <button
+                onClick={() => setConfirmTarget('user')}
+                className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 hover:bg-rose-600 transition-all"
+              >
+                {t('profile.deleteUser')}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmTarget('user')}
+              className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
+            >
+              {t('profile.deleteUser')}
+            </button>
           )}
         </div>
       )}

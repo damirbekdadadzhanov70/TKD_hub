@@ -454,6 +454,52 @@ async def delete_user(
     return {"status": "deleted"}
 
 
+# ── Delete single profile (athlete or coach) ────────────────
+
+
+@router.delete("/admin/users/{user_id}/profile/{role}")
+async def delete_user_profile(
+    user_id: str,
+    role: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    """Delete a single profile (athlete or coach) from a user, keeping the other."""
+    _require_admin(ctx.user)
+
+    if role not in ("athlete", "coach"):
+        raise HTTPException(status_code=400, detail="Role must be 'athlete' or 'coach'")
+
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid user ID") from err
+
+    result = await ctx.session.execute(
+        select(User).where(User.id == uid).options(selectinload(User.athlete), selectinload(User.coach))
+    )
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if role == "athlete":
+        if not target.athlete:
+            raise HTTPException(status_code=404, detail="User has no athlete profile")
+        await ctx.session.delete(target.athlete)
+        remaining = "coach" if target.coach else None
+    else:
+        if not target.coach:
+            raise HTTPException(status_code=404, detail="User has no coach profile")
+        await ctx.session.delete(target.coach)
+        remaining = "athlete" if target.athlete else None
+
+    # Reset active_role to remaining profile's role (or None)
+    target.active_role = remaining
+    ctx.session.add(target)
+    await ctx.session.commit()
+
+    return {"status": "deleted", "remaining_role": remaining}
+
+
 # ── Coach verification ──────────────────────────────────────
 
 

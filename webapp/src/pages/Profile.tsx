@@ -365,6 +365,7 @@ function SwipeNotificationItem({
   const [verifying, setVerifying] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
+  const baseOffset = useRef(0);
   const locked = useRef(false);
 
   const DELETE_THRESHOLD = 80;
@@ -373,6 +374,7 @@ function SwipeNotificationItem({
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
+    baseOffset.current = offsetX;
     locked.current = false;
     setSwiping(true);
   };
@@ -390,9 +392,8 @@ function SwipeNotificationItem({
       }
     }
 
-    if (dx < 0) {
-      setOffsetX(Math.max(dx, -120));
-    }
+    const newOffset = Math.max(Math.min(baseOffset.current + dx, 0), -120);
+    setOffsetX(newOffset);
   };
 
   const handleTouchEnd = () => {

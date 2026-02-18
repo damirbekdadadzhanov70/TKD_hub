@@ -231,6 +231,19 @@ export function deleteMockAdminUser(userId: string) {
   mockAdminUsers = mockAdminUsers.filter((u) => u.id !== userId);
 }
 
+export function deleteMockAdminUserProfile(userId: string, role: string) {
+  const user = mockAdminUsers.find((u) => u.id === userId);
+  if (!user) return;
+  // If it's the current user, update mockMe too
+  if (user.telegram_id === mockMe.telegram_id) {
+    if (role === 'athlete') {
+      updateMockMe({ ...mockMe, athlete: null, role: mockMe.coach ? 'coach' : 'none' });
+    } else {
+      updateMockMe({ ...mockMe, coach: null, role: mockMe.athlete ? 'athlete' : 'none' });
+    }
+  }
+}
+
 export function getMockAdminUserDetail(userId: string): AdminUserDetail | null {
   const user = mockAdminUsers.find((u) => u.id === userId);
   if (!user) return null;

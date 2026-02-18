@@ -116,6 +116,12 @@ export function deleteAdminUser(userId: string): Promise<void> {
   });
 }
 
+export function deleteAdminUserProfile(userId: string, role: string): Promise<{ status: string; remaining_role: string | null }> {
+  return apiRequest<{ status: string; remaining_role: string | null }>(`/admin/users/${userId}/profile/${role}`, {
+    method: 'DELETE',
+  });
+}
+
 export function verifyCoach(coachId: string): Promise<{ status: string }> {
   return apiRequest<{ status: string }>(`/admin/coaches/${coachId}/verify`, {
     method: 'POST',

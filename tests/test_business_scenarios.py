@@ -2864,6 +2864,93 @@ async def test_non_admin_cannot_view_user_detail(client: AsyncClient, test_user:
     assert resp.status_code == 403
 
 
+# ── Admin Delete Single Profile ──
+
+
+@pytest.mark.asyncio
+async def test_delete_athlete_profile_keeps_coach(
+    admin_client: AsyncClient, db_session: AsyncSession, dual_profile_user: User
+):
+    """Deleting athlete profile keeps user and coach profile intact."""
+    user_id = str(dual_profile_user.id)
+
+    resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/athlete")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "deleted"
+    assert data["remaining_role"] == "coach"
+
+    # Verify via admin detail endpoint — user still exists with coach only
+    detail = await admin_client.get(f"/api/admin/users/{user_id}")
+    assert detail.status_code == 200
+    detail_data = detail.json()
+    assert detail_data["athlete"] is None
+    assert detail_data["coach"] is not None
+    assert detail_data["role"] == "coach"
+
+
+@pytest.mark.asyncio
+async def test_delete_coach_profile_keeps_athlete(
+    admin_client: AsyncClient, db_session: AsyncSession, dual_profile_user: User
+):
+    """Deleting coach profile keeps user and athlete profile intact."""
+    user_id = str(dual_profile_user.id)
+
+    resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/coach")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "deleted"
+    assert data["remaining_role"] == "athlete"
+
+    # Verify via admin detail endpoint — user still exists with athlete only
+    detail = await admin_client.get(f"/api/admin/users/{user_id}")
+    assert detail.status_code == 200
+    detail_data = detail.json()
+    assert detail_data["coach"] is None
+    assert detail_data["athlete"] is not None
+    assert detail_data["role"] == "athlete"
+
+
+@pytest.mark.asyncio
+async def test_delete_profile_resets_active_role(admin_client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """Deleting the only profile sets active_role to None."""
+    user_id = str(test_user.id)
+
+    # test_user has only athlete profile
+    resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/athlete")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["remaining_role"] is None
+
+    # Verify via admin detail endpoint — user now has role 'none'
+    detail = await admin_client.get(f"/api/admin/users/{user_id}")
+    assert detail.status_code == 200
+    assert detail.json()["role"] == "none"
+
+
+@pytest.mark.asyncio
+async def test_delete_profile_non_admin_rejected(client: AsyncClient, test_user: User, dual_profile_user: User):
+    """Non-admin gets 403 trying to delete a profile."""
+    from tests.conftest import make_init_data
+
+    init_data = make_init_data(telegram_id=test_user.telegram_id)
+    client.headers["Authorization"] = f"tma {init_data}"
+
+    resp = await client.delete(f"/api/admin/users/{dual_profile_user.id}/profile/athlete")
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_profile(admin_client: AsyncClient, test_user: User):
+    """Deleting a profile that doesn't exist returns 404."""
+    user_id = str(test_user.id)
+
+    # test_user has no coach profile
+    resp = await admin_client.delete(f"/api/admin/users/{user_id}/profile/coach")
+    assert resp.status_code == 404
+    assert "no coach profile" in resp.json()["detail"]
+
+
 # ═══════════════════════════════════════════════════════════════
 #  18. API: Account Self-Deletion
 # ═══════════════════════════════════════════════════════════════
