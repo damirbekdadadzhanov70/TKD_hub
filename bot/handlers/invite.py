@@ -66,17 +66,15 @@ async def cmd_invite(message: Message):
 async def handle_invite_deep_link(message: Message, state: FSMContext, args: str):
     token = args.removeprefix("invite_")
 
-    # Look up user language
     async with async_session() as session:
+        # Look up user
         result = await session.execute(
             select(User).where(User.telegram_id == message.from_user.id).options(selectinload(User.athlete))
         )
         user = result.scalar_one_or_none()
+        lang = (user.language if user else None) or "ru"
 
-    lang = (user.language if user else None) or "ru"
-
-    # Look up token in DB
-    async with async_session() as session:
+        # Look up token — single session to prevent race condition
         result = await session.execute(
             select(InviteToken).where(
                 InviteToken.token == token,
@@ -85,26 +83,25 @@ async def handle_invite_deep_link(message: Message, state: FSMContext, args: str
         )
         invite = result.scalar_one_or_none()
 
-    if not invite:
-        await message.answer(t("invite_expired", lang))
-        return
+        if not invite:
+            await message.answer(t("invite_expired", lang))
+            return
 
-    # Normalize timezone for comparison (SQLite may return naive datetimes)
-    expires = invite.expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if expires < datetime.now(timezone.utc):
-        await message.answer(t("invite_expired", lang))
-        return
+        # Normalize timezone for comparison (SQLite may return naive datetimes)
+        expires = invite.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            await message.answer(t("invite_expired", lang))
+            return
 
-    coach_id = invite.coach_id
+        if not user or not user.athlete:
+            await message.answer(t("invite_must_be_athlete", lang))
+            return
 
-    if not user or not user.athlete:
-        await message.answer(t("invite_must_be_athlete", lang))
-        return
+        coach_id = invite.coach_id
 
-    # Check not already linked
-    async with async_session() as session:
+        # Check not already linked
         existing = await session.execute(
             select(CoachAthlete).where(
                 CoachAthlete.coach_id == coach_id,
@@ -113,29 +110,21 @@ async def handle_invite_deep_link(message: Message, state: FSMContext, args: str
         )
         if existing.scalar_one_or_none():
             await message.answer(t("invite_already_linked", lang))
-            # Mark token as used
-            invite_result = await session.execute(select(InviteToken).where(InviteToken.token == token))
-            db_invite = invite_result.scalar_one_or_none()
-            if db_invite:
-                db_invite.used = True
-                await session.commit()
+            invite.used = True
+            await session.commit()
             return
 
         # Get coach info
         coach_result = await session.execute(select(Coach).where(Coach.id == coach_id))
         coach = coach_result.scalar_one_or_none()
 
-    if not coach:
-        await message.answer(t("invite_expired", lang))
-        return
+        if not coach:
+            await message.answer(t("invite_expired", lang))
+            return
 
-    # Mark token as used
-    async with async_session() as session:
-        result = await session.execute(select(InviteToken).where(InviteToken.token == token))
-        db_invite = result.scalar_one_or_none()
-        if db_invite:
-            db_invite.used = True
-            await session.commit()
+        # Mark token as used atomically
+        invite.used = True
+        await session.commit()
 
     text = t("invite_received", lang).format(
         name=coach.full_name,

@@ -205,8 +205,11 @@ async def athlete_photo_skip(callback: CallbackQuery, state: FSMContext):
 @router.message(AthleteRegistration.photo, F.photo)
 async def athlete_photo_upload(message: Message, state: FSMContext):
     photo = message.photo[-1]
-    file = await message.bot.get_file(photo.file_id)
-    await state.update_data(photo_url=file.file_path)
+    try:
+        file = await message.bot.get_file(photo.file_id)
+        await state.update_data(photo_url=file.file_path)
+    except Exception:
+        await state.update_data(photo_url=None)
     await _save_athlete(message, state)
 
 
@@ -361,8 +364,11 @@ async def coach_photo_skip(callback: CallbackQuery, state: FSMContext):
 @router.message(CoachRegistration.photo, F.photo)
 async def coach_photo_upload(message: Message, state: FSMContext):
     photo = message.photo[-1]
-    file = await message.bot.get_file(photo.file_id)
-    await state.update_data(photo_url=file.file_path)
+    try:
+        file = await message.bot.get_file(photo.file_id)
+        await state.update_data(photo_url=file.file_path)
+    except Exception:
+        await state.update_data(photo_url=None)
     await _save_coach(message, state)
 
 

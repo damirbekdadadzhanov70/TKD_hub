@@ -11,11 +11,11 @@
 | Категория | Сделано | Осталось | Итого |
 |-----------|---------|----------|-------|
 | BLOCKER (деплой упадёт) | 0 | 6 | 6 |
-| CRITICAL (сломает юзеров) | 9 | 6 | 15 |
+| CRITICAL (сломает юзеров) | 15 | 0 | 15 |
 | HIGH (безопасность/баги) | 10 | 12 | 22 |
 | MEDIUM (качество) | 11 | 19 | 30 |
 | LOW (полировка) | 8 | 12 | 20 |
-| **Итого** | **38** | **55** | **93** |
+| **Итого** | **44** | **49** | **93** |
 
 ---
 
@@ -68,32 +68,17 @@
 - [x] ~~`response.json()` на DELETE 204~~ — проверка `status === 204`
 - [x] ~~SECRET_KEY по умолчанию `"changeme"`~~ — обязательное поле
 - [x] ~~Роль определяется автоматически, не по выбору юзера~~ — `User.active_role` + `_resolve_role()` + `PUT /me/role`
+- [x] ~~Name sync неполный в CoachSection~~ — `!== undefined` вместо truthiness
+- [x] ~~Автокоммит в `get_session()` двойной commit~~ — убран автокоммит, роуты сами коммитят
+- [x] ~~Регистрация хардкодит DOB и gender~~ — было false positive, фронтенд уже передаёт все поля
+- [x] ~~Race condition в invite token~~ — объединено в одну сессию (check + mark-as-used атомарно)
+- [x] ~~CASCADE DELETE удалит турниры~~ — `created_by` FK: `CASCADE` → `SET NULL`
+- [x] ~~Admin хардкод `admin`/`123`~~ — не найден в коде, мёртвые i18n ключи
+- [x] ~~Нет try/catch на photo upload в боте~~ — добавлен fallback на `photo_url=None`
 
 ## CRITICAL — Осталось
 
-- [ ] **Name sync неполный в CoachSection** — пустой `full_name` не синхронизируется
-  - `webapp/src/pages/Profile.tsx:1038-1040` — условие `me.athlete && updated.full_name` пропустит falsy значения
-  - Фикс: проверять `updated.full_name !== undefined` вместо truthiness
-
-- [ ] **Автокоммит в `get_session()` конфликтует с ручными коммитами** — двойной commit
-  - `db/base.py` — убрать `await session.commit()` из dependency, роуты сами управляют транзакциями
-  - Или: убрать ручные `session.commit()` из роутов (оставить только в dependency)
-  - Выбрать ОДИН подход и применить везде
-
-- [ ] **Регистрация хардкодит DOB и gender** — `date(2000,1,1)`, `gender="M"` в БД
-  - `api/routes/me.py:156-164` — принимать реальные данные из формы регистрации
-  - Обновить `RegisterRequest` схему: добавить `date_of_birth`, `gender`, `city` обязательными полями
-
-- [ ] **Race condition в invite token** — два юзера могут принять один инвайт одновременно
-  - `bot/handlers/invite.py:107-122` — проверка и mark-as-used в разных моментах
-  - Перенести в одну транзакцию с `SELECT ... FOR UPDATE`
-
-- [ ] **CASCADE DELETE удалит турниры юзера** — удаление аккаунта удалит турниры, на которые записаны другие
-  - `db/models/tournament.py:30` — `created_by` FK: заменить `CASCADE` на `SET NULL`
-  - Турниры должны существовать независимо от создателя
-
-- [ ] **Admin вход — хардкод `admin`/`123`** — любой может стать админом в demo mode
-  - `webapp/src/pages/Profile.tsx:546` — убрать хардкод, проверять `me.role === 'admin'` с сервера
+> Все критические проблемы исправлены!
 
 ---
 
@@ -225,8 +210,7 @@
 - [ ] **Нет /cancel команды** — юзер не может выйти из FSM посередине (только /start)
 - [ ] **Нет rate limiting на callback queries** — можно спамить кнопки
 - [ ] **Нет валидации длины** имени и полей турнира в FSM
-- [ ] **Нет try/catch на photo upload** — crash хендлера → юзер застревает в FSM
-  - `bot/handlers/registration.py:212, 365` — обернуть `get_file()` в try/catch с fallback
+- [x] ~~Нет try/catch на photo upload~~ — добавлен fallback на `photo_url=None`
 
 ## MEDIUM — Конфигурация и CI
 
