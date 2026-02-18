@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { incrementOpen, decrementOpen } from './bottomSheetState';
+import { lockOverflow, unlockOverflowIfNone } from './bottomSheetState';
 
 export default function BottomSheet({
   children,
@@ -30,18 +30,11 @@ export default function BottomSheet({
     };
   }, []);
 
-  // Prevent background scroll — only the first sheet locks, only the last unlocks
+  // Prevent background scroll
   useEffect(() => {
-    incrementOpen();
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
-    if (scrollbarWidth > 0) {
-      document.documentElement.style.paddingRight = `${scrollbarWidth}px`;
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
+    lockOverflow();
     return () => {
-      decrementOpen();
+      unlockOverflowIfNone();
     };
   }, []);
 
@@ -56,6 +49,7 @@ export default function BottomSheet({
 
   return createPortal(
     <div
+      data-bottomsheet
       role="dialog"
       aria-modal="true"
       className="fixed top-0 left-0 right-0 z-50 flex flex-col justify-end transition-colors duration-[250ms]"
