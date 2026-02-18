@@ -296,7 +296,8 @@ export default function Rating() {
     { value: 'F', label: t('rating.genderFemale') },
   ];
 
-  const weightOptions = gender === 'F' ? WEIGHT_F : WEIGHT_M;
+  const WEIGHT_ALL = [...WEIGHT_F, ...WEIGHT_M];
+  const weightOptions = gender === 'M' ? WEIGHT_M : gender === 'F' ? WEIGHT_F : WEIGHT_ALL;
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
   const { data: ratings, loading, isDemo, refetch } = useApi<RatingEntry[]>(
