@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { lockOverflow, unlockOverflowIfNone } from './bottomSheetState';
 
@@ -30,8 +30,8 @@ export default function BottomSheet({
     };
   }, []);
 
-  // Prevent background scroll
-  useEffect(() => {
+  // Prevent background scroll — useLayoutEffect to lock BEFORE browser processes autoFocus scroll
+  useLayoutEffect(() => {
     lockOverflow();
     return () => {
       unlockOverflowIfNone();
