@@ -47,7 +47,7 @@ export default function AdminUserProfile() {
     mockDetail,
     [id],
   );
-  const isAdmin = me?.is_admin ?? false;
+  const isAdmin = me?.role === 'admin';
 
   if (loading) return <LoadingSpinner />;
   if (!user) return (

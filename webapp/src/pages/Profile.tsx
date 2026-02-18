@@ -636,7 +636,7 @@ export default function Profile() {
     mockRoleRequests,
     [],
   );
-  const pendingRoleRequests = me?.is_admin ? (roleRequests?.length ?? 0) : 0;
+  const pendingRoleRequests = me?.role === 'admin' ? (roleRequests?.length ?? 0) : 0;
   const badgeCount = unreadCount + pendingRoleRequests;
 
   if (loading) return <LoadingSpinner />;
