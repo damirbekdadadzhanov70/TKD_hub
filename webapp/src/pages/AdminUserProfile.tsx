@@ -75,7 +75,7 @@ export default function AdminUserProfile() {
   const createdDate = new Date(user.created_at).toLocaleDateString();
 
   return (
-    <div className="pb-20">
+    <div>
       <div className="px-4 pt-4">
         {!isTelegram && (
           <button

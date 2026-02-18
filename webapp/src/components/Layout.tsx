@@ -17,6 +17,13 @@ export default function Layout() {
   const mainRef = useRef<HTMLElement>(null);
   const prevPath = useRef(location.pathname);
 
+  // Scroll to top on route change + clear any stale overflow from BottomSheet
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.paddingRight = '';
+  }, [location.pathname]);
+
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;

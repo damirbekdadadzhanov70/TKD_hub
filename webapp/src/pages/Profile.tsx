@@ -323,7 +323,7 @@ function AdminUserSearchSheet({ onClose }: { onClose: () => void }) {
             key={u.id}
             onClick={() => {
               onClose();
-              navigate(`/admin/user/${u.id}`);
+              setTimeout(() => navigate(`/admin/user/${u.id}`), 50);
             }}
             className="w-full flex items-center gap-3 py-2.5 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 hover:bg-bg-secondary transition-colors"
           >
@@ -388,7 +388,7 @@ export default function Profile() {
   const photoUrl = (isCoach ? me.coach?.photo_url : me.athlete?.photo_url) || tgUser?.photo_url;
 
   return (
-    <div className="pb-20">
+    <div>
       {/* Admin header: search + notifications */}
       {isAdmin ? (
         <div className="flex justify-between items-center px-4 pt-4">
