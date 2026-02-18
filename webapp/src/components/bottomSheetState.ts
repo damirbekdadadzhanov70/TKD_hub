@@ -3,6 +3,9 @@
 /** Selector for open BottomSheet portals in the DOM */
 const SHEET_SELECTOR = '[data-bottomsheet]';
 
+/** Monotonic version — bumped on force-reset so stale rAF callbacks become no-ops */
+let resetVersion = 0;
+
 function restoreOverflow() {
   document.documentElement.style.overflow = '';
   document.documentElement.style.paddingRight = '';
@@ -22,8 +25,11 @@ export function lockOverflow() {
 
 /** Called when a BottomSheet unmounts — restore overflow only if no sheets remain in DOM */
 export function unlockOverflowIfNone() {
+  const ver = resetVersion;
   // Use rAF to let React finish removing the portal element before checking DOM
   requestAnimationFrame(() => {
+    // If a force-reset happened after this was scheduled, skip — it's already clean
+    if (ver !== resetVersion) return;
     if (document.querySelectorAll(SHEET_SELECTOR).length === 0) {
       restoreOverflow();
     }
@@ -32,5 +38,6 @@ export function unlockOverflowIfNone() {
 
 /** Force-reset overflow lock — call on route change or app mount as safety net */
 export function resetBottomSheetOverflow() {
+  resetVersion++;
   restoreOverflow();
 }

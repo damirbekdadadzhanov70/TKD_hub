@@ -327,6 +327,7 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
           <button
             key={u.id}
             onClick={() => {
+              onClose();
               navigate(`/user/${u.id}`);
             }}
             className="w-full flex items-center gap-3 py-2.5 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 hover:bg-bg-secondary transition-colors"
