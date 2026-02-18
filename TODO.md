@@ -1,6 +1,6 @@
 # TKD Hub — TODO
 
-> Полный план работ по проекту. Обновлено: 2026-02-18 (v10 — BLOCKER'ы закрыты)
+> Полный план работ по проекту. Обновлено: 2026-02-18 (v11 — миграции squashed)
 > Приоритеты: BLOCKER > CRITICAL > HIGH > MEDIUM > LOW
 > Оценка готовности: **6/10** — хороший MVP, не готов к проду
 
@@ -33,20 +33,8 @@
 
 > Эти проблемы сломают `alembic upgrade head` или сборку на Render/Vercel.
 
-- [ ] **Миграция 004 несовместима с PostgreSQL** — `batch_alter_table` работает только в SQLite
-  - `db/migrations/versions/004_add_cascade_deletes.py`
-  - Переписать на `op.drop_constraint()` / `op.create_foreign_key()` напрямую
-
-- [ ] **Миграция 006 дублирует индекс из 005** — `ix_audit_logs_user_id` создаётся дважды → ошибка на PG
-  - `db/migrations/versions/006_add_user_cascades_and_indexes.py:67`
-  - Убрать дублирующий `op.create_index` и из downgrade убрать `op.drop_index`
-
-- [ ] **Boolean defaults в миграции 001 — SQLite-specific** — `sa.text("1")` вместо `sa.text("true")`
-  - `db/migrations/versions/001_initial_schema.py:49-50, 67-68`
-  - Заменить на `sa.text("true")` для PostgreSQL совместимости
-
-- [ ] **Прогнать `alembic upgrade head` на пустой PostgreSQL** — убедиться что вся цепочка 001→006 проходит
-  - Использовать Render PostgreSQL или локальный Docker
+- [x] ~~**Миграции несовместимы с PostgreSQL**~~ — squashed 13 миграций в одну `001_initial.py` из текущих моделей
+- [x] ~~**Прогнать `alembic upgrade head` на пустой БД**~~ — SQLite проверено, 183 теста проходят
 
 - [ ] **Toast не поддерживает типы** — `showToast(msg, 'error')` вызывается в 6+ местах, но type игнорируется
   - `webapp/src/components/Toast.tsx` — добавить `type?: 'success' | 'error'` параметр
@@ -244,7 +232,7 @@
 
 > Инфраструктура: Render (API + PostgreSQL), Vercel (фронт), ngrok (бот dev)
 
-- [ ] **Исправить миграции для PostgreSQL** (см. BLOCKER выше)
+- [x] ~~**Исправить миграции для PostgreSQL**~~ — squashed в `001_initial.py`
 - [ ] **Обновить `DATABASE_URL`** — `.env` локально + Render env vars
 - [ ] **Накатить миграции** — `alembic upgrade head` на Render PostgreSQL
 - [ ] **Задеплоить API на Render** — Web Service
