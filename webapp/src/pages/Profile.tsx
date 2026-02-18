@@ -526,7 +526,10 @@ function NotificationsSheet({ isAdmin, onClose, onMarkAllRead, onUnreadDecrement
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteNotification(id);
+      const isMockId = id.startsWith('mock-');
+      if (!isMockId) {
+        await deleteNotification(id);
+      }
       deleteMockNotification(id);
       const wasUnread = notifications.find((n) => n.id === id && !n.read);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
