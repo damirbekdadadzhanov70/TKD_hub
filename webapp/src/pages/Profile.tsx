@@ -492,6 +492,7 @@ function SwipeNotificationItem({
 
 function NotificationsSheet({ isAdmin, onClose, onMarkAllRead, onUnreadDecrement }: { isAdmin: boolean; onClose: () => void; onMarkAllRead: () => void; onUnreadDecrement: () => void }) {
   const { t } = useI18n();
+  const { showToast } = useToast();
   const { hapticFeedback, hapticNotification } = useTelegram();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [nLoading, setNLoading] = useState(true);
@@ -531,8 +532,9 @@ function NotificationsSheet({ isAdmin, onClose, onMarkAllRead, onUnreadDecrement
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       if (wasUnread) onUnreadDecrement();
       hapticNotification('success');
-    } catch {
+    } catch (err) {
       hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
     }
   };
 
