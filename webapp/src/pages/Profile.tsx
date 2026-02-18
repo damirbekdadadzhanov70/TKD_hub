@@ -407,8 +407,8 @@ function SwipeNotificationItem({
   };
 
   return (
-    <div className="relative overflow-hidden">
-      {/* Delete button behind */}
+    <div className="relative overflow-hidden group">
+      {/* Delete button behind (swipe) */}
       <div className="absolute inset-y-0 right-0 flex items-center">
         <button
           onClick={() => onDelete(n.id)}
@@ -429,8 +429,22 @@ function SwipeNotificationItem({
         onTouchEnd={handleTouchEnd}
       >
         <div className="py-3 px-0 border-b border-dashed border-border">
-          <p className="text-[14px] font-medium text-text">{n.title}</p>
-          <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-medium text-text">{n.title}</p>
+              <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
+            </div>
+            {/* Desktop delete button (visible on hover) */}
+            <button
+              onClick={() => onDelete(n.id)}
+              aria-label={t('common.delete')}
+              className="hidden group-hover:flex shrink-0 w-7 h-7 items-center justify-center rounded-full bg-transparent border-none cursor-pointer text-text-disabled hover:text-rose-500 hover:bg-rose-50 active:opacity-80 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
           <div className="flex items-center justify-between mt-1">
             <p className="text-[11px] text-text-disabled">
               {new Date(n.created_at).toLocaleDateString()}
