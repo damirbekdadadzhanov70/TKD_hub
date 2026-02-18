@@ -6,16 +6,30 @@ const SHEET_SELECTOR = '[data-bottomsheet]';
 /** Monotonic version — bumped on force-reset so stale rAF callbacks become no-ops */
 let resetVersion = 0;
 
+/** Saved scroll position before overflow lock */
+let savedScrollY = 0;
+
 function restoreOverflow() {
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
   document.documentElement.style.overflow = '';
   document.documentElement.style.paddingRight = '';
-  document.body.style.overflow = '';
+  window.scrollTo(0, savedScrollY);
 }
 
 export function lockOverflow() {
+  // Only save scroll position if not already locked (avoid overwriting with 0)
+  if (document.body.style.position !== 'fixed') {
+    savedScrollY = window.scrollY;
+  }
   const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${savedScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
   document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
   if (scrollbarWidth > 0) {
     document.documentElement.style.paddingRight = `${scrollbarWidth}px`;
   }
