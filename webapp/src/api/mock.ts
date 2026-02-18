@@ -693,6 +693,7 @@ export let mockNotifications: NotificationItem[] = [
   {
     id: 'mock-notif-1',
     type: 'role_approved',
+    role: null,
     title: 'Роль одобрена',
     body: 'Ваша заявка на роль тренер одобрена!',
     read: false,
@@ -701,6 +702,7 @@ export let mockNotifications: NotificationItem[] = [
   {
     id: 'mock-notif-2',
     type: 'entry_approved',
+    role: 'coach',
     title: 'Заявка одобрена',
     body: 'Заявка на Кубок России (Alikhanov Damir) одобрена.',
     read: true,
@@ -709,10 +711,20 @@ export let mockNotifications: NotificationItem[] = [
   {
     id: 'mock-notif-3',
     type: 'interest_confirmed',
+    role: 'athlete',
     title: 'Интерес отмечен',
     body: 'Вы отметили интерес к турниру Кубок Казани.',
     read: true,
     created_at: '2026-02-15T08:30:00',
+  },
+  {
+    id: 'mock-notif-4',
+    type: 'account_created',
+    role: 'admin',
+    title: 'Новый пользователь',
+    body: 'Иванов Иван (@ivan_tkd) зарегистрировался как coach.',
+    read: true,
+    created_at: '2026-02-14T09:00:00',
   },
 ];
 
@@ -724,8 +736,17 @@ export function deleteMockNotification(id: string) {
   mockNotifications = mockNotifications.filter((n) => n.id !== id);
 }
 
+function filterByRole(items: NotificationItem[]): NotificationItem[] {
+  const role = mockMe.role;
+  return items.filter((n) => n.role === null || n.role === role);
+}
+
+export function getMockNotificationsForRole(): NotificationItem[] {
+  return filterByRole(mockNotifications);
+}
+
 export function getMockUnreadCount(): number {
-  return mockNotifications.filter((n) => !n.read).length;
+  return filterByRole(mockNotifications).filter((n) => !n.read).length;
 }
 
 // ── User Search (all roles) ─────────────────────────────────

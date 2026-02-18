@@ -16,13 +16,20 @@ async def create_notification(
     type: str,
     title: str,
     body: str,
+    role: str | None = None,
 ) -> None:
-    """Insert a notification row. Import model lazily to avoid circular imports."""
+    """Insert a notification row. Import model lazily to avoid circular imports.
+
+    Args:
+        role: Target role that should see this notification (e.g. 'admin', 'coach', 'athlete').
+              None means visible regardless of active role.
+    """
     from db.models.notification import Notification
 
     notification = Notification(
         user_id=user_id,
         type=type,
+        role=role,
         title=title,
         body=body,
     )

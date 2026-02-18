@@ -294,6 +294,7 @@ export interface AdminUserDetail {
 export interface NotificationItem {
   id: string;
   type: string;
+  role: string | null;
   title: string;
   body: string;
   read: boolean;

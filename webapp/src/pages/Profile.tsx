@@ -37,6 +37,7 @@ import {
   approveMockRoleRequest,
   deleteMockAccount,
   deleteMockNotification,
+  getMockNotificationsForRole,
   getMockUnreadCount,
   mockCoachAthletes,
   mockCoachEntries,
@@ -44,7 +45,6 @@ import {
   mockMarkNotificationsRead,
   mockMe,
   mockMyCoach,
-  mockNotifications,
   mockPendingAthletes,
   mockProfileStats,
   mockRoleRequests,
@@ -447,10 +447,10 @@ function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; on
         if (Array.isArray(data)) {
           setNotifications(data);
         } else {
-          setNotifications(mockNotifications);
+          setNotifications(getMockNotificationsForRole());
         }
       } catch {
-        setNotifications(mockNotifications);
+        setNotifications(getMockNotificationsForRole());
       } finally {
         setNLoading(false);
       }

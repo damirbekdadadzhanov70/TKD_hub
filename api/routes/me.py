@@ -484,6 +484,7 @@ async def register_profile(
             type="account_created",
             title="Новый пользователь",
             body=f"{reg_name} (@{user.username or ''}) зарегистрировался как {payload.role}.",
+            role="admin",
         )
 
     await ctx.session.commit()
@@ -572,6 +573,7 @@ async def request_role_change(
             type="new_role_request",
             title="Запрос на роль",
             body=f"{full_name} (@{user.username or ''}) запрашивает роль {payload.requested_role}.",
+            role="admin",
         )
 
     await ctx.session.commit()

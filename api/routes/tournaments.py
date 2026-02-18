@@ -270,6 +270,7 @@ async def mark_interest(
         type="interest_confirmed",
         title="Интерес отмечен",
         body=f"Вы отметили интерес к турниру {tournament.name}.",
+        role="athlete",
     )
 
     # In-app notification for coach if linked
@@ -286,6 +287,7 @@ async def mark_interest(
             type="coach_athlete_interest",
             title="Спортсмен заинтересован",
             body=f"{ctx.user.athlete.full_name} заинтересован в турнире {tournament.name}.",
+            role="coach",
         )
 
     await ctx.session.commit()
@@ -562,6 +564,7 @@ async def approve_coach_entries(
                 type="entry_approved",
                 title="Заявка одобрена",
                 body=f"Заявка на {t_name_q} ({a_name}) одобрена.",
+                role="coach",
             )
 
     await ctx.session.commit()
@@ -615,6 +618,7 @@ async def reject_coach_entries(
                 type="entry_rejected",
                 title="Заявка отклонена",
                 body=f"Заявка на {t_name_q2} ({a_name}) отклонена.",
+                role="coach",
             )
 
     await ctx.session.commit()

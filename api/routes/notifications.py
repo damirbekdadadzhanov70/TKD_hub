@@ -2,12 +2,19 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 
 from api.dependencies import AuthContext, get_current_user
+from api.routes.me import _resolve_role
 from db.models.notification import Notification
 
 router = APIRouter()
+
+
+def _role_filter(user):
+    """Filter: show notifications where role matches user's active role OR role is NULL."""
+    role = _resolve_role(user)
+    return or_(Notification.role == None, Notification.role == role)  # noqa: E711
 
 
 class NotificationOut(BaseModel):
@@ -32,7 +39,10 @@ async def get_notifications(
     offset = (max(page, 1) - 1) * limit
     result = await ctx.session.execute(
         select(Notification)
-        .where(Notification.user_id == ctx.user.id)
+        .where(
+            Notification.user_id == ctx.user.id,
+            _role_filter(ctx.user),
+        )
         .order_by(Notification.created_at.desc())
         .offset(offset)
         .limit(min(limit, 50))
@@ -59,6 +69,7 @@ async def get_unread_count(
         select(func.count(Notification.id)).where(
             Notification.user_id == ctx.user.id,
             Notification.read == False,  # noqa: E712
+            _role_filter(ctx.user),
         )
     )
     count = result.scalar_one()
@@ -69,11 +80,13 @@ async def get_unread_count(
 async def mark_all_read(
     ctx: AuthContext = Depends(get_current_user),
 ):
+    role = _resolve_role(ctx.user)
     await ctx.session.execute(
         update(Notification)
         .where(
             Notification.user_id == ctx.user.id,
             Notification.read == False,  # noqa: E712
+            or_(Notification.role == None, Notification.role == role),  # noqa: E711
         )
         .values(read=True)
     )
