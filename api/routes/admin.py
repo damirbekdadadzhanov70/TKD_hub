@@ -452,3 +452,45 @@ async def delete_user(
     await ctx.session.commit()
 
     return {"status": "deleted"}
+
+
+# ── Coach verification ──────────────────────────────────────
+
+
+@router.post("/admin/coaches/{coach_id}/verify")
+async def verify_coach(
+    coach_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _require_admin(ctx.user)
+
+    try:
+        cid = uuid.UUID(coach_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid coach ID") from err
+
+    result = await ctx.session.execute(
+        select(Coach).where(Coach.id == cid).options(selectinload(Coach.user))
+    )
+    coach = result.scalar_one_or_none()
+    if not coach:
+        raise HTTPException(status_code=404, detail="Coach not found")
+    if coach.is_verified:
+        return {"status": "already_verified"}
+
+    coach.is_verified = True
+    ctx.session.add(coach)
+
+    # Notify coach about verification
+    if coach.user:
+        await create_notification(
+            ctx.session,
+            user_id=coach.user.id,
+            type="coach_verified",
+            title="Верификация пройдена",
+            body="Ваш профиль тренера верифицирован!",
+            role="coach",
+        )
+
+    await ctx.session.commit()
+    return {"status": "verified"}

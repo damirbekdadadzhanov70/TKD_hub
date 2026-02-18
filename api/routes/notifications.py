@@ -22,6 +22,7 @@ class NotificationOut(BaseModel):
     type: str
     title: str
     body: str
+    ref_id: str | None = None
     read: bool
     created_at: str
 
@@ -54,6 +55,7 @@ async def get_notifications(
             type=n.type,
             title=n.title,
             body=n.body,
+            ref_id=n.ref_id,
             read=n.read,
             created_at=str(n.created_at),
         )

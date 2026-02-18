@@ -12,6 +12,7 @@ import {
   deleteMyAccount,
   deleteNotification,
   getCoachAthletes,
+  verifyCoach,
   getCoachEntries,
   getMe,
   getMyCoach,
@@ -352,18 +353,22 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
 function SwipeNotificationItem({
   n,
   onDelete,
+  onVerify,
 }: {
   n: NotificationItem;
   onDelete: (id: string) => void;
+  onVerify?: (n: NotificationItem) => void;
 }) {
   const { t } = useI18n();
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
   const locked = useRef(false);
 
   const DELETE_THRESHOLD = 80;
+  const isVerifyRequest = n.type === 'coach_verify_request' && !!n.ref_id;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
@@ -377,7 +382,6 @@ function SwipeNotificationItem({
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
 
-    // Lock direction on first significant move
     if (!locked.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
       locked.current = true;
       if (Math.abs(dy) > Math.abs(dx)) {
@@ -425,9 +429,20 @@ function SwipeNotificationItem({
         <div className="py-3 px-0 border-b border-dashed border-border">
           <p className="text-[14px] font-medium text-text">{n.title}</p>
           <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
-          <p className="text-[11px] text-text-disabled mt-1">
-            {new Date(n.created_at).toLocaleDateString()}
-          </p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[11px] text-text-disabled">
+              {new Date(n.created_at).toLocaleDateString()}
+            </p>
+            {isVerifyRequest && onVerify && (
+              <button
+                onClick={() => { setVerifying(true); onVerify(n); }}
+                disabled={verifying}
+                className="text-[12px] px-3 py-1 rounded-full bg-emerald-500 text-white font-medium border-none cursor-pointer active:opacity-80 hover:bg-emerald-600 transition-colors disabled:opacity-40"
+              >
+                {verifying ? '...' : 'Verify'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -480,6 +495,24 @@ function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; on
     }
   };
 
+  const handleVerify = async (n: NotificationItem) => {
+    if (!n.ref_id) return;
+    try {
+      await verifyCoach(n.ref_id);
+      // Mark this notification as read and update body
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === n.id
+            ? { ...item, read: true, type: 'coach_verified_done', body: item.body.replace('ожидает верификации', 'верифицирован') }
+            : item,
+        ),
+      );
+      hapticNotification('success');
+    } catch {
+      hapticNotification('error');
+    }
+  };
+
   const hasUnread = notifications.some((n) => !n.read);
 
   return (
@@ -523,7 +556,7 @@ function NotificationsSheet({ isAdmin, onClose, onRead }: { isAdmin: boolean; on
               <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 mt-4">{t('profile.notifications')}</p>
             )}
             {notifications.map((n) => (
-              <SwipeNotificationItem key={n.id} n={n} onDelete={handleDelete} />
+              <SwipeNotificationItem key={n.id} n={n} onDelete={handleDelete} onVerify={isAdmin ? handleVerify : undefined} />
             ))}
           </div>
         )}

@@ -297,6 +297,7 @@ export interface NotificationItem {
   role: string | null;
   title: string;
   body: string;
+  ref_id: string | null;
   read: boolean;
   created_at: string;
 }

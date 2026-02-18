@@ -487,6 +487,20 @@ async def register_profile(
             role="admin",
         )
 
+    # Coach verify request for admins
+    if payload.role == "coach" and user.coach:
+        admin_result2 = await ctx.session.execute(select(User).where(User.telegram_id.in_(list(settings.admin_ids))))
+        for admin_user in admin_result2.scalars().all():
+            await create_notification(
+                ctx.session,
+                user_id=admin_user.id,
+                type="coach_verify_request",
+                title="Верификация тренера",
+                body=f"{reg_name} ожидает верификации как тренер.",
+                role="admin",
+                ref_id=str(user.coach.id),
+            )
+
     await ctx.session.commit()
 
     # Notify admins about new profile via Telegram

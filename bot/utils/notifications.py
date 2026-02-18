@@ -17,12 +17,14 @@ async def create_notification(
     title: str,
     body: str,
     role: str | None = None,
+    ref_id: str | None = None,
 ) -> None:
     """Insert a notification row. Import model lazily to avoid circular imports.
 
     Args:
         role: Target role that should see this notification (e.g. 'admin', 'coach', 'athlete').
               None means visible regardless of active role.
+        ref_id: Optional reference ID (e.g. coach_id for verify requests).
     """
     from db.models.notification import Notification
 
@@ -32,6 +34,7 @@ async def create_notification(
         role=role,
         title=title,
         body=body,
+        ref_id=ref_id,
     )
     session.add(notification)
     await session.flush()

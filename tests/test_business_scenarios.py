@@ -3177,3 +3177,118 @@ async def test_coach_can_search_users(coach_client: AsyncClient):
     """Coach role can also search users."""
     response = await coach_client.get("/api/users/search")
     assert response.status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════
+#  22. API: Coach Verification
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_verify_coach_success(
+    admin_client: AsyncClient, db_session: AsyncSession
+):
+    """Admin can verify a coach."""
+    # Create an unverified coach user
+    user = User(telegram_id=555111222, username="unverified_coach", language="ru")
+    db_session.add(user)
+    await db_session.flush()
+
+    coach = Coach(
+        user_id=user.id,
+        full_name="Unverified Coach",
+        date_of_birth=date(1990, 3, 10),
+        gender="M",
+        country="Россия",
+        city="Москва",
+        club="Test Club",
+        qualification="КМС",
+        is_verified=False,
+    )
+    db_session.add(coach)
+    await db_session.commit()
+    await db_session.refresh(coach)
+
+    response = await admin_client.post(f"/api/admin/coaches/{coach.id}/verify")
+    assert response.status_code == 200
+    assert response.json()["status"] == "verified"
+
+    # Check that coach is now verified in DB
+    await db_session.refresh(coach)
+    assert coach.is_verified is True
+
+
+@pytest.mark.asyncio
+async def test_verify_coach_already_verified(
+    admin_client: AsyncClient, coach_user, db_session: AsyncSession
+):
+    """Verifying an already verified coach returns already_verified."""
+    result = await db_session.execute(
+        select(Coach).where(Coach.user_id == coach_user.id)
+    )
+    coach = result.scalar_one()
+    assert coach.is_verified is True
+
+    response = await admin_client.post(f"/api/admin/coaches/{coach.id}/verify")
+    assert response.status_code == 200
+    assert response.json()["status"] == "already_verified"
+
+
+@pytest.mark.asyncio
+async def test_verify_coach_not_found(admin_client: AsyncClient):
+    """Verifying a non-existent coach returns 404."""
+    response = await admin_client.post(
+        f"/api/admin/coaches/{uuid_mod.uuid4()}/verify"
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_verify_coach_non_admin_rejected(auth_client: AsyncClient, coach_user, db_session: AsyncSession):
+    """Non-admin cannot verify a coach."""
+    result = await db_session.execute(
+        select(Coach).where(Coach.user_id == coach_user.id)
+    )
+    coach = result.scalar_one()
+
+    response = await auth_client.post(f"/api/admin/coaches/{coach.id}/verify")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_verify_coach_creates_notification(
+    admin_client: AsyncClient, db_session: AsyncSession
+):
+    """Verifying a coach creates an in-app notification for the coach."""
+    from db.models.notification import Notification
+
+    user = User(telegram_id=555111333, username="notify_coach", language="ru")
+    db_session.add(user)
+    await db_session.flush()
+
+    coach = Coach(
+        user_id=user.id,
+        full_name="Notify Coach",
+        date_of_birth=date(1990, 3, 10),
+        gender="M",
+        country="Россия",
+        city="Москва",
+        club="Test Club",
+        qualification="КМС",
+        is_verified=False,
+    )
+    db_session.add(coach)
+    await db_session.commit()
+    await db_session.refresh(coach)
+
+    await admin_client.post(f"/api/admin/coaches/{coach.id}/verify")
+
+    result = await db_session.execute(
+        select(Notification).where(
+            Notification.user_id == user.id,
+            Notification.type == "coach_verified",
+        )
+    )
+    notification = result.scalar_one_or_none()
+    assert notification is not None
+    assert notification.role == "coach"

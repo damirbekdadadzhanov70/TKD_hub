@@ -116,6 +116,12 @@ export function deleteAdminUser(userId: string): Promise<void> {
   });
 }
 
+export function verifyCoach(coachId: string): Promise<{ status: string }> {
+  return apiRequest<{ status: string }>(`/admin/coaches/${coachId}/verify`, {
+    method: 'POST',
+  });
+}
+
 // --- Tournaments ---
 
 export async function getTournaments(params?: {
