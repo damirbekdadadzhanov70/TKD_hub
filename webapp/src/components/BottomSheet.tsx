@@ -4,6 +4,13 @@ import { createPortal } from 'react-dom';
 // Track how many sheets are open so we only restore overflow when the last one closes
 let openCount = 0;
 
+/** Reset overflow lock — call on route change to handle navigating away while a sheet is open */
+export function resetBottomSheetOverflow() {
+  openCount = 0;
+  document.documentElement.style.overflow = '';
+  document.documentElement.style.paddingRight = '';
+}
+
 export default function BottomSheet({
   children,
   onClose,

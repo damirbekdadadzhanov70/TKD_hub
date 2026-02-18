@@ -323,8 +323,7 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
           <button
             key={u.id}
             onClick={() => {
-              onClose();
-              setTimeout(() => navigate(`/user/${u.id}`), 50);
+              navigate(`/user/${u.id}`);
             }}
             className="w-full flex items-center gap-3 py-2.5 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 hover:bg-bg-secondary transition-colors"
           >
@@ -493,8 +492,8 @@ export default function Profile() {
 
   return (
     <div>
-      {/* Header: search + notifications — for ALL roles */}
-      <div className="flex justify-between items-center px-4 pt-4">
+      {/* Header: search (left) + bell & settings (right) — for ALL roles */}
+      <div className="flex justify-between items-start px-4 pt-4">
         <button
           aria-label={t('profile.searchUsers')}
           onClick={() => setShowUserSearch(true)}
@@ -502,18 +501,27 @@ export default function Profile() {
         >
           <SearchIcon />
         </button>
-        <button
-          aria-label={t('profile.notifications')}
-          onClick={() => setShowNotifications(true)}
-          className="relative w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
-        >
-          <BellIcon />
-          {badgeCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-bold px-1">
-              {badgeCount}
-            </span>
-          )}
-        </button>
+        <div className="flex flex-col items-center gap-2">
+          <button
+            aria-label={t('profile.notifications')}
+            onClick={() => setShowNotifications(true)}
+            className="relative w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+          >
+            <BellIcon />
+            {badgeCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-bold px-1">
+                {badgeCount}
+              </span>
+            )}
+          </button>
+          <button
+            aria-label={t('profile.settings')}
+            onClick={() => setShowSettings(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full border-none bg-bg-secondary cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors"
+          >
+            <GearIcon />
+          </button>
+        </div>
       </div>
 
       {/* Avatar + name */}
@@ -550,14 +558,6 @@ export default function Profile() {
           <p className="text-sm text-text-secondary mt-0.5">{t('profile.administrator')}</p>
         )}
 
-        {/* Settings button below name — for ALL roles */}
-        <button
-          onClick={() => setShowSettings(true)}
-          className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary hover:text-accent active:opacity-70 transition-colors text-sm"
-        >
-          <GearIcon />
-          {t('profile.settings')}
-        </button>
       </div>
 
       {/* Athlete profile */}

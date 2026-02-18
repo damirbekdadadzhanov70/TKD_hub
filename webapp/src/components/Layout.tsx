@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import BottomNav from './BottomNav';
+import { resetBottomSheetOverflow } from './BottomSheet';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 
@@ -20,8 +21,7 @@ export default function Layout() {
   // Scroll to top on route change + clear any stale overflow from BottomSheet
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.documentElement.style.overflow = '';
-    document.documentElement.style.paddingRight = '';
+    resetBottomSheetOverflow();
   }, [location.pathname]);
 
   useEffect(() => {
