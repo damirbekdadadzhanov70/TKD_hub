@@ -3019,9 +3019,7 @@ async def test_notification_on_role_approve(
 
     from db.models.notification import Notification
 
-    result = await db_session.execute(
-        select(Notification).where(Notification.user_id == bare_user.id)
-    )
+    result = await db_session.execute(select(Notification).where(Notification.user_id == bare_user.id))
     notifs = result.scalars().all()
     assert len(notifs) >= 1
     assert any(n.type == "role_approved" for n in notifs)
@@ -3054,9 +3052,7 @@ async def test_notification_on_role_reject(
 
     from db.models.notification import Notification
 
-    result = await db_session.execute(
-        select(Notification).where(Notification.user_id == bare_user.id)
-    )
+    result = await db_session.execute(select(Notification).where(Notification.user_id == bare_user.id))
     notifs = result.scalars().all()
     assert len(notifs) >= 1
     assert any(n.type == "role_rejected" for n in notifs)
