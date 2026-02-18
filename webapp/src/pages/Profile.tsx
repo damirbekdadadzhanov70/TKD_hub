@@ -364,6 +364,8 @@ function SwipeNotificationItem({
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
   const baseOffset = useRef(0);
@@ -406,12 +408,17 @@ function SwipeNotificationItem({
     }
   };
 
+  const handleConfirmDelete = () => {
+    setDeleting(true);
+    onDelete(n.id);
+  };
+
   return (
     <div className="relative overflow-hidden">
       {/* Delete button behind (swipe) */}
       <div className="absolute inset-y-0 right-0 flex items-center">
         <button
-          onClick={() => onDelete(n.id)}
+          onClick={handleConfirmDelete}
           className="h-full px-5 bg-rose-500 text-white text-xs font-medium border-none cursor-pointer active:bg-rose-600 transition-colors"
         >
           {t('common.delete')}
@@ -434,16 +441,34 @@ function SwipeNotificationItem({
               <p className="text-[14px] font-medium text-text">{n.title}</p>
               <p className="text-[13px] text-text-secondary mt-0.5">{n.body}</p>
             </div>
-            {/* Delete button — always visible for desktop/laptop users */}
-            <button
-              onClick={() => onDelete(n.id)}
-              aria-label={t('common.delete')}
-              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-transparent border-none cursor-pointer text-text-disabled hover:text-rose-500 hover:bg-rose-50 active:opacity-80 transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-              </svg>
-            </button>
+            {/* Delete button with confirmation */}
+            {!confirming ? (
+              <button
+                onClick={() => setConfirming(true)}
+                aria-label={t('common.delete')}
+                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-transparent border-none cursor-pointer text-text-disabled hover:text-rose-500 hover:bg-rose-50 active:opacity-80 transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={deleting}
+                  className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-rose-500 text-white border-none cursor-pointer active:opacity-80 hover:bg-rose-600 transition-colors disabled:opacity-40"
+                >
+                  {t('common.delete')}
+                </button>
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-bg-secondary text-text-secondary border border-border cursor-pointer active:opacity-80 hover:bg-bg-primary transition-colors"
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between mt-1">
             <p className="text-[11px] text-text-disabled">
