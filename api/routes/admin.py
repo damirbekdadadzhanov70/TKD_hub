@@ -469,9 +469,7 @@ async def verify_coach(
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid coach ID") from err
 
-    result = await ctx.session.execute(
-        select(Coach).where(Coach.id == cid).options(selectinload(Coach.user))
-    )
+    result = await ctx.session.execute(select(Coach).where(Coach.id == cid).options(selectinload(Coach.user)))
     coach = result.scalar_one_or_none()
     if not coach:
         raise HTTPException(status_code=404, detail="Coach not found")

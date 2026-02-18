@@ -3185,9 +3185,7 @@ async def test_coach_can_search_users(coach_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_verify_coach_success(
-    admin_client: AsyncClient, db_session: AsyncSession
-):
+async def test_verify_coach_success(admin_client: AsyncClient, db_session: AsyncSession):
     """Admin can verify a coach."""
     # Create an unverified coach user
     user = User(telegram_id=555111222, username="unverified_coach", language="ru")
@@ -3219,13 +3217,9 @@ async def test_verify_coach_success(
 
 
 @pytest.mark.asyncio
-async def test_verify_coach_already_verified(
-    admin_client: AsyncClient, coach_user, db_session: AsyncSession
-):
+async def test_verify_coach_already_verified(admin_client: AsyncClient, coach_user, db_session: AsyncSession):
     """Verifying an already verified coach returns already_verified."""
-    result = await db_session.execute(
-        select(Coach).where(Coach.user_id == coach_user.id)
-    )
+    result = await db_session.execute(select(Coach).where(Coach.user_id == coach_user.id))
     coach = result.scalar_one()
     assert coach.is_verified is True
 
@@ -3237,18 +3231,14 @@ async def test_verify_coach_already_verified(
 @pytest.mark.asyncio
 async def test_verify_coach_not_found(admin_client: AsyncClient):
     """Verifying a non-existent coach returns 404."""
-    response = await admin_client.post(
-        f"/api/admin/coaches/{uuid_mod.uuid4()}/verify"
-    )
+    response = await admin_client.post(f"/api/admin/coaches/{uuid_mod.uuid4()}/verify")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_verify_coach_non_admin_rejected(auth_client: AsyncClient, coach_user, db_session: AsyncSession):
     """Non-admin cannot verify a coach."""
-    result = await db_session.execute(
-        select(Coach).where(Coach.user_id == coach_user.id)
-    )
+    result = await db_session.execute(select(Coach).where(Coach.user_id == coach_user.id))
     coach = result.scalar_one()
 
     response = await auth_client.post(f"/api/admin/coaches/{coach.id}/verify")
@@ -3256,9 +3246,7 @@ async def test_verify_coach_non_admin_rejected(auth_client: AsyncClient, coach_u
 
 
 @pytest.mark.asyncio
-async def test_verify_coach_creates_notification(
-    admin_client: AsyncClient, db_session: AsyncSession
-):
+async def test_verify_coach_creates_notification(admin_client: AsyncClient, db_session: AsyncSession):
     """Verifying a coach creates an in-app notification for the coach."""
     from db.models.notification import Notification
 
