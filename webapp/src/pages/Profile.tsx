@@ -615,8 +615,8 @@ export default function Profile() {
           </button>
         </div>
 
-        {/* Avatar + name — centered */}
-        <div className="flex flex-col items-center pt-1">
+        {/* Avatar + name — centered, padded so text doesn't overlap icons */}
+        <div className="flex flex-col items-center pt-1 px-12">
           {photoUrl ? (
             <img
               src={photoUrl}
@@ -790,7 +790,7 @@ function AthleteSection({
                 <div className="flex items-center gap-1.5">
                   <p className="text-[15px] font-medium text-text truncate">{myCoach.full_name}</p>
                   {myCoach.is_verified && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-light text-accent font-medium">{t('profile.verifiedCoach')}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-medium">{t('profile.verifiedCoach')}</span>
                   )}
                 </div>
                 <p className="text-[13px] text-text-secondary">{myCoach.club} · {myCoach.city}</p>
@@ -988,7 +988,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
         <InfoRow label={t('profile.club')} value={coach.club} />
         <InfoRow label={t('profile.city')} value={coach.city} />
         <InfoRow label={t('profile.sportRank')} value={coach.qualification} />
-        <InfoRow label={t('profile.verifiedLabel')} value={coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} accent={coach.is_verified} />
+        <InfoRow label={t('profile.verifiedLabel')} value={coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} green={coach.is_verified} />
       </div>
 
       {/* Edit button — outlined */}
@@ -1300,11 +1300,11 @@ function EntryStatusBadge({ status }: { status: string }) {
 
 /* ---- Info Row ---- */
 
-function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function InfoRow({ label, value, accent, green }: { label: string; value: string; accent?: boolean; green?: boolean }) {
   return (
     <div className="flex justify-between items-center py-2">
       <span className="text-[11px] text-text-disabled">{label}</span>
-      <span className={`text-[15px] ${accent ? 'text-accent' : 'text-text'}`}>{value}</span>
+      <span className={`text-[15px] ${green ? 'text-emerald-500' : accent ? 'text-accent' : 'text-text'}`}>{value}</span>
     </div>
   );
 }
