@@ -3142,6 +3142,29 @@ async def test_notification_on_role_reject(
 
 
 @pytest.mark.asyncio
+async def test_notification_on_role_request_creation(
+    auth_client: AsyncClient,
+    db_session,
+    admin_user,
+):
+    """Creating a role request sends in-app notification to admins."""
+    resp = await auth_client.post(
+        "/api/me/role-request",
+        json={"requested_role": "coach", "data": {"full_name": "Want Coach"}},
+    )
+    assert resp.status_code == 200
+
+    from sqlalchemy import select
+
+    from db.models.notification import Notification
+
+    result = await db_session.execute(select(Notification).where(Notification.user_id == admin_user.id))
+    notifs = result.scalars().all()
+    assert len(notifs) >= 1
+    assert any(n.type == "new_role_request" for n in notifs)
+
+
+@pytest.mark.asyncio
 async def test_mark_notifications_read(auth_client: AsyncClient, db_session, test_user):
     """Mark all notifications as read."""
     from db.models.notification import Notification
