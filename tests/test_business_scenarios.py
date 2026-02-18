@@ -27,7 +27,7 @@ Sections:
 """
 
 import uuid as uuid_mod
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -1390,7 +1390,7 @@ async def test_invite_deep_link_expired_token(db_session: AsyncSession):
     token = InviteToken(
         token="expired12345",
         coach_id=coach_user.coach.id,
-        expires_at=datetime.utcnow() - timedelta(hours=1),
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
         used=False,
     )
     db_session.add(token)
@@ -1415,7 +1415,7 @@ async def test_invite_deep_link_used_token(db_session: AsyncSession):
     token = InviteToken(
         token="used12345678",
         coach_id=coach_user.coach.id,
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
         used=True,
     )
     db_session.add(token)
@@ -1440,7 +1440,7 @@ async def test_invite_deep_link_valid_token_shows_decision(db_session: AsyncSess
     token = InviteToken(
         token="valid1234567",
         coach_id=coach_user.coach.id,
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
         used=False,
     )
     db_session.add(token)

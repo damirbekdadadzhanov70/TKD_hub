@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
+import { CITIES } from '../constants/cities';
 import {
   acceptAthleteRequest,
   approveRoleRequest,
@@ -82,7 +83,7 @@ const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg',
 const WEIGHT_M = ['54kg', '58kg', '63kg', '68kg', '74kg', '80kg', '87kg', '+87kg'];
 const WEIGHT_F = ['46kg', '49kg', '53kg', '57kg', '62kg', '67kg', '73kg', '+73kg'];
 const RANKS = ['Без разряда', '3 разряд', '2 разряд', '1 разряд', 'КМС', 'МС', 'МСМК', 'ЗМС'];
-const CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Рязань', 'Махачкала', 'Новосибирск', 'Краснодар', 'Владивосток'];
+
 const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -896,7 +897,7 @@ function AthleteSection({
               ...me,
               athlete: { ...me.athlete!, ...updated },
               // Sync name to coach profile
-              coach: me.coach && updated.full_name
+              coach: me.coach && updated.full_name !== undefined
                 ? { ...me.coach, full_name: updated.full_name }
                 : me.coach,
             };
@@ -1035,7 +1036,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
               ...me,
               coach: { ...me.coach!, ...updated },
               // Sync name to athlete profile
-              athlete: me.athlete && updated.full_name
+              athlete: me.athlete && updated.full_name !== undefined
                 ? { ...me.athlete, full_name: updated.full_name }
                 : me.athlete,
             };

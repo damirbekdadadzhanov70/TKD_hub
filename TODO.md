@@ -1,6 +1,6 @@
 # TKD Hub — TODO
 
-> Полный план работ по проекту. Обновлено: 2026-02-18 (v7 — админ-профиль: поиск юзеров + уведомления на главную)
+> Полный план работ по проекту. Обновлено: 2026-02-18 (v8 — полный аудит проекта)
 > Приоритеты: BLOCKER > CRITICAL > HIGH > MEDIUM > LOW
 > Оценка готовности: **6/10** — хороший MVP, не готов к проду
 
@@ -11,11 +11,11 @@
 | Категория | Сделано | Осталось | Итого |
 |-----------|---------|----------|-------|
 | BLOCKER (деплой упадёт) | 0 | 6 | 6 |
-| CRITICAL (сломает юзеров) | 8 | 7 | 15 |
+| CRITICAL (сломает юзеров) | 9 | 6 | 15 |
 | HIGH (безопасность/баги) | 10 | 12 | 22 |
-| MEDIUM (качество) | 11 | 15 | 26 |
-| LOW (полировка) | 8 | 10 | 18 |
-| **Итого** | **37** | **50** | **87** |
+| MEDIUM (качество) | 11 | 19 | 30 |
+| LOW (полировка) | 8 | 12 | 20 |
+| **Итого** | **38** | **55** | **93** |
 
 ---
 
@@ -25,7 +25,7 @@
 - **Фильтры на Tournaments**: статусы горизонтальные чипсы + кнопка-воронка → BottomSheet со списком городов
 - **Ориентир на Россию**: города России вместо стран Центральной Азии. Валюта RUB
 - **Rating FilterBar**: фильтр стран → фильтр городов России
-- **Бот**: только точка входа (регистрация, инвайты, уведомления). Вся работа — в Mini App
+- **Бот**: только точка входа (инвайты, уведомления, admin-команды). Регистрация и вся работа — в Mini App
 
 ---
 
@@ -67,8 +67,13 @@
 - [x] ~~Training stats грузит все записи в память~~ — SQL агрегаты
 - [x] ~~`response.json()` на DELETE 204~~ — проверка `status === 204`
 - [x] ~~SECRET_KEY по умолчанию `"changeme"`~~ — обязательное поле
+- [x] ~~Роль определяется автоматически, не по выбору юзера~~ — `User.active_role` + `_resolve_role()` + `PUT /me/role`
 
 ## CRITICAL — Осталось
+
+- [ ] **Name sync неполный в CoachSection** — пустой `full_name` не синхронизируется
+  - `webapp/src/pages/Profile.tsx:1038-1040` — условие `me.athlete && updated.full_name` пропустит falsy значения
+  - Фикс: проверять `updated.full_name !== undefined` вместо truthiness
 
 - [ ] **Автокоммит в `get_session()` конфликтует с ручными коммитами** — двойной commit
   - `db/base.py` — убрать `await session.commit()` из dependency, роуты сами управляют транзакциями
@@ -79,15 +84,9 @@
   - `api/routes/me.py:156-164` — принимать реальные данные из формы регистрации
   - Обновить `RegisterRequest` схему: добавить `date_of_birth`, `gender`, `city` обязательными полями
 
-- [x] **Роль определяется автоматически, не по выбору юзера** — если есть coach+athlete, всегда "coach"
-  - `User.active_role` добавлено, `_resolve_role()` учитывает, `PUT /me/role` сохраняет
-
 - [ ] **Race condition в invite token** — два юзера могут принять один инвайт одновременно
   - `bot/handlers/invite.py:107-122` — проверка и mark-as-used в разных моментах
   - Перенести в одну транзакцию с `SELECT ... FOR UPDATE`
-
-- [ ] **Нет try/catch на photo upload в боте** — crash хендлера → юзер застревает в FSM
-  - `bot/handlers/registration.py:212, 365` — обернуть `get_file()` в try/catch с fallback
 
 - [ ] **CASCADE DELETE удалит турниры юзера** — удаление аккаунта удалит турниры, на которые записаны другие
   - `db/models/tournament.py:30` — `created_by` FK: заменить `CASCADE` на `SET NULL`
@@ -128,6 +127,9 @@
 - [ ] **CoachUpdate без валидации** — пустые строки, длинные значения пройдут
   - `api/schemas/coach.py:23-27` — добавить `Field(min_length, max_length)` как в AthleteUpdate
 
+- [ ] **`setattr()` с невалидированным field** — admin может записать произвольный атрибут
+  - `bot/handlers/tournaments_admin.py:370` — валидировать field против whitelist
+
 ## HIGH — Баги (осталось)
 
 - [ ] **Уведомления молча пропадают** — `except Exception: logger.warning(...)` без retry
@@ -141,8 +143,6 @@
 
 - [ ] **Rating дублирует серверную фильтрацию** — API фильтрует + клиент фильтрует
   - `webapp/src/pages/Rating.tsx:311-330` — убрать клиентскую фильтрацию, довериться API
-
-- [x] ~~Onboarding не показывает ошибку~~ — добавлен toast в catch
 
 - [ ] **EnterAthletesModal не валидирует age_category** — fallback `'Seniors'` может не существовать
   - `webapp/src/pages/TournamentDetail.tsx:688` — если `ageCategories` пустой, показать ошибку
@@ -190,8 +190,13 @@
 - [ ] **AuditLog.target_id: Text → UUID** — потеря type safety
   - `db/models/audit_log.py:17`
 
+- [ ] **`Coach.is_active` нигде не проверяется** — неактивный тренер может всё
+  - Либо убрать поле, либо добавить фильтрацию в endpoints
+
 ## MEDIUM — Webapp
 
+- [ ] **Города захардкожены в 4 файлах** — нет shared constant
+  - `Profile.tsx`, `Tournaments.tsx`, `Rating.tsx`, `Onboarding.tsx` — вынести в `src/constants/cities.ts`
 - [ ] **Нет тёмной темы** — `colorScheme` из Telegram SDK доступен, но не используется
 - [ ] **Объединить TrainingForm и TrainingEditForm** — 95% дублирования
 - [ ] **Type-safe form update** — `(field: string, value: unknown)` → generic
@@ -201,9 +206,12 @@
 - [x] ~~Статистика профиля (турниры, медали) — всегда "-"~~ — данные из `GET /me/stats`
 - [ ] **Scroll position теряется** при навигации назад
 - [ ] **Версия `v0.1.0` захардкожена** — брать из package.json
+- [ ] **Missing aria-labels** на кнопках навигации месяцев (TrainingLog) и city picker close
 
-### Исправлено
-- [x] ~~`<title>webapp</title>` → `<title>KukkiDo</title>`~~
+### Backend (средние)
+- [ ] **`datetime.utcnow()` deprecated** (Python 3.12+) — `admin.py:163,225`, `coach.py:183`
+  - Заменить на `datetime.now(timezone.utc)`
+- [ ] **Inconsistent HTTP status codes** — числа вместо `status.HTTP_*` констант в нескольких роутах
 
 ## MEDIUM — Бот
 
@@ -212,7 +220,13 @@
   - `bot/handlers/invite.py:76`
 - [ ] **Scheduler loop: 4 часа между проверками** — при ошибке пропускает напоминания
   - `bot/utils/scheduler.py:98-105` — добавить exponential backoff или сократить интервал
+- [ ] **`_notified_today` в памяти** — теряется при перезапуске бота
+  - `bot/utils/scheduler.py:21` — хранить в БД
 - [ ] **Нет /cancel команды** — юзер не может выйти из FSM посередине (только /start)
+- [ ] **Нет rate limiting на callback queries** — можно спамить кнопки
+- [ ] **Нет валидации длины** имени и полей турнира в FSM
+- [ ] **Нет try/catch на photo upload** — crash хендлера → юзер застревает в FSM
+  - `bot/handlers/registration.py:212, 365` — обернуть `get_file()` в try/catch с fallback
 
 ## MEDIUM — Конфигурация и CI
 
@@ -256,6 +270,8 @@
 - [ ] Анимация подиума ломается если < 3 атлетов в рейтинге
 - [ ] Нет aria-label на FAB кнопке в TrainingLog
 - [ ] localStorage квота не обрабатывается — молча теряет данные
+- [ ] `nextLogId` в mock.ts растёт бесконечно — использовать `Date.now()` паттерн
+- [ ] DELETE endpoints возвращают 200 вместо 204 (REST convention)
 
 ---
 
@@ -281,6 +297,7 @@
 - [x] **Запрос смены роли** — форма как в онбординге → запрос админу, `POST /me/role-request` сохраняет данные
 - [x] **Админ: UI одобрения/отклонения** запросов смены роли — `GET/POST /admin/role-requests` + UI в Settings
 - [x] ~~**DELETE /me — полное удаление аккаунта**~~ — реализовано: cascade delete + уведомление админу + frontend redirect на онбординг
+- [x] **DELETE /admin/users/{id}/profile/{role}** — удаление отдельного профиля без удаления юзера
 
 ---
 

@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -160,7 +160,7 @@ async def approve_role_request(
         ) from exc
 
     role_request.status = "approved"
-    role_request.reviewed_at = datetime.utcnow()
+    role_request.reviewed_at = datetime.now(timezone.utc)
     role_request.reviewed_by = ctx.user.id
     ctx.session.add(role_request)
 
@@ -222,7 +222,7 @@ async def reject_role_request(
     target_user = role_request.user
 
     role_request.status = "rejected"
-    role_request.reviewed_at = datetime.utcnow()
+    role_request.reviewed_at = datetime.now(timezone.utc)
     role_request.reviewed_by = ctx.user.id
     ctx.session.add(role_request)
 

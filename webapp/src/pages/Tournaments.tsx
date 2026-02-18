@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
+import { CITIES } from '../constants/cities';
 import { createTournament, getCoachEntries, getMe, getTournaments } from '../api/endpoints';
 import { mockCoachEntries, mockMe, mockTournaments } from '../api/mock';
 import type { CoachEntry, MeResponse, TournamentCreate, TournamentListItem } from '../types';
@@ -46,18 +47,7 @@ function ImportanceDots({ level }: { level: number }) {
 
 const STATUS_VALUES = ['', 'upcoming', 'ongoing', 'completed'] as const;
 
-const CITIES = [
-  'Москва',
-  'Санкт-Петербург',
-  'Казань',
-  'Екатеринбург',
-  'Нижний Новгород',
-  'Рязань',
-  'Махачкала',
-  'Новосибирск',
-  'Краснодар',
-  'Владивосток',
-];
+
 
 function CheckIcon() {
   return (

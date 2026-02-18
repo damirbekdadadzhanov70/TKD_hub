@@ -187,7 +187,7 @@ async def on_invite_accept(callback: CallbackQuery):
             coach_id=coach_id,
             athlete_id=user.athlete.id,
             status="accepted",
-            accepted_at=datetime.utcnow(),
+            accepted_at=datetime.now(timezone.utc),
         )
         session.add(link)
         await session.commit()
