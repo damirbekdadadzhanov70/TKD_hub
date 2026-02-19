@@ -141,12 +141,14 @@ export default function TournamentDetail() {
                 {formatDate(syncedTournament.registration_deadline)}
               </p>
             </div>
-            <div>
-              <span className="text-text-secondary">{t('tournamentDetail.entryFee')}</span>
-              <p className="font-medium text-text">
-                {syncedTournament.entry_fee ? `${syncedTournament.entry_fee} ${syncedTournament.currency}` : t('common.free')}
-              </p>
-            </div>
+            {syncedTournament.entry_fee != null && (
+              <div>
+                <span className="text-text-secondary">{t('tournamentDetail.entryFee')}</span>
+                <p className="font-medium text-text">
+                  {syncedTournament.entry_fee} {syncedTournament.currency}
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 
