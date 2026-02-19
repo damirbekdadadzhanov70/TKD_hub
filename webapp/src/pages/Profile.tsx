@@ -1065,7 +1065,7 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
         <InfoRow label={t('profile.club')} value={coach.club} />
         <InfoRow label={t('profile.city')} value={coach.city} />
         <InfoRow label={t('profile.sportRank')} value={coach.qualification} />
-        <InfoRow label={t('profile.verifiedLabel')} value={coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} green={coach.is_verified} />
+        <InfoRow label={t('profile.verifiedLabel')} value={coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} green={coach.is_verified} yellow={!coach.is_verified} />
       </div>
 
       {/* Edit button — outlined */}
@@ -1382,11 +1382,11 @@ function EntryStatusBadge({ status }: { status: string }) {
 
 /* ---- Info Row ---- */
 
-function InfoRow({ label, value, accent, green }: { label: string; value: string; accent?: boolean; green?: boolean }) {
+function InfoRow({ label, value, accent, green, yellow }: { label: string; value: string; accent?: boolean; green?: boolean; yellow?: boolean }) {
   return (
     <div className="flex justify-between items-center py-2">
       <span className="text-[11px] text-text-disabled">{label}</span>
-      <span className={`text-[15px] ${green ? 'text-emerald-500' : accent ? 'text-accent' : 'text-text'}`}>{value}</span>
+      <span className={`text-[15px] ${green ? 'text-emerald-500' : yellow ? 'text-amber-500' : accent ? 'text-accent' : 'text-text'}`}>{value}</span>
     </div>
   );
 }

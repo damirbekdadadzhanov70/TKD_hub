@@ -16,11 +16,11 @@ const ROLE_BADGE: Record<string, string> = {
   none: 'bg-bg-divider text-text-disabled',
 };
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, green, yellow }: { label: string; value: string; green?: boolean; yellow?: boolean }) {
   return (
     <div className="flex justify-between items-center py-2">
       <span className="text-[11px] text-text-disabled">{label}</span>
-      <span className="text-[15px] text-text">{value}</span>
+      <span className={`text-[15px] ${green ? 'text-emerald-500' : yellow ? 'text-amber-500' : 'text-text'}`}>{value}</span>
     </div>
   );
 }
@@ -180,7 +180,7 @@ export default function AdminUserProfile() {
           <InfoRow label={t('profile.city')} value={user.coach.city} />
           <InfoRow label={t('profile.club')} value={user.coach.club} />
           <InfoRow label={t('profile.sportRank')} value={user.coach.qualification} />
-          <InfoRow label={t('profile.verifiedLabel')} value={user.coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} />
+          <InfoRow label={t('profile.verifiedLabel')} value={user.coach.is_verified ? t('profile.verified') : t('profile.pendingVerification')} green={user.coach.is_verified} yellow={!user.coach.is_verified} />
         </div>
       )}
 

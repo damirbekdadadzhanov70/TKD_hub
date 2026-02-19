@@ -54,6 +54,7 @@ User has BOTH `me.athlete` and `me.coach` profiles. The `full_name` must stay in
 
 ### Telegram WebApp Integration
 - `useTelegram()` hook: `isTelegram`, `hapticFeedback()`, `hapticNotification()`, `showBackButton()`, `user`
+- **Testing environment**: Owner tests on **two devices** — phone + laptop, both inside **Telegram** (not browser). There is no standalone browser testing.
 - **Desktop vs Telegram differences** (by design):
   - Desktop: shows "Open in Telegram" banner, custom ← Back button, no haptics
   - Telegram: BackButton API, haptic feedback, safe-area insets
