@@ -149,6 +149,13 @@ export function createTournament(data: TournamentCreate): Promise<TournamentList
   });
 }
 
+export function updateTournament(id: string, data: Partial<TournamentCreate>): Promise<TournamentDetail> {
+  return apiRequest<TournamentDetail>(`/tournaments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export function deleteTournament(id: string): Promise<void> {
   return apiRequest<void>(`/tournaments/${id}`, {
     method: 'DELETE',

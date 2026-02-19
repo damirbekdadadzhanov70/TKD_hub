@@ -17,6 +17,7 @@ from api.schemas.tournament import (
     TournamentRead,
     TournamentResultCreate,
     TournamentResultRead,
+    TournamentUpdate,
 )
 from api.utils.pagination import paginate_query
 from bot.config import settings
@@ -168,6 +169,70 @@ async def delete_tournament(
 
     await ctx.session.delete(tournament)
     await ctx.session.commit()
+
+
+@router.put("/tournaments/{tournament_id}", response_model=TournamentRead)
+async def update_tournament(
+    tournament_id: uuid.UUID,
+    data: TournamentUpdate,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _check_admin(ctx.user)
+
+    result = await ctx.session.execute(
+        select(Tournament)
+        .where(Tournament.id == tournament_id)
+        .options(
+            selectinload(Tournament.entries).selectinload(TournamentEntry.athlete),
+            selectinload(Tournament.entries).selectinload(TournamentEntry.coach),
+        )
+    )
+    tournament = result.scalar_one_or_none()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tournament not found",
+        )
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(tournament, field, value)
+
+    await ctx.session.commit()
+    await ctx.session.refresh(tournament)
+
+    entries = [
+        TournamentEntryRead(
+            id=e.id,
+            athlete_id=e.athlete_id,
+            coach_id=e.coach_id,
+            coach_name=e.coach.full_name if e.coach else None,
+            athlete_name=e.athlete.full_name,
+            weight_category=e.weight_category,
+            age_category=e.age_category,
+            status=e.status,
+        )
+        for e in tournament.entries
+    ]
+
+    return TournamentRead(
+        id=tournament.id,
+        name=tournament.name,
+        description=tournament.description,
+        start_date=tournament.start_date,
+        end_date=tournament.end_date,
+        city=tournament.city,
+        country=tournament.country,
+        venue=tournament.venue,
+        age_categories=tournament.age_categories or [],
+        weight_categories=tournament.weight_categories or [],
+        entry_fee=tournament.entry_fee,
+        currency=tournament.currency,
+        registration_deadline=tournament.registration_deadline,
+        organizer_contact=tournament.organizer_contact,
+        status=tournament.status,
+        importance_level=tournament.importance_level,
+        entries=entries,
+    )
 
 
 @router.get("/tournaments/{tournament_id}", response_model=TournamentRead)
@@ -538,7 +603,9 @@ async def approve_coach_entries(
             TournamentEntry.tournament_id == tournament_id,
             TournamentEntry.coach_id == coach_id,
         )
-        .options(selectinload(TournamentEntry.athlete))
+        .options(
+            selectinload(TournamentEntry.athlete).selectinload(Athlete.user),
+        )
     )
     entries = result.scalars().all()
     if not entries:
@@ -569,6 +636,18 @@ async def approve_coach_entries(
                 role="coach",
             )
 
+    # In-app notification for each athlete
+    for entry in entries:
+        if entry.athlete and entry.athlete.user:
+            await create_notification(
+                ctx.session,
+                user_id=entry.athlete.user.id,
+                type="entry_approved",
+                title="Заявка одобрена",
+                body=f"Ваша заявка на турнир {t_name_q} одобрена.",
+                role="athlete",
+            )
+
     await ctx.session.commit()
 
     # Notify coach about approval via Telegram
@@ -592,7 +671,9 @@ async def reject_coach_entries(
             TournamentEntry.tournament_id == tournament_id,
             TournamentEntry.coach_id == coach_id,
         )
-        .options(selectinload(TournamentEntry.athlete))
+        .options(
+            selectinload(TournamentEntry.athlete).selectinload(Athlete.user),
+        )
     )
     entries = result.scalars().all()
     if not entries:
@@ -621,6 +702,18 @@ async def reject_coach_entries(
                 title="Заявка отклонена",
                 body=f"Заявка на {t_name_q2} ({a_name}) отклонена.",
                 role="coach",
+            )
+
+    # In-app notification for each athlete
+    for entry in entries:
+        if entry.athlete and entry.athlete.user:
+            await create_notification(
+                ctx.session,
+                user_id=entry.athlete.user.id,
+                type="entry_rejected",
+                title="Заявка отклонена",
+                body=f"Ваша заявка на турнир {t_name_q2} отклонена.",
+                role="athlete",
             )
 
     await ctx.session.commit()

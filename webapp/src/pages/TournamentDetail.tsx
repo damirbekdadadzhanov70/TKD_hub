@@ -19,9 +19,12 @@ import {
   markInterest,
   rejectCoachEntries,
   removeEntry,
+  updateTournament,
 } from '../api/endpoints';
+import { CITIES } from '../constants/cities';
+import { formatDate } from '../utils/date';
 import { getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults } from '../api/mock';
-import type { CoachAthlete, MeResponse, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentResult } from '../types';
+import type { CoachAthlete, MeResponse, TournamentCreate, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentResult } from '../types';
 
 const MEDAL_COLORS: Record<number, string> = {
   1: 'text-medal-gold',
@@ -38,6 +41,7 @@ export default function TournamentDetail() {
   const [tab, setTab] = useState<'details' | 'results'>('details');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     return showBackButton(() => navigate(-1));
@@ -154,7 +158,7 @@ export default function TournamentDetail() {
               <div>
                 <span className="text-text-secondary">{t('tournamentDetail.dates')}</span>
                 <p className="font-medium text-text">
-                  {syncedTournament.start_date} — {syncedTournament.end_date}
+                  {formatDate(syncedTournament.start_date)} — {formatDate(syncedTournament.end_date)}
                 </p>
               </div>
               <div>
@@ -166,7 +170,7 @@ export default function TournamentDetail() {
               <div>
                 <span className="text-text-secondary">{t('tournamentDetail.registrationDeadline')}</span>
                 <p className="font-medium text-text">
-                  {syncedTournament.registration_deadline}
+                  {formatDate(syncedTournament.registration_deadline)}
                 </p>
               </div>
               <div>
@@ -244,9 +248,15 @@ export default function TournamentDetail() {
         <ResultsTab tournamentId={syncedTournament.id} />
       )}
 
-      {/* Admin delete button */}
+      {/* Admin edit + delete buttons */}
       {isAdmin && (
-        <div className="px-4 mt-6 mb-8">
+        <div className="px-4 mt-6 mb-8 space-y-2">
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 hover:opacity-90 transition-all"
+          >
+            {t('tournamentDetail.editTournament')}
+          </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500/10 text-rose-500 active:opacity-80 hover:bg-rose-500/20 transition-all"
@@ -254,6 +264,15 @@ export default function TournamentDetail() {
             {t('tournamentDetail.deleteTournament')}
           </button>
         </div>
+      )}
+
+      {/* Edit modal */}
+      {showEditModal && (
+        <EditTournamentModal
+          tournament={syncedTournament}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => { setShowEditModal(false); refetch(); }}
+        />
       )}
 
       {/* Delete confirmation */}
@@ -580,6 +599,197 @@ function ResultsTab({ tournamentId }: { tournamentId: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/* ---- Edit tournament modal ---- */
+
+const IMPORTANCE_LEVELS = [1, 2, 3];
+
+function EditTournamentModal({
+  tournament,
+  onClose,
+  onSaved,
+}: {
+  tournament: TournamentDetailType;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
+  const { t } = useI18n();
+  const [form, setForm] = useState<TournamentCreate>({
+    name: tournament.name,
+    description: tournament.description ?? null,
+    start_date: tournament.start_date,
+    end_date: tournament.end_date,
+    city: tournament.city,
+    venue: tournament.venue,
+    age_categories: tournament.age_categories,
+    weight_categories: tournament.weight_categories,
+    entry_fee: tournament.entry_fee ? Number(tournament.entry_fee) : null,
+    currency: tournament.currency,
+    registration_deadline: tournament.registration_deadline,
+    importance_level: tournament.importance_level,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const canSave = form.name.trim() && form.venue.trim() && form.start_date && form.end_date;
+
+  const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
+
+  const handleSubmit = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      await updateTournament(tournament.id, form);
+      hapticNotification('success');
+      showToast(t('tournamentDetail.tournamentUpdated'));
+      onSaved();
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex justify-between items-center p-4 pb-2 shrink-0">
+        <h2 className="text-lg font-bold text-text">{t('tournamentDetail.editTournament')}</h2>
+        <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted">×</button>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-3">
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.tournamentName')}</span>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => update('name', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.description')}</span>
+          <textarea
+            value={form.description ?? ''}
+            onChange={(e) => update('description', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none resize-none"
+            rows={2}
+            placeholder={t('common.optional')}
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.startDate')}</span>
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(e) => update('start_date', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.endDate')}</span>
+            <input
+              type="date"
+              value={form.end_date}
+              onChange={(e) => update('end_date', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.selectCity')}</span>
+          <select
+            value={form.city}
+            onChange={(e) => update('city', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+          >
+            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.venue')}</span>
+          <input
+            type="text"
+            value={form.venue}
+            onChange={(e) => update('venue', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.entryFee')}</span>
+            <input
+              type="number"
+              value={form.entry_fee ?? ''}
+              onChange={(e) => update('entry_fee', e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+              placeholder={t('common.free')}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.currency')}</span>
+            <select
+              value={form.currency}
+              onChange={(e) => update('currency', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            >
+              <option value="RUB">RUB</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.registrationDeadline')}</span>
+          <input
+            type="date"
+            value={form.registration_deadline}
+            onChange={(e) => update('registration_deadline', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+          />
+        </label>
+
+        <div className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.importanceLevel')}</span>
+          <div className="flex gap-2">
+            {IMPORTANCE_LEVELS.map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => update('importance_level', lvl)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border cursor-pointer transition-colors ${
+                  form.importance_level === lvl
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-bg-secondary text-text-secondary border-border hover:border-accent/40'
+                }`}
+              >
+                {lvl}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={saving || !canSave}
+          className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 transition-all"
+        >
+          {saving ? t('tournamentDetail.savingTournament') : t('common.save')}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 

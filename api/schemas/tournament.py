@@ -95,6 +95,21 @@ class TournamentCreate(BaseModel):
     importance_level: int = Field(2, ge=1, le=3)
 
 
+class TournamentUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    city: str | None = Field(None, min_length=1, max_length=100)
+    venue: str | None = Field(None, min_length=1, max_length=255)
+    age_categories: list[str] | None = None
+    weight_categories: list[str] | None = None
+    entry_fee: int | None = None
+    currency: str | None = Field(None, max_length=10)
+    registration_deadline: date | None = None
+    importance_level: int | None = Field(None, ge=1, le=3)
+
+
 class TournamentResultCreate(BaseModel):
     athlete_id: uuid.UUID
     weight_category: str = Field(..., min_length=1, max_length=50)
