@@ -111,11 +111,11 @@ async def on_tournament_enter(callback: CallbackQuery, state: FSMContext):
         selected_athletes=[],
     )
 
+    await state.set_state(EnterAthletes.select_athletes)
     await callback.message.edit_text(
         t("select_athletes_for_entry", lang),
         reply_markup=athlete_checkbox_keyboard(athletes, set(), lang),
     )
-    await state.set_state(EnterAthletes.select_athletes)
     await callback.answer()
 
 
@@ -167,11 +167,11 @@ async def on_confirm_selection(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
+    await state.set_state(EnterAthletes.select_age_category)
     await callback.message.edit_text(
         t("choose_age_category", lang),
         reply_markup=age_category_keyboard(tournament.age_categories, lang),
     )
-    await state.set_state(EnterAthletes.select_age_category)
     await callback.answer()
 
 
@@ -205,8 +205,8 @@ async def on_age_category(callback: CallbackQuery, state: FSMContext):
         count=len(names),
     )
 
-    await callback.message.edit_text(summary, reply_markup=confirm_entries_keyboard(lang))
     await state.set_state(EnterAthletes.confirm)
+    await callback.message.edit_text(summary, reply_markup=confirm_entries_keyboard(lang))
     await callback.answer()
 
 

@@ -297,9 +297,9 @@ async def mark_interest(
     athlete = user.athlete
     lang = user.language or "ru"
     try:
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             # Notify athlete
             await notify_athlete_interest(
@@ -490,9 +490,9 @@ async def _notify_coach_entries(session, coach_id, tournament_id, entries, entry
         coach_tid = coach.user.telegram_id
         lang = coach.user.language or "ru"
 
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             for entry in entries:
                 athlete_name = entry.athlete.full_name if entry.athlete else "?"

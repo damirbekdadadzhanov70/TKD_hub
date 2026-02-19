@@ -96,9 +96,9 @@ async def delete_me(ctx: AuthContext = Depends(get_current_user)):
 
     # Notify admins before deletion
     try:
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             await notify_admins_account_deleted(
                 bot,
@@ -504,9 +504,9 @@ async def register_profile(
 
     # Notify admins about new profile via Telegram
     try:
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             await notify_admins_account_created(
                 bot,
@@ -594,9 +594,9 @@ async def request_role_change(
 
     # Notify admins about role request via Telegram
     try:
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             await notify_admins_role_request(
                 bot,

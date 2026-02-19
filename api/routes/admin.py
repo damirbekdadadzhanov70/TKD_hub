@@ -180,9 +180,9 @@ async def approve_role_request(
 
     # Notify user via Telegram bot
     try:
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             await notify_user_role_approved(
                 bot,
@@ -244,9 +244,9 @@ async def reject_role_request(
     # Notify user via Telegram bot
     if target_user:
         try:
-            from aiogram import Bot
+            from api.utils import create_bot
 
-            bot = Bot(token=settings.BOT_TOKEN)
+            bot = create_bot()
             try:
                 await notify_user_role_rejected(
                     bot,
@@ -432,9 +432,9 @@ async def delete_user(
 
     # Notify admins and user about deletion
     try:
-        from aiogram import Bot
+        from api.utils import create_bot
 
-        bot = Bot(token=settings.BOT_TOKEN)
+        bot = create_bot()
         try:
             await notify_admins_account_deleted_by_admin(
                 bot,
