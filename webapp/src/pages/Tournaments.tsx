@@ -10,7 +10,7 @@ import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
 import { CITIES } from '../constants/cities';
-import { formatDate } from '../utils/date';
+import { formatDate } from '../constants/format';
 import { createTournament, getCoachEntries, getMe, getTournaments } from '../api/endpoints';
 import { mockCoachEntries, mockMe, mockTournaments } from '../api/mock';
 import type { CoachEntry, MeResponse, TournamentCreate, TournamentListItem } from '../types';

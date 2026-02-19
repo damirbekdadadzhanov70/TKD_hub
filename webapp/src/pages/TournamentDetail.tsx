@@ -22,7 +22,7 @@ import {
   updateTournament,
 } from '../api/endpoints';
 import { CITIES } from '../constants/cities';
-import { formatDate } from '../utils/date';
+import { formatDate } from '../constants/format';
 import { getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults } from '../api/mock';
 import type { CoachAthlete, MeResponse, TournamentCreate, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentResult } from '../types';
 
