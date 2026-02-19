@@ -26,6 +26,7 @@ class Tournament(Base):
     registration_deadline: Mapped[date] = mapped_column(Date, nullable=False)
     organizer_contact: Mapped[str | None] = mapped_column(String(255))
     photos_url: Mapped[str | None] = mapped_column(String(500))
+    results_url: Mapped[str | None] = mapped_column(String(500))
     organizer_name: Mapped[str | None] = mapped_column(String(255))
     organizer_phone: Mapped[str | None] = mapped_column(String(50))
     organizer_telegram: Mapped[str | None] = mapped_column(String(100))

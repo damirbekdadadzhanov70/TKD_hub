@@ -92,6 +92,7 @@ export interface TournamentDetail {
   registration_deadline: string;
   organizer_contact: string | null;
   photos_url: string | null;
+  results_url: string | null;
   organizer_name: string | null;
   organizer_phone: string | null;
   organizer_telegram: string | null;
@@ -145,6 +146,7 @@ export interface TournamentCreate {
   registration_deadline: string;
   importance_level: number;
   photos_url: string | null;
+  results_url: string | null;
   organizer_name: string | null;
   organizer_phone: string | null;
   organizer_telegram: string | null;

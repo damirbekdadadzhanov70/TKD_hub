@@ -114,6 +114,8 @@ const en = {
     resultsSection: 'Results',
     photosSection: 'Photos',
     viewPhotos: 'View photos',
+    viewResults: 'View results',
+    resultsUrl: 'Results URL',
     contactsSection: 'Contacts',
     organizer: 'Organizer',
     phone: 'Phone',

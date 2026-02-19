@@ -49,6 +49,7 @@ class TournamentRead(BaseModel):
     registration_deadline: date
     organizer_contact: Optional[str] = None
     photos_url: Optional[str] = None
+    results_url: Optional[str] = None
     organizer_name: Optional[str] = None
     organizer_phone: Optional[str] = None
     organizer_telegram: Optional[str] = None
@@ -100,6 +101,7 @@ class TournamentCreate(BaseModel):
     registration_deadline: date
     importance_level: int = Field(2, ge=1, le=3)
     photos_url: str | None = Field(None, max_length=500)
+    results_url: str | None = Field(None, max_length=500)
     organizer_name: str | None = Field(None, max_length=255)
     organizer_phone: str | None = Field(None, max_length=50)
     organizer_telegram: str | None = Field(None, max_length=100)
@@ -119,6 +121,7 @@ class TournamentUpdate(BaseModel):
     registration_deadline: date | None = None
     importance_level: int | None = Field(None, ge=1, le=3)
     photos_url: str | None = None
+    results_url: str | None = None
     organizer_name: str | None = None
     organizer_phone: str | None = None
     organizer_telegram: str | None = None

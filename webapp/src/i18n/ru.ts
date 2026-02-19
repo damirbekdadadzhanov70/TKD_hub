@@ -114,6 +114,8 @@ const ru = {
     resultsSection: 'Результаты',
     photosSection: 'Фотографии',
     viewPhotos: 'Смотреть фото',
+    viewResults: 'Смотреть результаты',
+    resultsUrl: 'Ссылка на результаты',
     contactsSection: 'Контакты',
     organizer: 'Организатор',
     phone: 'Телефон',

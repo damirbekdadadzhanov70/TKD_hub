@@ -293,6 +293,7 @@ function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSav
     registration_deadline: today,
     importance_level: 2,
     photos_url: null,
+    results_url: null,
     organizer_name: null,
     organizer_phone: null,
     organizer_telegram: null,
@@ -449,6 +450,17 @@ function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSav
             type="url"
             value={form.photos_url ?? ''}
             onChange={(e) => update('photos_url', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            placeholder={t('common.optional')}
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournamentDetail.resultsUrl')}</span>
+          <input
+            type="url"
+            value={form.results_url ?? ''}
+            onChange={(e) => update('results_url', e.target.value || null)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
             placeholder={t('common.optional')}
           />

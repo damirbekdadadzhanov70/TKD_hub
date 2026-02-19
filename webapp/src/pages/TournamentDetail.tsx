@@ -188,9 +188,23 @@ export default function TournamentDetail() {
           </Card>
         )}
 
-        {/* Results accordion */}
-        {syncedTournament.results && syncedTournament.results.length > 0 && (
-          <ResultsAccordion results={syncedTournament.results} />
+        {/* Results link */}
+        {syncedTournament.results_url && (
+          <Card>
+            <a
+              href={syncedTournament.results_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between text-sm font-medium text-accent no-underline active:opacity-80 transition-opacity"
+            >
+              <span>{t('tournamentDetail.viewResults')}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+          </Card>
         )}
 
         {/* Photos section */}
@@ -712,6 +726,7 @@ function EditTournamentModal({
     registration_deadline: tournament.registration_deadline,
     importance_level: tournament.importance_level,
     photos_url: tournament.photos_url ?? null,
+    results_url: tournament.results_url ?? null,
     organizer_name: tournament.organizer_name ?? null,
     organizer_phone: tournament.organizer_phone ?? null,
     organizer_telegram: tournament.organizer_telegram ?? null,
@@ -869,6 +884,17 @@ function EditTournamentModal({
             type="url"
             value={form.photos_url ?? ''}
             onChange={(e) => update('photos_url', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            placeholder={t('common.optional')}
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournamentDetail.resultsUrl')}</span>
+          <input
+            type="url"
+            value={form.results_url ?? ''}
+            onChange={(e) => update('results_url', e.target.value || null)}
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
             placeholder={t('common.optional')}
           />
