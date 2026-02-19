@@ -129,6 +129,10 @@ async def create_tournament(
         currency=data.currency,
         registration_deadline=data.registration_deadline,
         importance_level=data.importance_level,
+        photos_url=data.photos_url,
+        organizer_name=data.organizer_name,
+        organizer_phone=data.organizer_phone,
+        organizer_telegram=data.organizer_telegram,
         status="upcoming",
         created_by=ctx.user.id,
     )
@@ -182,10 +186,7 @@ async def update_tournament(
     result = await ctx.session.execute(
         select(Tournament)
         .where(Tournament.id == tournament_id)
-        .options(
-            selectinload(Tournament.entries).selectinload(TournamentEntry.athlete),
-            selectinload(Tournament.entries).selectinload(TournamentEntry.coach),
-        )
+        .options(*_load_tournament_options())
     )
     tournament = result.scalar_one_or_none()
     if not tournament:
@@ -200,6 +201,11 @@ async def update_tournament(
     await ctx.session.commit()
     await ctx.session.refresh(tournament)
 
+    return _build_tournament_read(tournament)
+
+
+def _build_tournament_read(tournament) -> TournamentRead:
+    """Build TournamentRead from a loaded Tournament ORM object."""
     entries = [
         TournamentEntryRead(
             id=e.id,
@@ -212,6 +218,22 @@ async def update_tournament(
             status=e.status,
         )
         for e in tournament.entries
+    ]
+
+    results = [
+        TournamentResultRead(
+            id=r.id,
+            tournament_id=r.tournament_id,
+            athlete_id=r.athlete_id,
+            athlete_name=r.athlete.full_name,
+            city=r.athlete.city,
+            weight_category=r.weight_category,
+            age_category=r.age_category,
+            gender=r.gender,
+            place=r.place,
+            rating_points_earned=r.rating_points_earned,
+        )
+        for r in tournament.results
     ]
 
     return TournamentRead(
@@ -229,10 +251,24 @@ async def update_tournament(
         currency=tournament.currency,
         registration_deadline=tournament.registration_deadline,
         organizer_contact=tournament.organizer_contact,
+        photos_url=tournament.photos_url,
+        organizer_name=tournament.organizer_name,
+        organizer_phone=tournament.organizer_phone,
+        organizer_telegram=tournament.organizer_telegram,
         status=tournament.status,
         importance_level=tournament.importance_level,
         entries=entries,
+        results=results,
     )
+
+
+def _load_tournament_options():
+    """Common selectinload options for tournament detail queries."""
+    return [
+        selectinload(Tournament.entries).selectinload(TournamentEntry.athlete),
+        selectinload(Tournament.entries).selectinload(TournamentEntry.coach),
+        selectinload(Tournament.results).selectinload(TournamentResult.athlete),
+    ]
 
 
 @router.get("/tournaments/{tournament_id}", response_model=TournamentRead)
@@ -243,48 +279,13 @@ async def get_tournament(
     result = await ctx.session.execute(
         select(Tournament)
         .where(Tournament.id == tournament_id)
-        .options(
-            selectinload(Tournament.entries).selectinload(TournamentEntry.athlete),
-            selectinload(Tournament.entries).selectinload(TournamentEntry.coach),
-        )
+        .options(*_load_tournament_options())
     )
     tournament = result.scalar_one_or_none()
     if not tournament:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
 
-    entries = [
-        TournamentEntryRead(
-            id=e.id,
-            athlete_id=e.athlete_id,
-            coach_id=e.coach_id,
-            coach_name=e.coach.full_name if e.coach else None,
-            athlete_name=e.athlete.full_name,
-            weight_category=e.weight_category,
-            age_category=e.age_category,
-            status=e.status,
-        )
-        for e in tournament.entries
-    ]
-
-    return TournamentRead(
-        id=tournament.id,
-        name=tournament.name,
-        description=tournament.description,
-        start_date=tournament.start_date,
-        end_date=tournament.end_date,
-        city=tournament.city,
-        country=tournament.country,
-        venue=tournament.venue,
-        age_categories=tournament.age_categories or [],
-        weight_categories=tournament.weight_categories or [],
-        entry_fee=tournament.entry_fee,
-        currency=tournament.currency,
-        registration_deadline=tournament.registration_deadline,
-        organizer_contact=tournament.organizer_contact,
-        status=tournament.status,
-        importance_level=tournament.importance_level,
-        entries=entries,
-    )
+    return _build_tournament_read(tournament)
 
 
 @router.post(
@@ -755,6 +756,7 @@ async def get_tournament_results(
             city=r.athlete.city,
             weight_category=r.weight_category,
             age_category=r.age_category,
+            gender=r.gender,
             place=r.place,
             rating_points_earned=r.rating_points_earned,
         )
@@ -811,6 +813,7 @@ async def create_tournament_result(
         athlete_id=data.athlete_id,
         weight_category=data.weight_category,
         age_category=data.age_category,
+        gender=data.gender or athlete.gender,
         place=data.place,
         rating_points_earned=data.rating_points_earned,
     )
@@ -830,6 +833,7 @@ async def create_tournament_result(
         city=athlete.city,
         weight_category=result.weight_category,
         age_category=result.age_category,
+        gender=result.gender,
         place=result.place,
         rating_points_earned=result.rating_points_earned,
     )

@@ -374,6 +374,11 @@ mockTournamentDetailsMap.set('00000000-0000-0000-0000-000000000010', {
   currency: 'RUB',
   registration_deadline: '2026-04-01',
   organizer_contact: 'info@russiantkd.ru',
+  photos_url: null,
+  organizer_name: 'Федерация ТКД России',
+  organizer_phone: '+7 495 123-45-67',
+  organizer_telegram: '@russian_tkd',
+  results: [],
   entries: [
     { id: '00000000-0000-0000-0000-000000000020', athlete_id: '00000000-0000-0000-0000-000000000001', coach_id: '00000000-0000-0000-0000-000000000002', coach_name: 'Alikhanov Damir', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
     { id: '00000000-0000-0000-0000-000000000023', athlete_id: '00000000-0000-0000-0000-000000000046', coach_id: '00000000-0000-0000-0000-000000000002', coach_name: 'Alikhanov Damir', athlete_name: 'Ibraimova Asel', weight_category: '-57kg', age_category: 'Seniors', status: 'approved' },
@@ -401,6 +406,11 @@ export function getMockTournamentDetail(id: string): TournamentDetail | null {
     currency: 'RUB',
     registration_deadline: listItem.start_date,
     organizer_contact: null,
+    photos_url: null,
+    organizer_name: null,
+    organizer_phone: null,
+    organizer_telegram: null,
+    results: [],
     entries: [],
   };
   mockTournamentDetailsMap.set(id, detail);
@@ -433,6 +443,11 @@ export function addMockTournament(data: TournamentCreate): TournamentListItem {
     currency: data.currency,
     registration_deadline: data.registration_deadline,
     organizer_contact: null,
+    photos_url: data.photos_url,
+    organizer_name: data.organizer_name,
+    organizer_phone: data.organizer_phone,
+    organizer_telegram: data.organizer_telegram,
+    results: [],
     entries: [],
   });
 
@@ -448,14 +463,14 @@ export function deleteMockTournament(id: string) {
 // ── Tournament Results ───────────────────────────────────────
 
 export const mockTournamentResults: TournamentResult[] = [
-  { place: 1, athlete_name: 'Ким Сергей', city: 'Москва', weight_category: '-68kg', age_category: 'Seniors' },
-  { place: 2, athlete_name: 'Рахимов Отабек', city: 'Казань', weight_category: '-68kg', age_category: 'Seniors' },
-  { place: 3, athlete_name: 'Alikhanov Damir', city: 'Москва', weight_category: '-68kg', age_category: 'Seniors' },
-  { place: 1, athlete_name: 'Ibraimova Asel', city: 'Москва', weight_category: '-57kg', age_category: 'Seniors' },
-  { place: 2, athlete_name: 'Низамова Алия', city: 'Казань', weight_category: '-57kg', age_category: 'Seniors' },
-  { place: 3, athlete_name: 'Омарова Динара', city: 'Санкт-Петербург', weight_category: '-57kg', age_category: 'Seniors' },
-  { place: 1, athlete_name: 'Магомедов Адилет', city: 'Махачкала', weight_category: '-74kg', age_category: 'Juniors' },
-  { place: 2, athlete_name: 'Беков Азамат', city: 'Москва', weight_category: '-74kg', age_category: 'Juniors' },
+  { id: 'r1', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000040', athlete_name: 'Ким Сергей', city: 'Москва', weight_category: '-68kg', age_category: 'Seniors', gender: 'M', place: 1, rating_points_earned: 300 },
+  { id: 'r2', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000041', athlete_name: 'Рахимов Отабек', city: 'Казань', weight_category: '-68kg', age_category: 'Seniors', gender: 'M', place: 2, rating_points_earned: 180 },
+  { id: 'r3', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000001', athlete_name: 'Alikhanov Damir', city: 'Москва', weight_category: '-68kg', age_category: 'Seniors', gender: 'M', place: 3, rating_points_earned: 120 },
+  { id: 'r4', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000046', athlete_name: 'Ibraimova Asel', city: 'Москва', weight_category: '-57kg', age_category: 'Seniors', gender: 'F', place: 1, rating_points_earned: 300 },
+  { id: 'r5', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000060', athlete_name: 'Низамова Алия', city: 'Казань', weight_category: '-57kg', age_category: 'Seniors', gender: 'F', place: 2, rating_points_earned: 180 },
+  { id: 'r6', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000061', athlete_name: 'Омарова Динара', city: 'Санкт-Петербург', weight_category: '-57kg', age_category: 'Seniors', gender: 'F', place: 3, rating_points_earned: 120 },
+  { id: 'r7', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000043', athlete_name: 'Магомедов Адилет', city: 'Махачкала', weight_category: '-74kg', age_category: 'Juniors', gender: 'M', place: 1, rating_points_earned: 300 },
+  { id: 'r8', tournament_id: '00000000-0000-0000-0000-000000000010', athlete_id: '00000000-0000-0000-0000-000000000063', athlete_name: 'Беков Азамат', city: 'Москва', weight_category: '-74kg', age_category: 'Juniors', gender: 'M', place: 2, rating_points_earned: 180 },
 ];
 
 // ── Training Logs ───────────────────────────────────────────

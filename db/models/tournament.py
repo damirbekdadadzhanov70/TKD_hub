@@ -25,6 +25,10 @@ class Tournament(Base):
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     registration_deadline: Mapped[date] = mapped_column(Date, nullable=False)
     organizer_contact: Mapped[str | None] = mapped_column(String(255))
+    photos_url: Mapped[str | None] = mapped_column(String(500))
+    organizer_name: Mapped[str | None] = mapped_column(String(255))
+    organizer_phone: Mapped[str | None] = mapped_column(String(50))
+    organizer_telegram: Mapped[str | None] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(20), default="upcoming")
     importance_level: Mapped[int] = mapped_column(Integer, default=1)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -77,6 +81,7 @@ class TournamentResult(Base):
     athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
     weight_category: Mapped[str] = mapped_column(String(50), nullable=False)
     age_category: Mapped[str] = mapped_column(String(50), nullable=False)
+    gender: Mapped[str | None] = mapped_column(String(10))
     place: Mapped[int] = mapped_column(Integer, nullable=False)
     rating_points_earned: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

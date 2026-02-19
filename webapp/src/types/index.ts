@@ -91,17 +91,27 @@ export interface TournamentDetail {
   currency: string;
   registration_deadline: string;
   organizer_contact: string | null;
+  photos_url: string | null;
+  organizer_name: string | null;
+  organizer_phone: string | null;
+  organizer_telegram: string | null;
   status: string;
   importance_level: number;
   entries: TournamentEntry[];
+  results: TournamentResult[];
 }
 
 export interface TournamentResult {
-  place: number;
+  id: string;
+  tournament_id: string;
+  athlete_id: string;
   athlete_name: string;
   city: string;
   weight_category: string;
   age_category: string;
+  gender: string | null;
+  place: number;
+  rating_points_earned: number;
 }
 
 export interface TournamentInterestResponse {
@@ -134,6 +144,10 @@ export interface TournamentCreate {
   currency: string;
   registration_deadline: string;
   importance_level: number;
+  photos_url: string | null;
+  organizer_name: string | null;
+  organizer_phone: string | null;
+  organizer_telegram: string | null;
 }
 
 export interface TrainingLogCreate {

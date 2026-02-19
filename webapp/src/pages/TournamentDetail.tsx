@@ -38,7 +38,6 @@ export default function TournamentDetail() {
   const { showBackButton, isTelegram, hapticNotification } = useTelegram();
   const { showToast } = useToast();
   const { t } = useI18n();
-  const [tab, setTab] = useState<'details' | 'results'>('details');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -48,7 +47,7 @@ export default function TournamentDetail() {
   }, []);
 
   const mockDetail = getMockTournamentDetail(id!);
-  const { data: tournament, loading, error, refetch, mutate } = useApi<TournamentDetailType>(
+  const { data: tournament, loading, error, refetch } = useApi<TournamentDetailType>(
     () => getTournament(id!),
     mockDetail,
     [id],
@@ -83,10 +82,6 @@ export default function TournamentDetail() {
   if (!syncedTournament) return null;
 
   const isAdmin = me?.role === 'admin';
-  const isAthlete = me?.role === 'athlete';
-  const isCoach = me?.role === 'coach';
-  const isOpen = syncedTournament.status === 'upcoming' || syncedTournament.status === 'registration_open' || syncedTournament.status === 'ongoing';
-  const isCompleted = syncedTournament.status === 'completed';
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -124,129 +119,135 @@ export default function TournamentDetail() {
         )}
       </div>
 
-      {/* Tabs for completed tournaments */}
-      {isCompleted && (
-        <div className="flex px-4 mb-3 gap-6">
-          <button
-            onClick={() => setTab('details')}
-            className={`pb-2 text-sm font-medium border-none bg-transparent cursor-pointer transition-colors ${
-              tab === 'details'
-                ? 'text-accent border-b-2 border-accent'
-                : 'text-text-secondary'
-            }`}
-          >
-            {t('tournamentDetail.details')}
-          </button>
-          <button
-            onClick={() => setTab('results')}
-            className={`pb-2 text-sm font-medium border-none bg-transparent cursor-pointer transition-colors ${
-              tab === 'results'
-                ? 'text-accent border-b-2 border-accent'
-                : 'text-text-secondary'
-            }`}
-          >
-            {t('tournamentDetail.results')}
-          </button>
-        </div>
-      )}
+      {/* Details */}
+      <div className="px-4">
+        <Card>
+          <div className="grid grid-cols-2 gap-y-2 text-sm">
+            <div>
+              <span className="text-text-secondary">{t('tournamentDetail.dates')}</span>
+              <p className="font-medium text-text">
+                {formatDate(syncedTournament.start_date)} — {formatDate(syncedTournament.end_date)}
+              </p>
+            </div>
+            <div>
+              <span className="text-text-secondary">{t('tournamentDetail.location')}</span>
+              <p className="font-medium text-text">
+                {syncedTournament.venue}, {syncedTournament.city}
+              </p>
+            </div>
+            <div>
+              <span className="text-text-secondary">{t('tournamentDetail.registrationDeadline')}</span>
+              <p className="font-medium text-text">
+                {formatDate(syncedTournament.registration_deadline)}
+              </p>
+            </div>
+            <div>
+              <span className="text-text-secondary">{t('tournamentDetail.entryFee')}</span>
+              <p className="font-medium text-text">
+                {syncedTournament.entry_fee ? `${syncedTournament.entry_fee} ${syncedTournament.currency}` : t('common.free')}
+              </p>
+            </div>
+          </div>
+        </Card>
 
-      {/* Details tab */}
-      {tab === 'details' && (
-        <div className="px-4">
+        {syncedTournament.age_categories.length > 0 && (
           <Card>
-            <div className="grid grid-cols-2 gap-y-2 text-sm">
-              <div>
-                <span className="text-text-secondary">{t('tournamentDetail.dates')}</span>
-                <p className="font-medium text-text">
-                  {formatDate(syncedTournament.start_date)} — {formatDate(syncedTournament.end_date)}
-                </p>
-              </div>
-              <div>
-                <span className="text-text-secondary">{t('tournamentDetail.location')}</span>
-                <p className="font-medium text-text">
-                  {syncedTournament.venue}, {syncedTournament.city}
-                </p>
-              </div>
-              <div>
-                <span className="text-text-secondary">{t('tournamentDetail.registrationDeadline')}</span>
-                <p className="font-medium text-text">
-                  {formatDate(syncedTournament.registration_deadline)}
-                </p>
-              </div>
-              <div>
-                <span className="text-text-secondary">{t('tournamentDetail.entryFee')}</span>
-                <p className="font-medium text-text">
-                  {syncedTournament.entry_fee ? `${syncedTournament.entry_fee} ${syncedTournament.currency}` : t('common.free')}
-                </p>
-              </div>
+            <h3 className="font-semibold text-sm mb-2 text-text">
+              {t('tournamentDetail.ageCategories')}
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {syncedTournament.age_categories.map((cat) => (
+                <span
+                  key={cat}
+                  className="text-xs px-2 py-1 rounded-full bg-accent-light text-accent"
+                >
+                  {cat}
+                </span>
+              ))}
             </div>
           </Card>
+        )}
 
-          {syncedTournament.age_categories.length > 0 && (
-            <Card>
-              <h3 className="font-semibold text-sm mb-2 text-text">
-                {t('tournamentDetail.ageCategories')}
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                {syncedTournament.age_categories.map((cat) => (
-                  <span
-                    key={cat}
-                    className="text-xs px-2 py-1 rounded-full bg-accent-light text-accent"
+        {syncedTournament.weight_categories.length > 0 && (
+          <Card>
+            <h3 className="font-semibold text-sm mb-2 text-text">
+              {t('tournamentDetail.weightCategories')}
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {syncedTournament.weight_categories.map((cat) => (
+                <span
+                  key={cat}
+                  className="text-xs px-2 py-1 rounded-full bg-accent-light text-accent"
+                >
+                  {cat}
+                </span>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Results accordion */}
+        {syncedTournament.results && syncedTournament.results.length > 0 && (
+          <ResultsAccordion results={syncedTournament.results} />
+        )}
+
+        {/* Photos section */}
+        {syncedTournament.photos_url && (
+          <Card>
+            <a
+              href={syncedTournament.photos_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between text-sm font-medium text-accent no-underline active:opacity-80 transition-opacity"
+            >
+              <span>{t('tournamentDetail.viewPhotos')}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+          </Card>
+        )}
+
+        {/* Contacts section */}
+        {(syncedTournament.organizer_name || syncedTournament.organizer_phone || syncedTournament.organizer_telegram) && (
+          <Card>
+            <h3 className="font-semibold text-sm mb-2 text-text">
+              {t('tournamentDetail.contactsSection')}
+            </h3>
+            <div className="space-y-1.5 text-sm">
+              {syncedTournament.organizer_name && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">{t('tournamentDetail.organizer')}</span>
+                  <span className="text-text">{syncedTournament.organizer_name}</span>
+                </div>
+              )}
+              {syncedTournament.organizer_phone && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">{t('tournamentDetail.phone')}</span>
+                  <a href={`tel:${syncedTournament.organizer_phone}`} className="text-accent no-underline">
+                    {syncedTournament.organizer_phone}
+                  </a>
+                </div>
+              )}
+              {syncedTournament.organizer_telegram && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">{t('tournamentDetail.telegram')}</span>
+                  <a
+                    href={`https://t.me/${syncedTournament.organizer_telegram.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent no-underline"
                   >
-                    {cat}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {syncedTournament.weight_categories.length > 0 && (
-            <Card>
-              <h3 className="font-semibold text-sm mb-2 text-text">
-                {t('tournamentDetail.weightCategories')}
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                {syncedTournament.weight_categories.map((cat) => (
-                  <span
-                    key={cat}
-                    className="text-xs px-2 py-1 rounded-full bg-accent-light text-accent"
-                  >
-                    {cat}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Action buttons */}
-          {isOpen && isAthlete && (
-            <InterestButton tournamentId={syncedTournament.id} />
-          )}
-          {isOpen && isCoach && (
-            <EnterAthletesButton
-              tournamentId={syncedTournament.id}
-              existingEntries={syncedTournament.entries}
-              ageCategories={syncedTournament.age_categories}
-              myCoachId={me?.coach?.id}
-              onDone={(updated) => { if (updated) mutate(updated); else refetch(); }}
-            />
-          )}
-
-          <EntriesSection
-            tournament={syncedTournament}
-            tournamentId={syncedTournament.id}
-            isAdmin={isAdmin}
-            isCoach={isCoach}
-            myCoachId={me?.coach?.id}
-            refetch={refetch}
-          />
-        </div>
-      )}
-
-      {/* Results tab */}
-      {tab === 'results' && (
-        <ResultsTab tournamentId={syncedTournament.id} />
-      )}
+                    {syncedTournament.organizer_telegram}
+                  </a>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+      </div>
 
       {/* Admin edit + delete buttons */}
       {isAdmin && (
@@ -360,7 +361,7 @@ function groupEntriesByCoach(entries: TournamentEntry[]): CoachGroup[] {
 
 /* ---- Entries section ---- */
 
-function EntriesSection({
+export function EntriesSection({
   tournament,
   tournamentId,
   isAdmin,
@@ -537,7 +538,7 @@ function CoachEntryCard({
 
 /* ---- Results tab ---- */
 
-function ResultsTab({ tournamentId }: { tournamentId: string }) {
+export function ResultsTab({ tournamentId }: { tournamentId: string }) {
   const { t } = useI18n();
   const { data: results, loading } = useApi<TournamentResult[]>(
     () => getTournamentResults(tournamentId),
@@ -602,6 +603,83 @@ function ResultsTab({ tournamentId }: { tournamentId: string }) {
   );
 }
 
+/* ---- Results accordion ---- */
+
+function ResultsAccordion({ results }: { results: TournamentResult[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, TournamentResult[]>();
+    results.forEach((r) => {
+      const genderLabel = r.gender === 'M' ? t('tournamentDetail.genderM') : r.gender === 'F' ? t('tournamentDetail.genderF') : '';
+      const key = `${r.weight_category} · ${r.age_category}${genderLabel ? ` (${genderLabel})` : ''}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    });
+    map.forEach((arr) => arr.sort((a, b) => a.place - b.place));
+    return map;
+  }, [results, t]);
+
+  return (
+    <Card>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between border-none bg-transparent cursor-pointer p-0 active:opacity-80 transition-opacity"
+      >
+        <h3 className="font-semibold text-sm text-text">
+          {t('tournamentDetail.resultsSection')} ({results.length})
+        </h3>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-text-secondary transition-transform ${open ? 'rotate-180' : ''}`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-4">
+          {Array.from(grouped.entries()).map(([category, items]) => (
+            <div key={category}>
+              <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
+                {category}
+              </p>
+              <div>
+                {items.map((r, i) => (
+                  <div
+                    key={r.id}
+                    className={`flex items-center py-2 ${
+                      i < items.length - 1 ? 'border-b border-dashed border-border' : ''
+                    }`}
+                  >
+                    <span className={`font-mono text-sm font-semibold w-7 shrink-0 ${MEDAL_COLORS[r.place] || 'text-text-disabled'}`}>
+                      {r.place}
+                    </span>
+                    <span className="text-sm text-text flex-1 min-w-0 truncate">
+                      {r.athlete_name}
+                    </span>
+                    <span className="text-xs text-text-secondary shrink-0 ml-2">
+                      {r.city}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ---- Edit tournament modal ---- */
 
 const IMPORTANCE_LEVELS = [1, 2, 3];
@@ -631,6 +709,10 @@ function EditTournamentModal({
     currency: tournament.currency,
     registration_deadline: tournament.registration_deadline,
     importance_level: tournament.importance_level,
+    photos_url: tournament.photos_url ?? null,
+    organizer_name: tournament.organizer_name ?? null,
+    organizer_phone: tournament.organizer_phone ?? null,
+    organizer_telegram: tournament.organizer_telegram ?? null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -778,6 +860,51 @@ function EditTournamentModal({
             ))}
           </div>
         </div>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.photosUrl')}</span>
+          <input
+            type="url"
+            value={form.photos_url ?? ''}
+            onChange={(e) => update('photos_url', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            placeholder={t('common.optional')}
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.organizerName')}</span>
+          <input
+            type="text"
+            value={form.organizer_name ?? ''}
+            onChange={(e) => update('organizer_name', e.target.value || null)}
+            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            placeholder={t('common.optional')}
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.organizerPhone')}</span>
+            <input
+              type="tel"
+              value={form.organizer_phone ?? ''}
+              onChange={(e) => update('organizer_phone', e.target.value || null)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+              placeholder={t('common.optional')}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.organizerTelegram')}</span>
+            <input
+              type="text"
+              value={form.organizer_telegram ?? ''}
+              onChange={(e) => update('organizer_telegram', e.target.value || null)}
+              className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+              placeholder={t('common.optional')}
+            />
+          </label>
+        </div>
       </div>
 
       <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
@@ -795,7 +922,7 @@ function EditTournamentModal({
 
 /* ---- Interest button ---- */
 
-function InterestButton({ tournamentId }: { tournamentId: string }) {
+export function InterestButton({ tournamentId }: { tournamentId: string }) {
   const { t } = useI18n();
   const [marked, setMarked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -829,7 +956,7 @@ function InterestButton({ tournamentId }: { tournamentId: string }) {
 
 /* ---- Enter athletes button + modal ---- */
 
-function EnterAthletesButton({
+export function EnterAthletesButton({
   tournamentId,
   existingEntries,
   ageCategories,

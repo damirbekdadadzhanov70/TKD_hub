@@ -48,9 +48,14 @@ class TournamentRead(BaseModel):
     currency: str = "USD"
     registration_deadline: date
     organizer_contact: Optional[str] = None
+    photos_url: Optional[str] = None
+    organizer_name: Optional[str] = None
+    organizer_phone: Optional[str] = None
+    organizer_telegram: Optional[str] = None
     status: str
     importance_level: int
     entries: list[TournamentEntryRead] = []
+    results: list["TournamentResultRead"] = []
 
     model_config = {"from_attributes": True}
 
@@ -74,6 +79,7 @@ class TournamentResultRead(BaseModel):
     city: str
     weight_category: str
     age_category: str
+    gender: Optional[str] = None
     place: int
     rating_points_earned: int
 
@@ -93,6 +99,10 @@ class TournamentCreate(BaseModel):
     currency: str = Field("RUB", max_length=10)
     registration_deadline: date
     importance_level: int = Field(2, ge=1, le=3)
+    photos_url: str | None = Field(None, max_length=500)
+    organizer_name: str | None = Field(None, max_length=255)
+    organizer_phone: str | None = Field(None, max_length=50)
+    organizer_telegram: str | None = Field(None, max_length=100)
 
 
 class TournamentUpdate(BaseModel):
@@ -108,11 +118,16 @@ class TournamentUpdate(BaseModel):
     currency: str | None = Field(None, max_length=10)
     registration_deadline: date | None = None
     importance_level: int | None = Field(None, ge=1, le=3)
+    photos_url: str | None = None
+    organizer_name: str | None = None
+    organizer_phone: str | None = None
+    organizer_telegram: str | None = None
 
 
 class TournamentResultCreate(BaseModel):
     athlete_id: uuid.UUID
     weight_category: str = Field(..., min_length=1, max_length=50)
     age_category: str = Field(..., min_length=1, max_length=50)
+    gender: str | None = Field(None, max_length=10)
     place: int = Field(..., ge=1)
     rating_points_earned: int = Field(0, ge=0)
