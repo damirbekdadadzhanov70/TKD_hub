@@ -285,12 +285,16 @@ function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSav
     end_date: today,
     city: CITIES[0],
     venue: '',
+    age_categories: [],
+    weight_categories: [],
     entry_fee: null,
     currency: 'RUB',
     registration_deadline: today,
     importance_level: 2,
   });
   const [saving, setSaving] = useState(false);
+  const [ageInput, setAgeInput] = useState('');
+  const [weightInput, setWeightInput] = useState('');
 
   const canSave = form.name.trim() && form.venue.trim() && form.start_date && form.end_date;
 
@@ -380,6 +384,112 @@ function CreateTournamentForm({ onClose, onSaved }: { onClose: () => void; onSav
             className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
           />
         </label>
+
+        {/* Age categories */}
+        <div className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.ageCategories')}</span>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={ageInput}
+              onChange={(e) => setAgeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const v = ageInput.trim();
+                  if (v && !form.age_categories.includes(v)) {
+                    update('age_categories', [...form.age_categories, v]);
+                    setAgeInput('');
+                  }
+                }
+              }}
+              placeholder={t('tournaments.agePlaceholder')}
+              className="flex-1 rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const v = ageInput.trim();
+                if (v && !form.age_categories.includes(v)) {
+                  update('age_categories', [...form.age_categories, v]);
+                  setAgeInput('');
+                }
+              }}
+              className="px-3 py-2 rounded-lg text-xs font-medium border-none cursor-pointer bg-accent text-accent-text active:opacity-80 transition-colors"
+            >
+              {t('tournaments.addCategory')}
+            </button>
+          </div>
+          {form.age_categories.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {form.age_categories.map((cat) => (
+                <span key={cat} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-accent-light text-accent">
+                  {cat}
+                  <button
+                    type="button"
+                    onClick={() => update('age_categories', form.age_categories.filter((c) => c !== cat))}
+                    className="border-none bg-transparent cursor-pointer text-accent text-sm leading-none p-0 hover:opacity-70"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Weight categories */}
+        <div className="block">
+          <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.weightCategories')}</span>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const v = weightInput.trim();
+                  if (v && !form.weight_categories.includes(v)) {
+                    update('weight_categories', [...form.weight_categories, v]);
+                    setWeightInput('');
+                  }
+                }
+              }}
+              placeholder={t('tournaments.weightPlaceholder')}
+              className="flex-1 rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const v = weightInput.trim();
+                if (v && !form.weight_categories.includes(v)) {
+                  update('weight_categories', [...form.weight_categories, v]);
+                  setWeightInput('');
+                }
+              }}
+              className="px-3 py-2 rounded-lg text-xs font-medium border-none cursor-pointer bg-accent text-accent-text active:opacity-80 transition-colors"
+            >
+              {t('tournaments.addCategory')}
+            </button>
+          </div>
+          {form.weight_categories.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {form.weight_categories.map((cat) => (
+                <span key={cat} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-accent-light text-accent">
+                  {cat}
+                  <button
+                    type="button"
+                    onClick={() => update('weight_categories', form.weight_categories.filter((c) => c !== cat))}
+                    className="border-none bg-transparent cursor-pointer text-accent text-sm leading-none p-0 hover:opacity-70"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">

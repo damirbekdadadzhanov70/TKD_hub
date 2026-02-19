@@ -122,6 +122,8 @@ async def create_tournament(
         city=data.city,
         country="Россия",
         venue=data.venue,
+        age_categories=data.age_categories,
+        weight_categories=data.weight_categories,
         entry_fee=data.entry_fee,
         currency=data.currency,
         registration_deadline=data.registration_deadline,

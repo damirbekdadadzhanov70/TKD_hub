@@ -128,6 +128,8 @@ export interface TournamentCreate {
   end_date: string;
   city: string;
   venue: string;
+  age_categories: string[];
+  weight_categories: string[];
   entry_fee: number | null;
   currency: string;
   registration_deadline: string;

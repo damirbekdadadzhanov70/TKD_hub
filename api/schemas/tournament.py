@@ -57,7 +57,7 @@ class TournamentRead(BaseModel):
 
 class TournamentBatchEnter(BaseModel):
     athlete_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=50)
-    age_category: str = Field(..., min_length=1, max_length=50)
+    age_category: str = Field(default="", max_length=50)
 
 
 class TournamentInterestResponse(BaseModel):
@@ -87,6 +87,8 @@ class TournamentCreate(BaseModel):
     end_date: date
     city: str = Field(..., min_length=1, max_length=100)
     venue: str = Field(..., min_length=1, max_length=255)
+    age_categories: list[str] = []
+    weight_categories: list[str] = []
     entry_fee: int | None = None
     currency: str = Field("RUB", max_length=10)
     registration_deadline: date

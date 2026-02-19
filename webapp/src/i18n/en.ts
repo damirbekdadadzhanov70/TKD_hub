@@ -55,6 +55,11 @@ const en = {
     currency: 'Currency',
     registrationDeadline: 'Registration deadline',
     importanceLevel: 'Importance level',
+    ageCategories: 'Age categories',
+    agePlaceholder: 'e.g. Cadets (12-14)',
+    weightCategories: 'Weight categories',
+    weightPlaceholder: 'e.g. -58kg',
+    addCategory: 'Add',
     creating: 'Creating...',
   },
   tournamentDetail: {

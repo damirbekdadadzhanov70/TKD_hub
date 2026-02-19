@@ -55,6 +55,11 @@ const ru = {
     currency: 'Валюта',
     registrationDeadline: 'Дедлайн регистрации',
     importanceLevel: 'Уровень важности',
+    ageCategories: 'Возрастные категории',
+    agePlaceholder: 'напр. Кадеты (12-14)',
+    weightCategories: 'Весовые категории',
+    weightPlaceholder: 'напр. -58kg',
+    addCategory: 'Добавить',
     creating: 'Создание...',
   },
   tournamentDetail: {
