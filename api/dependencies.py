@@ -134,9 +134,14 @@ async def get_current_user(
     # Sync Telegram photo_url to athlete/coach profiles
     tg_photo = tg_user.get("photo_url")
     if tg_photo:
+        changed = False
         if user.athlete and user.athlete.photo_url != tg_photo:
             user.athlete.photo_url = tg_photo
+            changed = True
         if user.coach and user.coach.photo_url != tg_photo:
             user.coach.photo_url = tg_photo
+            changed = True
+        if changed:
+            await session.commit()
 
     return AuthContext(user=user, session=session)
