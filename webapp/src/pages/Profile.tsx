@@ -622,7 +622,7 @@ export default function Profile() {
   const { user: tgUser } = useTelegram();
   const { t } = useI18n();
   const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
-  const { data: stats } = useApi<ProfileStats>(getProfileStats, mockProfileStats, []);
+  const { data: stats, loading: statsLoading } = useApi<ProfileStats>(getProfileStats, mockProfileStats, []);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
@@ -645,7 +645,7 @@ export default function Profile() {
   const pendingRoleRequests = me?.role === 'admin' ? (roleRequests?.length ?? 0) : 0;
   const badgeCount = unreadCount + pendingRoleRequests;
 
-  if (loading) return <LoadingSpinner />;
+  if (loading || statsLoading) return <LoadingSpinner />;
   if (!me) return (
     <div className="flex flex-col items-center justify-center pt-20 px-4">
       <p className="text-sm text-text-secondary text-center">
