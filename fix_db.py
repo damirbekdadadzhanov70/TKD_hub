@@ -12,9 +12,7 @@ async def main():
     await c.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organizer_phone VARCHAR(50)")
     await c.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organizer_telegram VARCHAR(100)")
     await c.execute("ALTER TABLE tournament_results ADD COLUMN IF NOT EXISTS gender VARCHAR(10)")
-    rows = await c.fetch(
-        "SELECT column_name FROM information_schema.columns WHERE table_name='tournaments'"
-    )
+    rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournaments'")
     print("OK! Columns:", [r["column_name"] for r in rows])
     await c.close()
 
