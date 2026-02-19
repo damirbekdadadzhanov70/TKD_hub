@@ -447,6 +447,7 @@ async def register_profile(
             country="Россия",
             city=reg.city,
             club=reg.club,
+            photo_url=ctx.tg_photo,
         )
         ctx.session.add(athlete)
         await ctx.session.flush()
@@ -468,6 +469,7 @@ async def register_profile(
             city=reg.city,
             club=reg.club,
             qualification=reg.sport_rank or "Не указано",
+            photo_url=ctx.tg_photo,
         )
         ctx.session.add(coach)
         await ctx.session.flush()

@@ -24,6 +24,7 @@ INIT_DATA_MAX_AGE = 14400  # 4 hours
 class AuthContext:
     user: User
     session: AsyncSession
+    tg_photo: str | None = None
 
 
 def validate_init_data(init_data: str) -> dict:
@@ -144,4 +145,4 @@ async def get_current_user(
         if changed:
             await session.commit()
 
-    return AuthContext(user=user, session=session)
+    return AuthContext(user=user, session=session, tg_photo=tg_photo)
