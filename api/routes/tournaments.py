@@ -184,9 +184,7 @@ async def update_tournament(
     _check_admin(ctx.user)
 
     result = await ctx.session.execute(
-        select(Tournament)
-        .where(Tournament.id == tournament_id)
-        .options(*_load_tournament_options())
+        select(Tournament).where(Tournament.id == tournament_id).options(*_load_tournament_options())
     )
     tournament = result.scalar_one_or_none()
     if not tournament:
@@ -277,9 +275,7 @@ async def get_tournament(
     ctx: AuthContext = Depends(get_current_user),
 ):
     result = await ctx.session.execute(
-        select(Tournament)
-        .where(Tournament.id == tournament_id)
-        .options(*_load_tournament_options())
+        select(Tournament).where(Tournament.id == tournament_id).options(*_load_tournament_options())
     )
     tournament = result.scalar_one_or_none()
     if not tournament:
