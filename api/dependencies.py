@@ -130,4 +130,13 @@ async def get_current_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not registered",
         )
+
+    # Sync Telegram photo_url to athlete/coach profiles
+    tg_photo = tg_user.get("photo_url")
+    if tg_photo:
+        if user.athlete and user.athlete.photo_url != tg_photo:
+            user.athlete.photo_url = tg_photo
+        if user.coach and user.coach.photo_url != tg_photo:
+            user.coach.photo_url = tg_photo
+
     return AuthContext(user=user, session=session)
