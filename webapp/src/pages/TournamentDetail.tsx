@@ -699,10 +699,10 @@ function EnterAthletesModal({
   };
 
   const handleSubmit = async () => {
-    if (selected.size === 0 || !selectedAge) return;
+    if (selected.size === 0) return;
     setSubmitting(true);
     try {
-      await enterTournament(tournamentId, Array.from(selected), selectedAge);
+      await enterTournament(tournamentId, Array.from(selected), selectedAge || '');
       hapticNotification('success');
       showToast(t('tournamentDetail.entriesSubmitted'));
       onDone();
