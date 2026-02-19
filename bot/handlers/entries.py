@@ -185,7 +185,7 @@ async def on_age_category(callback: CallbackQuery, state: FSMContext):
     age_cat = parts[1]
     data = await state.get_data()
     lang = data.get("language", "ru")
-    selected = data.get("selected_athletes", [])
+    selected = [_to_uuid(aid) for aid in data.get("selected_athletes", [])]
 
     await state.update_data(entry_age_category=age_cat)
 
@@ -214,7 +214,7 @@ async def on_age_category(callback: CallbackQuery, state: FSMContext):
 async def on_confirm_entries(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("language", "ru")
-    selected = data.get("selected_athletes", [])
+    selected = [_to_uuid(aid) for aid in data.get("selected_athletes", [])]
     tid = _to_uuid(data["entry_tid"])
     coach_id = _to_uuid(data["entry_coach_id"])
     age_cat = data["entry_age_category"]

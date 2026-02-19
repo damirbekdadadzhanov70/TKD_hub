@@ -679,7 +679,7 @@ function EnterAthletesModal({
   const { hapticNotification } = useTelegram();
   const { showToast } = useToast();
   const { t } = useI18n();
-  const { data: athletes, loading } = useApi<CoachAthlete[]>(
+  const { data: athletes, loading, error: athletesError } = useApi<CoachAthlete[]>(
     getCoachAthletes,
     mockCoachAthletes,
     [],
@@ -723,6 +723,8 @@ function EnterAthletesModal({
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
         {loading ? (
           <LoadingSpinner />
+        ) : athletesError ? (
+          <EmptyState title={t('common.error')} description={athletesError} />
         ) : !athletes || athletes.length === 0 ? (
           <EmptyState title={t('tournamentDetail.noAthletes')} description={t('tournamentDetail.noLinkedAthletes')} />
         ) : (
