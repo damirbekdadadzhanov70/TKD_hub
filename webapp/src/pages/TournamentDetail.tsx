@@ -808,6 +808,8 @@ function DocumentsSection({
           const s = resp.csv_summary;
           showToast(
             `${t('tournamentDetail.csvProcessed')}: ${t('tournamentDetail.csvMatched')}: ${s.matched}, ${t('tournamentDetail.csvUnmatched')}: ${s.unmatched}, ${t('tournamentDetail.csvPointsAwarded')}: ${s.points_awarded}`,
+            'success',
+            true,
           );
         }
       } catch (err) {

@@ -8,10 +8,11 @@ interface ToastItem {
   message: string;
   type: ToastType;
   visible: boolean;
+  persistent: boolean;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: string, type?: ToastType, persistent?: boolean) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -21,9 +22,18 @@ let nextId = 0;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = 'success') => {
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, visible: false } : t)),
+    );
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 200);
+  }, []);
+
+  const showToast = useCallback((message: string, type: ToastType = 'success', persistent = false) => {
     const id = nextId++;
-    setToasts((prev) => [...prev, { id, message, type, visible: false }]);
+    setToasts((prev) => [...prev, { id, message, type, visible: false, persistent }]);
 
     // Trigger enter animation on next frame
     requestAnimationFrame(() => {
@@ -32,17 +42,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       );
     });
 
-    // Auto-hide after 3s
-    setTimeout(() => {
-      setToasts((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, visible: false } : t)),
-      );
-      // Remove from DOM after exit animation
+    // Auto-hide after 3s (only for non-persistent toasts)
+    if (!persistent) {
       setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 200);
-    }, 3000);
-  }, []);
+        dismissToast(id);
+      }, 3000);
+    }
+  }, [dismissToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -60,6 +66,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 }}
               >
                 <p className={`text-sm ${toast.type === 'error' ? 'text-rose-500' : 'text-text'}`}>{toast.message}</p>
+                {toast.persistent && (
+                  <button
+                    onClick={() => dismissToast(toast.id)}
+                    className="mt-2 text-xs font-medium text-accent cursor-pointer hover:opacity-80 active:opacity-60"
+                  >
+                    OK
+                  </button>
+                )}
               </div>
             ))}
           </div>,

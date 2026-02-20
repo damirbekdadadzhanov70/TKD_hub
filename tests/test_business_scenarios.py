@@ -3436,9 +3436,12 @@ class TestCsvResultsUtility:
     def test_normalize_name(self):
         from api.utils.csv_results import normalize_name
 
-        assert normalize_name("  Иванов  Алексей  ") == "иванов алексей"
-        assert normalize_name("Ёлкин Пётр") == "елкин петр"
+        # normalize_name transliterates Cyrillic → Latin for cross-script matching
+        assert normalize_name("  Иванов  Алексей  ") == "ivanov aleksey"
+        assert normalize_name("Ёлкин Пётр") == "elkin petr"
         assert normalize_name("SMITH  John") == "smith john"
+        # Cross-script matching
+        assert normalize_name("Дададжанов Дамирбек") == normalize_name("Dadadzhanov Damirbek")
 
     def test_extract_match_name(self):
         from api.utils.csv_results import extract_match_name
@@ -3888,3 +3891,84 @@ async def test_csv_results_appear_in_tournament_detail(admin_client, admin_user,
     assert len(unmatched) == 1
     assert unmatched[0]["athlete_name"] == "Unknown Person"
     assert unmatched[0]["athlete_id"] is None
+
+
+class TestCsvOcrParsing:
+    """Tests for OCR fallback parsing mode."""
+
+    def test_ocr_basic_extraction(self):
+        """OCR parser extracts name and place from pipe-delimited rows."""
+        from api.utils.csv_results import parse_csv
+
+        content = (
+            "Мужчины 54 кг\n"
+            'Ne |Фамилия Имя Отчество  oo | e | Город\n'
+            "1|   Иванов Алексей Петрович             08.10.1998 | мс  Москва  4   1\n"
+            "2|   Петров Иван Сергеевич               05.09.2004 | KMC Казань  3   2\n"
+            "3|   Сидоров Максим Олегович              03.05.2003 | KMC Уфа    2   3\n"
+        ).encode("utf-8")
+        rows = parse_csv(content)
+        assert len(rows) == 3
+        assert rows[0].full_name == "Иванов Алексей"
+        assert rows[0].place == 1
+        assert rows[0].weight_category == "54"
+        assert rows[0].gender == "M"
+        assert rows[1].place == 2
+        assert rows[2].place == 3
+
+    def test_ocr_place_range_mangled(self):
+        """OCR parser handles mangled ranges: '58'→5, '916'→9, '1726'→17."""
+        from api.utils.csv_results import _parse_ocr_place
+
+        assert _parse_ocr_place("58") == 5
+        assert _parse_ocr_place("916") == 9
+        assert _parse_ocr_place("1726") == 17
+        assert _parse_ocr_place("1727") == 17
+        assert _parse_ocr_place("1721") == 17
+
+    def test_ocr_section_headers(self):
+        """OCR parser respects section headers for weight/gender."""
+        from api.utils.csv_results import parse_csv
+
+        content = (
+            "Мужчины 68 кг\n"
+            "header line\n"
+            "1| Иванов Иван Иванович 01.01.2000 | мс Москва 1\n"
+            "Женщины 49 кг\n"
+            "header line\n"
+            "1| Петрова Мария Ивановна 02.02.2001 | кмс Казань 1\n"
+        ).encode("utf-8")
+        rows = parse_csv(content)
+        assert len(rows) == 2
+        assert rows[0].weight_category == "68"
+        assert rows[0].gender == "M"
+        assert rows[1].weight_category == "49"
+        assert rows[1].gender == "F"
+
+    def test_ocr_with_real_format(self):
+        """OCR parser handles real protocol format with artifacts."""
+        from api.utils.csv_results import parse_csv
+
+        content = (
+            "Протокол результатов соревнований\n"
+            "Кубок России\n"
+            "Мужчины 54 кг\n"
+            '"Ne |Фамилия Имя Отчество  oo | e | Город"\n'
+            '"1|   Дадашов Максуд Джаванширович:  08.10.1998 [ мс  1 дан — | Санкт-Петербург  4  1"\n'
+            '"2|    Багов Идар Мухамедович  05.09.2004 | KMC 1 Дан  Нальчик  3  2"\n'
+            '3 | Льянов Магомед Алгудинович  03.05.2003  KMC  1 пум  Черная  3  3\n'
+            '"5 | Алалов Хизри Ибрагимович  11.08.2002 | KMC 1дан | Махачкала  2  58"\n'
+            '"9| Гришкин Егор Алексеевич  16102003 | KMC 1 пум  Тольятти  1  916"\n'
+            '"17 | Заболотный Данил Александрович  21122004 | KMC 1 дан  Москва  0  1721"\n'
+        ).encode("utf-8")
+        rows = parse_csv(content)
+        assert len(rows) >= 5
+        assert rows[0].full_name == "Дадашов Максуд"
+        assert rows[0].place == 1
+        # Check OCR place ranges
+        alal = [r for r in rows if "Алалов" in r.full_name]
+        assert alal and alal[0].place == 5  # "58" → 5-8 → 5
+        grish = [r for r in rows if "Гришкин" in r.full_name]
+        assert grish and grish[0].place == 9  # "916" → 9-16 → 9
+        zabol = [r for r in rows if "Заболотный" in r.full_name]
+        assert zabol and zabol[0].place == 17  # "1721" → 17-21 → 17
