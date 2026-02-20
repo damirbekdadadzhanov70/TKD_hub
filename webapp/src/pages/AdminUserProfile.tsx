@@ -16,11 +16,11 @@ const ROLE_BADGE: Record<string, string> = {
   none: 'bg-bg-divider text-text-disabled',
 };
 
-function InfoRow({ label, value, green, yellow }: { label: string; value: string; green?: boolean; yellow?: boolean }) {
+function InfoRow({ label, value, accent, green, yellow }: { label: string; value: string; accent?: boolean; green?: boolean; yellow?: boolean }) {
   return (
     <div className="flex justify-between items-center py-2">
       <span className="text-[11px] text-text-disabled">{label}</span>
-      <span className={`text-[15px] ${green ? 'text-emerald-500' : yellow ? 'text-amber-500' : 'text-text'}`}>{value}</span>
+      <span className={`text-[15px] ${green ? 'text-emerald-500' : yellow ? 'text-amber-500' : accent ? 'text-accent' : 'text-text'}`}>{value}</span>
     </div>
   );
 }
@@ -153,27 +153,31 @@ export default function AdminUserProfile() {
 
       {/* Athlete stats */}
       {user.athlete && (
-        <div className="px-4">
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-bg-secondary rounded-xl p-3 text-center">
-              <p className="text-lg font-heading text-accent">{user.athlete.rating_points}</p>
-              <p className="text-[11px] text-text-disabled">{t('profile.ratingLabel')}</p>
+        <div>
+          <div className="flex items-center justify-center mx-4 mb-5 py-3 border-y border-border">
+            <div className="flex-1 text-center">
+              <p className="font-mono text-2xl text-text-heading">{user.athlete.rating_points}</p>
+              <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.ratingLabel')}</p>
             </div>
-            <div className="bg-bg-secondary rounded-xl p-3 text-center">
-              <p className="text-lg font-heading text-accent">{user.stats.tournaments_count}</p>
-              <p className="text-[11px] text-text-disabled">{t('profile.tourneys')}</p>
+            <div className="w-px h-10 bg-border" />
+            <div className="flex-1 text-center">
+              <p className="font-mono text-2xl text-text-heading">{user.stats.tournaments_count}</p>
+              <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.tourneys')}</p>
             </div>
-            <div className="bg-bg-secondary rounded-xl p-3 text-center">
-              <p className="text-lg font-heading text-accent">{user.stats.medals_count}</p>
-              <p className="text-[11px] text-text-disabled">{t('profile.medals')}</p>
+            <div className="w-px h-10 bg-border" />
+            <div className="flex-1 text-center">
+              <p className="font-mono text-2xl text-text-heading">{user.stats.medals_count}</p>
+              <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.medals')}</p>
             </div>
           </div>
 
-          <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
-          <InfoRow label={t('profile.city')} value={user.athlete.city} />
-          {user.athlete.club && <InfoRow label={t('profile.club')} value={user.athlete.club} />}
-          <InfoRow label={t('profile.weightLabel')} value={user.athlete.weight_category} />
-          <InfoRow label={t('profile.sportRank')} value={user.athlete.sport_rank} />
+          <div className="px-4 mb-4">
+            <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
+            <InfoRow label={t('profile.club')} value={user.athlete.club || '—'} />
+            <InfoRow label={t('profile.city')} value={user.athlete.city} />
+            <InfoRow label={t('profile.weightLabel')} value={user.athlete.weight_category} />
+            <InfoRow label={t('profile.sportRank')} value={user.athlete.sport_rank} />
+          </div>
         </div>
       )}
 
