@@ -55,6 +55,7 @@ const ru = {
     currency: 'Валюта',
     registrationDeadline: 'Дедлайн регистрации',
     importanceLevel: 'Уровень важности',
+    allLevels: 'Все уровни',
     importanceLow: 'Низкий',
     importanceMedium: 'Средний',
     importanceHigh: 'Высокий',

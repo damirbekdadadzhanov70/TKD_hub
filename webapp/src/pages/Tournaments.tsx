@@ -70,6 +70,19 @@ function CalendarIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+function TrophyIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+  );
+}
+
 function ChevronDownIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -149,6 +162,7 @@ export default function Tournaments() {
   const { t } = useI18n();
   const [city, setCity] = useState('');
   const [status, setStatus] = useState('');
+  const [importance, setImportance] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
@@ -184,13 +198,24 @@ export default function Tournaments() {
     ...CITIES.map((c) => ({ value: c, label: c })),
   ];
 
+  const IMPORTANCE_OPTIONS = [
+    { value: '', label: t('tournaments.allLevels') },
+    { value: '1', label: t('tournaments.importanceLow') },
+    { value: '2', label: t('tournaments.importanceMedium') },
+    { value: '3', label: t('tournaments.importanceHigh') },
+  ];
+
   const { data: tournaments, loading, refetch } = useApi<TournamentListItem[]>(
     () => getTournaments({ city: city || undefined, status: status || undefined }),
     mockTournaments,
     [city, status],
   );
 
-  const filtered = tournaments || [];
+  const filtered = useMemo(() => {
+    const list = tournaments || [];
+    if (!importance) return list;
+    return list.filter((tr) => tr.importance_level === Number(importance));
+  }, [tournaments, importance]);
 
   return (
     <PullToRefresh onRefresh={() => refetch(true)}>
@@ -214,7 +239,7 @@ export default function Tournaments() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <FilterDropdown
           icon={<CalendarIcon />}
           value={status}
@@ -228,6 +253,13 @@ export default function Tournaments() {
           options={CITY_OPTIONS}
           onSelect={setCity}
           ariaLabel={t('tournaments.filterByCity')}
+        />
+        <FilterDropdown
+          icon={<TrophyIcon />}
+          value={importance}
+          options={IMPORTANCE_OPTIONS}
+          onSelect={setImportance}
+          ariaLabel={t('tournaments.importanceLevel')}
         />
       </div>
 

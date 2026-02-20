@@ -55,6 +55,7 @@ const en = {
     currency: 'Currency',
     registrationDeadline: 'Registration deadline',
     importanceLevel: 'Importance level',
+    allLevels: 'All levels',
     importanceLow: 'Low',
     importanceMedium: 'Medium',
     importanceHigh: 'High',
