@@ -73,12 +73,38 @@ def calculate_points(place: int, importance_level: int) -> int:
 def _to_latin(text: str) -> str:
     """Transliterate Cyrillic to Latin for cross-script matching."""
     _MAP = {
-        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e",
-        "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l",
-        "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s",
-        "т": "t", "у": "u", "ф": "f", "х": "kh", "ц": "ts", "ч": "ch",
-        "ш": "sh", "щ": "shch", "ъ": "", "ы": "y", "ь": "", "э": "e",
-        "ю": "yu", "я": "ya",
+        "а": "a",
+        "б": "b",
+        "в": "v",
+        "г": "g",
+        "д": "d",
+        "е": "e",
+        "ж": "zh",
+        "з": "z",
+        "и": "i",
+        "й": "y",
+        "к": "k",
+        "л": "l",
+        "м": "m",
+        "н": "n",
+        "о": "o",
+        "п": "p",
+        "р": "r",
+        "с": "s",
+        "т": "t",
+        "у": "u",
+        "ф": "f",
+        "х": "kh",
+        "ц": "ts",
+        "ч": "ch",
+        "ш": "sh",
+        "щ": "shch",
+        "ъ": "",
+        "ы": "y",
+        "ь": "",
+        "э": "e",
+        "ю": "yu",
+        "я": "ya",
     }
     return "".join(_MAP.get(c, c) for c in text)
 
@@ -194,8 +220,14 @@ def _extract_place_from_end(line: str) -> int | None:
 
 # Known place ranges in tournament protocols
 _KNOWN_RANGES = {
-    "58": 5, "916": 9, "1721": 17, "1723": 17, "1726": 17, "1727": 17,
-    "o6": 9, "об": 9,  # OCR misread of "9-16" → "о6"/"об"
+    "58": 5,
+    "916": 9,
+    "1721": 17,
+    "1723": 17,
+    "1726": 17,
+    "1727": 17,
+    "o6": 9,
+    "об": 9,  # OCR misread of "9-16" → "о6"/"об"
 }
 
 
