@@ -129,9 +129,8 @@ export default function Health() {
     refetchSleep(true);
   };
 
-  const handleRefresh = () => {
-    refetchWeight(true);
-    refetchSleep(true);
+  const handleRefresh = async () => {
+    await Promise.all([refetchWeight(true), refetchSleep(true)]);
   };
 
   return (
