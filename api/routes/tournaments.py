@@ -867,7 +867,7 @@ async def create_tournament_result(
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 MAX_FILES_PER_TOURNAMENT = 10
 PDF_MAGIC = b"%PDF"
-ALLOWED_FILE_CATEGORIES = {"protocol", "bracket", "results", "regulations"}
+ALLOWED_FILE_CATEGORIES = {"protocol", "bracket", "regulations"}
 
 
 async def _upload_to_vercel_blob(filename: str, content: bytes, content_type: str) -> str:

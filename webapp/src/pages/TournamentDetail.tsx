@@ -709,7 +709,7 @@ export function ResultsAccordion({ results }: { results: TournamentResult[] }) {
 
 /* ---- Documents section ---- */
 
-const FILE_CATEGORIES: FileCategory[] = ['protocol', 'bracket', 'results', 'regulations'];
+const FILE_CATEGORIES: FileCategory[] = ['protocol', 'bracket', 'regulations'];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

@@ -103,7 +103,7 @@ export interface TournamentDetail {
   files: TournamentFile[];
 }
 
-export type FileCategory = 'protocol' | 'bracket' | 'results' | 'regulations';
+export type FileCategory = 'protocol' | 'bracket' | 'regulations';
 
 export interface TournamentFile {
   id: string;
