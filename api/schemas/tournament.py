@@ -161,6 +161,7 @@ class CsvProcessingSummary(BaseModel):
     total_rows: int
     matched: int
     unmatched: int
+    skipped: int = 0
     points_awarded: int
     matched_details: list[CsvMatchedDetail] = []
 

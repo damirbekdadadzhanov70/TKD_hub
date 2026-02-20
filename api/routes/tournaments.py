@@ -23,7 +23,7 @@ from api.schemas.tournament import (
     TournamentResultRead,
     TournamentUpdate,
 )
-from api.utils.csv_results import calculate_points, extract_match_name, normalize_name, parse_csv
+from api.utils.csv_results import calculate_points, extract_match_name, normalize_name, normalize_weight, parse_csv
 from api.utils.pagination import paginate_query
 from bot.config import settings
 from bot.utils.notifications import (
@@ -989,11 +989,12 @@ async def _process_csv_results(
     # Build lookup: (normalized_match_name, normalized_weight) → Athlete
     athlete_lookup: dict[tuple[str, str], Athlete] = {}
     for a in all_athletes:
-        key = (normalize_name(extract_match_name(a.full_name)), normalize_name(a.weight_category))
+        key = (normalize_name(extract_match_name(a.full_name)), normalize_weight(a.weight_category))
         athlete_lookup[key] = a
 
     matched = 0
     unmatched = 0
+    skipped = 0
     total_points = 0
     matched_details: list[dict[str, object]] = []
     scorable_rows = [r for r in rows if r.place <= 10]
@@ -1001,7 +1002,7 @@ async def _process_csv_results(
     for row in scorable_rows:
         points = calculate_points(row.place, importance_level)
         norm_name = normalize_name(row.full_name)  # Already first two words
-        norm_weight = normalize_name(row.weight_category)
+        norm_weight = normalize_weight(row.weight_category)
 
         athlete = athlete_lookup.get((norm_name, norm_weight))
 
@@ -1014,6 +1015,7 @@ async def _process_csv_results(
             )
         )
         if existing.scalar_one_or_none():
+            skipped += 1
             continue
 
         result = TournamentResult(
@@ -1049,6 +1051,7 @@ async def _process_csv_results(
         total_rows=len(scorable_rows),
         matched=matched,
         unmatched=unmatched,
+        skipped=skipped,
         points_awarded=total_points,
         matched_details=matched_details,
     )

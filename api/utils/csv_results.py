@@ -124,6 +124,18 @@ def extract_match_name(full_name: str) -> str:
     return full_name.strip()
 
 
+def normalize_weight(weight: str) -> str:
+    """Normalize weight category: extract digits and optional '+'.
+
+    '-58' → '58', '58 кг' → '58', '58kg' → '58', '87+' → '87+', '+80' → '80+'
+    """
+    has_plus = "+" in weight
+    digits = re.sub(r"[^\d]", "", weight)
+    if not digits:
+        return weight.strip().lower()
+    return digits + ("+" if has_plus else "")
+
+
 def parse_place(raw: str) -> int | None:
     """Parse place string: '1' → 1, '5-8' → 5, 'ДСКВ' → None."""
     raw = raw.strip()
@@ -493,7 +505,7 @@ async def check_retroactive_matches(session: AsyncSession, athlete: Athlete) -> 
     Returns total points awarded.
     """
     norm_name = normalize_name(extract_match_name(athlete.full_name))
-    norm_weight = normalize_name(athlete.weight_category)
+    norm_weight = normalize_weight(athlete.weight_category)
 
     result = await session.execute(
         select(TournamentResult).where(
@@ -506,7 +518,7 @@ async def check_retroactive_matches(session: AsyncSession, athlete: Athlete) -> 
     total_points = 0
     for r in unmatched:
         r_match_name = normalize_name(extract_match_name(r.raw_full_name or ""))
-        r_weight = normalize_name(r.raw_weight_category or r.weight_category)
+        r_weight = normalize_weight(r.raw_weight_category or r.weight_category)
         if r_match_name == norm_name and r_weight == norm_weight:
             r.athlete_id = athlete.id
             total_points += r.rating_points_earned

@@ -3634,13 +3634,12 @@ async def test_csv_upload_section_format(admin_client, admin_user, db_session):
     assert resp.status_code == 201, resp.text
     summary = resp.json()["csv_summary"]
     assert summary["total_rows"] == 3
-    # "Admin User" matched by first 2 words, weight "80" matches "80kg" — wait,
-    # admin athlete has weight_category="80kg", CSV has "80" from section header.
-    # normalize("80kg") != normalize("80"), so no match. That's expected for this test.
-    # All 3 are unmatched because weight normalization differs
-    assert summary["matched"] + summary["unmatched"] == 3
-    # All unmatched — points_awarded only counts matched athletes
-    assert summary["points_awarded"] == 0
+    # "Admin User" matched: normalize_weight("80kg") == normalize_weight("80") == "80"
+    assert summary["matched"] == 1
+    assert summary["unmatched"] == 2
+    # 1st place × importance 1 = 12
+    assert summary["points_awarded"] == 12
+    assert summary["matched_details"][0]["name"] == "Admin User"
 
 
 @pytest.mark.asyncio

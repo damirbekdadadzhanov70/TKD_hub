@@ -806,20 +806,25 @@ function DocumentsSection({
         // Show CSV processing summary
         if (resp.csv_summary) {
           const s = resp.csv_summary;
-          const lines = [`${t('tournamentDetail.csvProcessed')}`];
-          if (s.matched_details.length > 0) {
-            lines.push(`${t('tournamentDetail.csvMatched')}: ${s.matched}`);
-            for (const d of s.matched_details) {
-              lines.push(`  ${d.name} — ${d.place} ${t('tournamentDetail.csvPlace')}, +${d.points} pts`);
+          const lines: string[] = [];
+          if (s.skipped > 0 && s.matched === 0 && s.unmatched === 0) {
+            lines.push(t('tournamentDetail.csvAlreadyProcessed'));
+          } else {
+            lines.push(`${t('tournamentDetail.csvProcessed')} (${t('tournamentDetail.csvRows')}: ${s.total_rows})`);
+            if (s.matched_details.length > 0) {
+              lines.push(`\n${t('tournamentDetail.csvMatched')}: ${s.matched}`);
+              for (const d of s.matched_details) {
+                lines.push(`  ${d.name} — ${d.place} ${t('tournamentDetail.csvPlace')}, +${d.points}`);
+              }
+              lines.push(`${t('tournamentDetail.csvPointsAwarded')}: ${s.points_awarded}`);
+            } else {
+              lines.push(`${t('tournamentDetail.csvMatched')}: 0`);
+            }
+            if (s.unmatched > 0) {
+              lines.push(`${t('tournamentDetail.csvUnmatched')}: ${s.unmatched}`);
             }
           }
-          if (s.unmatched > 0) {
-            lines.push(`${t('tournamentDetail.csvUnmatched')}: ${s.unmatched}`);
-          }
-          if (s.points_awarded > 0) {
-            lines.push(`${t('tournamentDetail.csvPointsAwarded')}: ${s.points_awarded}`);
-          }
-          showToast(lines.join('\n'), 'success', true);
+          showToast(lines.join('\n'), s.matched > 0 ? 'success' : 'error', true);
         }
       } catch (err) {
         hapticNotification('error');

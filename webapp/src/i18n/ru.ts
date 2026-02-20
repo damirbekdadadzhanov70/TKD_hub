@@ -144,6 +144,8 @@ const ru = {
     csvUnmatched: 'Не найдено',
     csvPointsAwarded: 'Начислено очков',
     csvPlace: 'место',
+    csvRows: 'строк',
+    csvAlreadyProcessed: 'Этот CSV уже был загружен ранее',
     fileTooLarge: 'Файл слишком большой. Максимум 10 МБ',
     selectFile: 'Выбрать',
     fileUploaded: 'Файл загружен',

@@ -144,6 +144,8 @@ const en = {
     csvUnmatched: 'Not matched',
     csvPointsAwarded: 'Points awarded',
     csvPlace: 'place',
+    csvRows: 'rows',
+    csvAlreadyProcessed: 'This CSV was already uploaded',
     fileTooLarge: 'File too large. Maximum 10 MB',
     selectFile: 'Select',
     fileUploaded: 'File uploaded',

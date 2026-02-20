@@ -140,6 +140,7 @@ export interface CsvProcessingSummary {
   total_rows: number;
   matched: number;
   unmatched: number;
+  skipped: number;
   points_awarded: number;
   matched_details: CsvMatchedDetail[];
 }
