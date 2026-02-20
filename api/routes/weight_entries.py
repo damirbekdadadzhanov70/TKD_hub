@@ -21,9 +21,7 @@ async def list_weight_entries(
         )
 
     result = await ctx.session.execute(
-        select(WeightEntry)
-        .where(WeightEntry.athlete_id == ctx.user.athlete.id)
-        .order_by(WeightEntry.date.desc())
+        select(WeightEntry).where(WeightEntry.athlete_id == ctx.user.athlete.id).order_by(WeightEntry.date.desc())
     )
     entries = result.scalars().all()
     return [WeightEntryRead.model_validate(e) for e in entries]

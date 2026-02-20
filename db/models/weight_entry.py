@@ -10,9 +10,7 @@ from db.base import Base
 
 class WeightEntry(Base):
     __tablename__ = "weight_entries"
-    __table_args__ = (
-        UniqueConstraint("athlete_id", "date", name="uq_weight_athlete_date"),
-    )
+    __table_args__ = (UniqueConstraint("athlete_id", "date", name="uq_weight_athlete_date"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
