@@ -29,6 +29,7 @@ import type {
   TrainingLogStats,
   TrainingLogUpdate,
   UserSearchItem,
+  WeightEntry,
 } from '../types';
 
 // --- Profile ---
@@ -369,4 +370,23 @@ export function searchUsers(q?: string): Promise<UserSearchItem[]> {
 
 export function getUserDetail(userId: string): Promise<AdminUserDetail> {
   return apiRequest<AdminUserDetail>(`/users/${userId}`);
+}
+
+// --- Weight Entries ---
+
+export function getWeightEntries(): Promise<WeightEntry[]> {
+  return apiRequest<WeightEntry[]>('/weight-entries');
+}
+
+export function createWeightEntry(data: { date: string; weight_kg: number }): Promise<WeightEntry> {
+  return apiRequest<WeightEntry>('/weight-entries', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteWeightEntry(id: string): Promise<void> {
+  return apiRequest<void>(`/weight-entries/${id}`, {
+    method: 'DELETE',
+  });
 }

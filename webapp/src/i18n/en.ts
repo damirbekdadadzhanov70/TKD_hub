@@ -28,6 +28,7 @@ const en = {
     tournaments: 'Tournaments',
     training: 'Training',
     rating: 'Rating',
+    health: 'Health',
     profile: 'Profile',
   },
   layout: {
@@ -316,6 +317,17 @@ const en = {
     markAllRead: 'Mark all read',
     userProfile: 'User Profile',
     memberSince: 'Member Since',
+  },
+  health: {
+    title: 'Health',
+    weightKg: 'Weight (kg)',
+    save: 'Save',
+    delete: 'Delete entry',
+    weightSaved: 'Weight saved',
+    weightChart: 'Weight dynamics',
+    noData: 'No entries',
+    noDataDesc: 'Tap a date to add weight',
+    kg: 'kg',
   },
   onboarding: {
     chooseLanguage: 'Choose language',

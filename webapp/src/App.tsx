@@ -6,6 +6,7 @@ import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
 import TrainingLogPage from './pages/TrainingLog';
 import Rating from './pages/Rating';
+import Health from './pages/Health';
 import Profile from './pages/Profile';
 import AdminUserProfile from './pages/AdminUserProfile';
 import Onboarding from './pages/Onboarding';
@@ -100,6 +101,7 @@ function AppRoutes() {
           <Route path="/tournament/:id" element={<TournamentDetail />} />
           <Route path="/training" element={<TrainingLogPage />} />
           <Route path="/rating" element={<Rating />} />
+          <Route path="/health" element={<Health />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/user/:id" element={<AdminUserProfile />} />
           <Route
@@ -122,7 +124,7 @@ export default function App() {
     setBackgroundColor('#FAFAF9');
     // Safety: clear stale overflow:hidden left by BottomSheet from previous session
     resetBottomSheetOverflow();
-  }, []);
+  }, [ready, expand, setHeaderColor, setBackgroundColor]);
 
   return (
     <BrowserRouter>

@@ -363,6 +363,12 @@ export interface UserSearchItem {
   photo_url: string | null;
 }
 
+export interface WeightEntry {
+  id: string;
+  date: string;       // 'YYYY-MM-DD'
+  weight_kg: number;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

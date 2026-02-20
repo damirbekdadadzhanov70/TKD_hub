@@ -23,6 +23,7 @@ import type {
   TrainingLogStats,
   TrainingLogUpdate,
   UserSearchItem,
+  WeightEntry,
 } from '../types';
 
 // ── localStorage helpers ────────────────────────────────────
@@ -822,4 +823,39 @@ export function searchMockUsers(q?: string): UserSearchItem[] {
   }));
   if (!q) return items;
   return items.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()));
+}
+
+// ── Weight Entries ──────────────────────────────────────────
+
+const defaultWeightEntries: WeightEntry[] = [
+  { id: 'w1', date: '2026-02-18', weight_kg: 67.5 },
+  { id: 'w2', date: '2026-02-15', weight_kg: 67.8 },
+  { id: 'w3', date: '2026-02-12', weight_kg: 68.0 },
+  { id: 'w4', date: '2026-02-08', weight_kg: 67.6 },
+  { id: 'w5', date: '2026-02-05', weight_kg: 67.9 },
+  { id: 'w6', date: '2026-02-01', weight_kg: 68.2 },
+];
+
+export let mockWeightEntries: WeightEntry[] = load('weight_entries', defaultWeightEntries);
+
+function saveWeightEntries() {
+  save('weight_entries', mockWeightEntries);
+}
+
+export function addMockWeightEntry(date: string, weight_kg: number): WeightEntry {
+  const existing = mockWeightEntries.find((e) => e.date === date);
+  if (existing) {
+    existing.weight_kg = weight_kg;
+    mockWeightEntries = [...mockWeightEntries];
+  } else {
+    const entry: WeightEntry = { id: `w-${Date.now()}`, date, weight_kg };
+    mockWeightEntries = [entry, ...mockWeightEntries];
+  }
+  saveWeightEntries();
+  return mockWeightEntries.find((e) => e.date === date)!;
+}
+
+export function deleteMockWeightEntry(id: string) {
+  mockWeightEntries = mockWeightEntries.filter((e) => e.id !== id);
+  saveWeightEntries();
 }

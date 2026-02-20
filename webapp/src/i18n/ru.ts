@@ -28,6 +28,7 @@ const ru = {
     tournaments: 'Турниры',
     training: 'Тренировки',
     rating: 'Рейтинг',
+    health: 'Здоровье',
     profile: 'Профиль',
   },
   layout: {
@@ -316,6 +317,17 @@ const ru = {
     markAllRead: 'Прочитать все',
     userProfile: 'Профиль пользователя',
     memberSince: 'Дата регистрации',
+  },
+  health: {
+    title: 'Здоровье',
+    weightKg: 'Вес (кг)',
+    save: 'Сохранить',
+    delete: 'Удалить запись',
+    weightSaved: 'Вес сохранён',
+    weightChart: 'Динамика веса',
+    noData: 'Нет записей',
+    noDataDesc: 'Нажмите на дату для добавления веса',
+    kg: 'кг',
   },
   onboarding: {
     chooseLanguage: 'Выберите язык',
