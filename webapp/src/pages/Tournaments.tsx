@@ -239,7 +239,7 @@ export default function Tournaments() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+      <div className="grid grid-cols-2 gap-2 px-4 pt-2 pb-1">
         <FilterDropdown
           icon={<CalendarIcon />}
           value={status}
@@ -254,13 +254,15 @@ export default function Tournaments() {
           onSelect={setCity}
           ariaLabel={t('tournaments.filterByCity')}
         />
-        <FilterDropdown
-          icon={<TrophyIcon />}
-          value={importance}
-          options={IMPORTANCE_OPTIONS}
-          onSelect={setImportance}
-          ariaLabel={t('tournaments.importanceLevel')}
-        />
+        <div className="col-span-2">
+          <FilterDropdown
+            icon={<TrophyIcon />}
+            value={importance}
+            options={IMPORTANCE_OPTIONS}
+            onSelect={setImportance}
+            ariaLabel={t('tournaments.importanceLevel')}
+          />
+        </div>
       </div>
 
       <div className="px-4">
