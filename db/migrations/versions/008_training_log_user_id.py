@@ -14,6 +14,16 @@ branch_labels = None
 depends_on = None
 
 
+def _find_fk_name(table: str, referred_table: str, referred_columns: list[str]) -> str:
+    """Find the actual FK constraint name by inspecting the database."""
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    for fk in inspector.get_foreign_keys(table):
+        if fk["referred_table"] == referred_table and fk["referred_columns"] == referred_columns:
+            return fk["name"]
+    raise RuntimeError(f"FK constraint not found: {table} -> {referred_table}({referred_columns})")
+
+
 def upgrade() -> None:
     # Add user_id column (nullable first for backfill)
     op.add_column("training_log", sa.Column("user_id", sa.Uuid(), nullable=True))
@@ -45,9 +55,10 @@ def upgrade() -> None:
     op.alter_column("training_log", "athlete_id", nullable=True)
 
     # Change athlete_id FK from CASCADE to SET NULL
-    op.drop_constraint("training_log_athlete_id_fkey", "training_log", type_="foreignkey")
+    old_fk_name = _find_fk_name("training_log", "athletes", ["id"])
+    op.drop_constraint(old_fk_name, "training_log", type_="foreignkey")
     op.create_foreign_key(
-        "training_log_athlete_id_fkey",
+        "fk_training_log_athlete_id",
         "training_log",
         "athletes",
         ["athlete_id"],
@@ -62,9 +73,9 @@ def downgrade() -> None:
     op.drop_index("ix_training_log_user_id", table_name="training_log")
 
     # Restore athlete_id FK to CASCADE
-    op.drop_constraint("training_log_athlete_id_fkey", "training_log", type_="foreignkey")
+    op.drop_constraint("fk_training_log_athlete_id", "training_log", type_="foreignkey")
     op.create_foreign_key(
-        "training_log_athlete_id_fkey",
+        "fk_training_log_athlete_id",
         "training_log",
         "athletes",
         ["athlete_id"],
