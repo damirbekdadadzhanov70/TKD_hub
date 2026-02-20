@@ -14,7 +14,6 @@ import {
   deleteNotification,
   getCoachAthletes,
   verifyCoach,
-  getCoachEntries,
   getMe,
   getMyCoach,
   getNotifications,
@@ -42,7 +41,6 @@ import {
   getMockNotificationsForRole,
   getMockUnreadCount,
   mockCoachAthletes,
-  mockCoachEntries,
   mockCoachSearchResults,
   mockMarkNotificationsRead,
   mockMe,
@@ -60,7 +58,6 @@ import {
 import type {
   AthleteUpdate,
   CoachAthlete,
-  CoachEntry,
   CoachSearchResult,
   CoachUpdate,
   MeResponse,
@@ -976,11 +973,6 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
     mockCoachAthletes,
     [],
   );
-  const { data: rawEntries, loading: loadingEntries } = useApi<CoachEntry[]>(
-    getCoachEntries,
-    mockCoachEntries,
-    [],
-  );
   const { data: pendingRequests, refetch: refetchPending } = useApi<PendingAthleteRequest[]>(
     getPendingAthletes,
     mockPendingAthletes,
@@ -1034,28 +1026,13 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
     );
   }, [rawAthletes, myAthleteId, me.athlete]);
 
-  const entries = useMemo(() => {
-    const list = rawEntries || [];
-    if (!myAthleteId || !me.athlete) return list;
-    return list.map((item) =>
-      item.athlete_id === myAthleteId
-        ? { ...item, athlete_name: me.athlete!.full_name }
-        : item,
-    );
-  }, [rawEntries, myAthleteId, me.athlete]);
-
   return (
     <>
-      {/* Stats — 2 columns */}
+      {/* Stats — single column: athletes count */}
       <div className="flex items-center justify-center mx-4 mb-5 py-3 border-y border-border">
-        <div className="flex-1 text-center">
+        <div className="text-center">
           <p className="font-mono text-2xl text-text-heading">{athletes?.length || 0}</p>
           <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.athletesStat')}</p>
-        </div>
-        <div className="w-px h-10 bg-border" />
-        <div className="flex-1 text-center">
-          <p className="font-mono text-2xl text-text-heading">{entries?.length || 0}</p>
-          <p className="text-[10px] uppercase tracking-[1.5px] text-text-disabled mt-0.5">{t('profile.activeEntries')}</p>
         </div>
       </div>
 
@@ -1166,39 +1143,6 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
         >
           {t('profile.addAthlete')}
         </button>
-      </div>
-
-      {/* Active entries */}
-      <div className="px-4 mb-4">
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.activeEntries')}</p>
-        {loadingEntries ? (
-          <LoadingSpinner />
-        ) : !entries || entries.length === 0 ? (
-          <p className="text-sm text-text-secondary">{t('profile.noActiveEntries')}</p>
-        ) : (
-          entries.map((e, i) => (
-            <div
-              key={e.id}
-              className={`flex items-center justify-between py-3 ${i < entries.length - 1 ? 'border-b border-dashed border-border' : ''}`}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-medium text-text truncate">{e.tournament_name}</p>
-                <p className="text-[13px] text-text-secondary">
-                  {e.athlete_name} · {e.weight_category}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 ml-2">
-                <EntryStatusBadge status={e.status} />
-                <button
-                  onClick={() => navigate(`/tournament/${e.tournament_id}`)}
-                  className="text-[13px] text-accent cursor-pointer border-none bg-transparent p-0 active:opacity-70"
-                >
-                  {t('profile.editArrow')}
-                </button>
-              </div>
-            </div>
-          ))
-        )}
       </div>
 
       {/* Invite athlete sheet */}
@@ -1359,26 +1303,6 @@ function CoachSearchSheet({
 }
 
 /* ---- Entry Status Badge ---- */
-
-const ENTRY_STATUS_CONFIG: Record<string, string> = {
-  approved: 'bg-accent-light text-accent',
-  pending: 'bg-bg-divider text-text-disabled',
-  rejected: 'bg-rose-500/10 text-rose-500',
-};
-
-function EntryStatusBadge({ status }: { status: string }) {
-  const { t } = useI18n();
-  const labels: Record<string, string> = {
-    approved: t('common.approved'),
-    pending: t('common.pending'),
-    rejected: t('common.rejected'),
-  };
-  return (
-    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ENTRY_STATUS_CONFIG[status] || 'bg-bg-divider text-text-disabled'}`}>
-      {labels[status] || status}
-    </span>
-  );
-}
 
 /* ---- Info Row ---- */
 
