@@ -4,33 +4,33 @@
   /* Фоны */
   --color-bg: #FAFAF9;
   --color-bg-secondary: #FFFFFF;
-  --color-bg-divider: #E7E5E4;
+  --color-bg-divider: #D8DFE9;
 
   /* Текст */
-  --color-text: #1C1917;
-  --color-text-heading: #0C0A09;
-  --color-text-secondary: #78716C;
-  --color-text-disabled: #A8A29E;
+  --color-text: #1E2D4D;
+  --color-text-heading: #1B2A4A;
+  --color-text-secondary: #6B7FA0;
+  --color-text-disabled: #9CAABE;
 
-  /* Акцент — золото */
-  --color-accent: #D4AF37;
-  --color-accent-dark: #B8972E;
-  --color-accent-light: #FBF5E0;
+  /* Акцент — золото (из логотипа Победоносец) */
+  --color-accent: #C5A44E;
+  --color-accent-dark: #A68B3A;
+  --color-accent-light: #F5F0DC;
   --color-accent-text: #FFFFFF;
 
   /* Медали */
-  --color-medal-gold: #D4AF37;
-  --color-medal-silver: #78716C;
+  --color-medal-gold: #C5A44E;
+  --color-medal-silver: #6B7FA0;
   --color-medal-bronze: #CD7F32;
 
   /* Статусы */
-  --color-status-active: #D4AF37;
-  --color-status-pending: #78716C;
-  --color-status-completed: #A8A29E;
+  --color-status-active: #C5A44E;
+  --color-status-pending: #6B7FA0;
+  --color-status-completed: #9CAABE;
 
   /* Совместимость */
-  --color-border: #E7E5E4;
-  --color-muted: #A8A29E;
+  --color-border: #D8DFE9;
+  --color-muted: #9CAABE;
 
   /* Шрифты */
   --font-heading: 'DM Serif Display', Georgia, serif;
@@ -51,7 +51,7 @@ body {
   max-width: 420px;
   margin-left: auto;
   margin-right: auto;
-  box-shadow: -1px 0 0 #E7E5E4, 1px 0 0 #E7E5E4;
+  box-shadow: -1px 0 0 #D8DFE9, 1px 0 0 #D8DFE9;
 }
 
 #root {
@@ -79,8 +79,8 @@ body {
 
 /* Skeleton pulse */
 @keyframes skeleton-pulse {
-  0%, 100% { background-color: #E7E5E4; }
-  50% { background-color: #F5F5F4; }
+  0%, 100% { background-color: #D8DFE9; }
+  50% { background-color: #EDF0F5; }
 }
 
 .skeleton {
