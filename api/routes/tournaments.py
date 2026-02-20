@@ -864,10 +864,10 @@ async def create_tournament_result(
 
 # ── Tournament Files ────────────────────────────────────────
 
-MAX_FILE_SIZE = 4 * 1024 * 1024  # 4 MB
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 MAX_FILES_PER_TOURNAMENT = 10
 PDF_MAGIC = b"%PDF"
-ALLOWED_FILE_CATEGORIES = {"protocol", "bracket", "results"}
+ALLOWED_FILE_CATEGORIES = {"protocol", "bracket", "results", "regulations"}
 
 
 async def _upload_to_vercel_blob(filename: str, content: bytes, content_type: str) -> str:
@@ -991,7 +991,7 @@ async def upload_tournament_file(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large. Maximum 4 MB",
+            detail="File too large. Maximum 10 MB",
         )
 
     # Validate PDF (content type + magic bytes)

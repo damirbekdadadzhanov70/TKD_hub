@@ -709,7 +709,7 @@ export function ResultsAccordion({ results }: { results: TournamentResult[] }) {
 
 /* ---- Documents section ---- */
 
-const FILE_CATEGORIES: FileCategory[] = ['protocol', 'bracket', 'results'];
+const FILE_CATEGORIES: FileCategory[] = ['protocol', 'bracket', 'results', 'regulations'];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -751,7 +751,7 @@ function DocumentsSection({
       showToast(t('tournamentDetail.onlyPdf'), 'error');
       return;
     }
-    if (file.size > 4 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       showToast(t('tournamentDetail.fileTooLarge'), 'error');
       return;
     }
