@@ -136,7 +136,10 @@ const en = {
     maxFilesReached: 'Maximum 10 files per tournament',
     onlyPdf: 'Only PDF files are allowed',
     fileTooLarge: 'File too large. Maximum 10 MB',
+    selectFile: 'Select',
     fileUploaded: 'File uploaded',
+    filesSaved: 'Files saved',
+    savingFiles: 'Saving...',
     fileDeleted: 'File deleted',
   },
   training: {

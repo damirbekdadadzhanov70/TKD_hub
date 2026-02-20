@@ -717,6 +717,11 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+interface PendingFile {
+  category: FileCategory;
+  file: File;
+}
+
 function DocumentsSection({
   tournament,
   isAdmin,
@@ -729,7 +734,8 @@ function DocumentsSection({
   const { t } = useI18n();
   const { hapticNotification } = useTelegram();
   const { showToast } = useToast();
-  const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [saving, setSaving] = useState(false);
   const [viewingFile, setViewingFile] = useState<TournamentFile | null>(null);
 
   const filesByCategory = useMemo(() => {
@@ -742,7 +748,7 @@ function DocumentsSection({
     return map;
   }, [tournament.files]);
 
-  const handleUpload = async (category: FileCategory, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectFile = (category: FileCategory, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
@@ -755,22 +761,42 @@ function DocumentsSection({
       showToast(t('tournamentDetail.fileTooLarge'), 'error');
       return;
     }
-    if (tournament.files.length >= 10) {
+    if (tournament.files.length + pendingFiles.length >= 10) {
       showToast(t('tournamentDetail.maxFilesReached'), 'error');
       return;
     }
 
-    setUploadingCategory(category);
-    try {
-      await uploadTournamentFile(tournament.id, file, category);
-      hapticNotification('success');
-      showToast(t('tournamentDetail.fileUploaded'));
-      onChanged(true);
-    } catch (err) {
-      hapticNotification('error');
-      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+    // Replace pending file for this category or add new
+    setPendingFiles((prev) => [
+      ...prev.filter((p) => p.category !== category),
+      { category, file },
+    ]);
+  };
+
+  const handleRemovePending = (category: FileCategory) => {
+    setPendingFiles((prev) => prev.filter((p) => p.category !== category));
+  };
+
+  const handleSave = async () => {
+    if (pendingFiles.length === 0) return;
+    setSaving(true);
+    let successCount = 0;
+    for (const pf of pendingFiles) {
+      try {
+        await uploadTournamentFile(tournament.id, pf.file, pf.category);
+        successCount++;
+      } catch (err) {
+        hapticNotification('error');
+        showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+      }
     }
-    setUploadingCategory(null);
+    if (successCount > 0) {
+      hapticNotification('success');
+      showToast(t('tournamentDetail.filesSaved'));
+      onChanged(true);
+    }
+    setPendingFiles([]);
+    setSaving(false);
   };
 
   const handleDelete = async (fileId: string) => {
@@ -794,8 +820,8 @@ function DocumentsSection({
         <div className="space-y-4">
           {FILE_CATEGORIES.map((cat) => {
             const files = filesByCategory.get(cat) || [];
+            const pending = pendingFiles.find((p) => p.category === cat);
             const catLabel = t(`tournamentDetail.fileCategory_${cat}`);
-            const isUploading = uploadingCategory === cat;
 
             return (
               <div key={cat}>
@@ -803,18 +829,42 @@ function DocumentsSection({
                   <p className="text-xs font-medium text-text-secondary">{catLabel}</p>
                   {isAdmin && (
                     <label className="text-[11px] text-accent cursor-pointer active:opacity-80 hover:opacity-80 transition-opacity">
-                      {isUploading ? t('tournamentDetail.uploading') : t('tournamentDetail.upload')}
+                      {t('tournamentDetail.selectFile')}
                       <input
                         type="file"
                         accept="application/pdf"
-                        onChange={(e) => handleUpload(cat, e)}
-                        disabled={uploadingCategory !== null}
+                        onChange={(e) => handleSelectFile(cat, e)}
+                        disabled={saving}
                         className="hidden"
                       />
                     </label>
                   )}
                 </div>
-                {files.length === 0 ? (
+                {/* Pending file for this category */}
+                {pending && (
+                  <div className="flex items-center gap-2 mb-1 px-1.5 py-1.5 rounded-lg bg-accent-light">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] text-accent truncate">{pending.file.name}</p>
+                      <p className="text-[11px] text-text-secondary">{formatFileSize(pending.file.size)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemovePending(cat)}
+                      aria-label={t('common.cancel')}
+                      className="text-text-secondary border-none bg-transparent cursor-pointer p-1 rounded hover:bg-bg-secondary active:opacity-80 transition-all shrink-0"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {/* Existing uploaded files */}
+                {files.length === 0 && !pending ? (
                   <p className="text-[11px] text-text-disabled">{t('tournamentDetail.noFiles')}</p>
                 ) : (
                   <div className="space-y-1">
@@ -855,6 +905,17 @@ function DocumentsSection({
             );
           })}
         </div>
+
+        {/* Save button — only when there are pending files */}
+        {pendingFiles.length > 0 && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full mt-4 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text disabled:opacity-60 active:opacity-80 hover:opacity-90 transition-all"
+          >
+            {saving ? t('tournamentDetail.savingFiles') : t('common.save')}
+          </button>
+        )}
       </Card>
 
       {viewingFile && (

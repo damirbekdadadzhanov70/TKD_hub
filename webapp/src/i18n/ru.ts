@@ -136,7 +136,10 @@ const ru = {
     maxFilesReached: 'Максимум 10 файлов на турнир',
     onlyPdf: 'Разрешены только PDF файлы',
     fileTooLarge: 'Файл слишком большой. Максимум 10 МБ',
+    selectFile: 'Выбрать',
     fileUploaded: 'Файл загружен',
+    filesSaved: 'Файлы сохранены',
+    savingFiles: 'Сохранение...',
     fileDeleted: 'Файл удалён',
   },
   training: {
