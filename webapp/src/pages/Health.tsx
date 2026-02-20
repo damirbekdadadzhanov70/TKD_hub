@@ -27,8 +27,7 @@ function getFirstDayOfWeek(year: number, month: number) {
 
 export default function Health() {
   const { t, tArray } = useI18n();
-  const { showToast } = useToast();
-  const { hapticNotification, hapticFeedback } = useTelegram();
+  const { hapticFeedback } = useTelegram();
   const MONTH_NAMES = tArray('training.months');
   const WEEKDAYS = tArray('training.weekdays');
 
