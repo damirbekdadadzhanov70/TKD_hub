@@ -3665,8 +3665,9 @@ async def test_csv_unmatched_stored(admin_client, admin_user, db_session):
     assert summary["matched"] == 0
     assert summary["unmatched"] == 1
 
-    from db.models import TournamentResult
     from sqlalchemy import select
+
+    from db.models import TournamentResult
 
     result = await db_session.execute(
         select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
@@ -3736,8 +3737,9 @@ async def test_csv_idempotent(admin_client, admin_user, db_session):
         assert resp2.json()["csv_summary"]["matched"] == 0
         assert resp2.json()["csv_summary"]["unmatched"] == 0
 
-    from db.models import TournamentResult
     from sqlalchemy import func, select
+
+    from db.models import TournamentResult
 
     count_result = await db_session.execute(
         select(func.count()).where(TournamentResult.tournament_id == tournament.id)
@@ -3792,8 +3794,9 @@ async def test_csv_retroactive_match(admin_client, admin_user, db_session):
     await db_session.refresh(new_athlete)
     assert new_athlete.rating_points == 10
 
-    from db.models import TournamentResult
     from sqlalchemy import select
+
+    from db.models import TournamentResult
 
     result = await db_session.execute(
         select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
