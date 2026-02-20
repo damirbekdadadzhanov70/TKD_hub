@@ -628,9 +628,11 @@ export default function Profile() {
   const { t } = useI18n();
   const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
   const { data: stats, loading: statsLoading } = useApi<ProfileStats>(getProfileStats, mockProfileStats, []);
-  const cachedStatsRef = useRef<ProfileStats | null>(null);
-  if (stats) cachedStatsRef.current = stats;
-  const stableStats = stats ?? cachedStatsRef.current;
+  const [cachedStats, setCachedStats] = useState<ProfileStats | null>(null);
+  useEffect(() => {
+    if (stats) setCachedStats(stats);
+  }, [stats]);
+  const stableStats = stats ?? cachedStats;
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
