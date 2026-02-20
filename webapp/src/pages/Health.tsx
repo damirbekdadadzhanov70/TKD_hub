@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import BottomSheet from '../components/BottomSheet';
 import PullToRefresh from '../components/PullToRefresh';
 import Card from '../components/Card';
@@ -63,25 +63,15 @@ export default function Health() {
     return map;
   }, [sleepEntries]);
 
-  const monthWeightEntries = useMemo(() => {
+  const sortedWeightEntries = useMemo(() => {
     if (!weightEntries) return [];
-    return weightEntries
-      .filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === year && d.getMonth() + 1 === month;
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [weightEntries, year, month]);
+    return [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+  }, [weightEntries]);
 
-  const monthSleepEntries = useMemo(() => {
+  const sortedSleepEntries = useMemo(() => {
     if (!sleepEntries) return [];
-    return sleepEntries
-      .filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === year && d.getMonth() + 1 === month;
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [sleepEntries, year, month]);
+    return [...sleepEntries].sort((a, b) => a.date.localeCompare(b.date));
+  }, [sleepEntries]);
 
   const loading = weightLoading || sleepLoading;
 
@@ -233,16 +223,16 @@ export default function Health() {
             {loading ? (
               <LoadingSpinner />
             ) : chartMode === 'weight' ? (
-              monthWeightEntries.length === 0 ? (
+              sortedWeightEntries.length === 0 ? (
                 <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
               ) : (
-                <WeightChart entries={monthWeightEntries} />
+                <WeightChart entries={sortedWeightEntries} />
               )
             ) : (
-              monthSleepEntries.length === 0 ? (
+              sortedSleepEntries.length === 0 ? (
                 <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
               ) : (
-                <SleepChart entries={monthSleepEntries} />
+                <SleepChart entries={sortedSleepEntries} />
               )
             )}
           </Card>
@@ -497,6 +487,140 @@ function SleepForm({
   );
 }
 
+function InteractiveChart({
+  entryCount,
+  yLabels,
+  chartH,
+  children,
+}: {
+  entryCount: number;
+  yLabels: { label: string; y: number }[];
+  chartH: number;
+  children: (spacing: number, padL: number) => ReactNode;
+}) {
+  const BASE_SPACING = 60;
+  const Y_AXIS_W = 40;
+  const PAD_L = 10;
+  const PAD_R = 15;
+
+  const [scale, setScale] = useState(1.0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scaleRef = useRef(1.0);
+  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
+
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+
+  const spacing = BASE_SPACING * scale;
+  const svgW = PAD_L + Math.max((entryCount - 1) * spacing, 100) + PAD_R;
+
+  // Auto-scroll to right on mount / data change
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) el.scrollLeft = el.scrollWidth - el.clientWidth;
+  }, [entryCount]);
+
+  // Ctrl+Wheel zoom (non-passive for preventDefault)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left + el.scrollLeft;
+      const oldScale = scaleRef.current;
+      const next = Math.min(3.0, Math.max(0.5, oldScale - e.deltaY * 0.005));
+      if (next === oldScale) return;
+      const oldW = PAD_L + Math.max((entryCount - 1) * BASE_SPACING * oldScale, 100) + PAD_R;
+      const ratio = pointerX / oldW;
+      setScale(next);
+      requestAnimationFrame(() => {
+        const newW = PAD_L + Math.max((entryCount - 1) * BASE_SPACING * next, 100) + PAD_R;
+        el.scrollLeft = ratio * newW - (e.clientX - rect.left);
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [entryCount]);
+
+  // Touch pinch-to-zoom
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { startDist: Math.hypot(dx, dy), startScale: scaleRef.current };
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 2 || !pinchRef.current) return;
+    e.stopPropagation();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    const next = Math.min(3.0, Math.max(0.5, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
+    setScale(next);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    pinchRef.current = null;
+  }, []);
+
+  return (
+    <div className="relative">
+      {/* Fixed Y-axis overlay */}
+      <div
+        className="absolute left-0 top-0 z-10 bg-bg-secondary"
+        style={{ width: `${Y_AXIS_W}px`, height: chartH }}
+      >
+        <svg width={Y_AXIS_W} height={chartH}>
+          {yLabels.map((label, i) => (
+            <text
+              key={i}
+              x={Y_AXIS_W - 4}
+              y={label.y + 3}
+              textAnchor="end"
+              className="text-text-secondary"
+              fontSize="9"
+              fontFamily="var(--font-mono)"
+            >
+              {label.label}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      {/* Scrollable chart area */}
+      <div
+        ref={containerRef}
+        className="overflow-y-hidden"
+        style={{ marginLeft: `${Y_AXIS_W}px`, overflowX: 'auto', touchAction: 'pan-x' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <svg width={svgW} height={chartH}>
+          {/* Horizontal grid lines */}
+          {yLabels.map((label, i) => (
+            <line
+              key={i}
+              x1={0}
+              y1={label.y}
+              x2={svgW}
+              y2={label.y}
+              stroke="currentColor"
+              className="text-border"
+              strokeWidth="0.5"
+              strokeDasharray="3,3"
+            />
+          ))}
+          {children(spacing, PAD_L)}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function WeightChart({ entries }: { entries: WeightEntry[] }) {
   const { t } = useI18n();
 
@@ -517,101 +641,66 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
   const yMin = minW - padding;
   const yMax = maxW + padding;
 
-  const chartW = 320;
   const chartH = 140;
-  const padL = 40;
-  const padR = 10;
   const padT = 10;
   const padB = 25;
-  const innerW = chartW - padL - padR;
   const innerH = chartH - padT - padB;
 
-  const points = entries.map((e, i) => {
-    const x = padL + (entries.length === 1 ? innerW / 2 : (i / (entries.length - 1)) * innerW);
-    const y = padT + innerH - ((e.weight_kg - yMin) / (yMax - yMin)) * innerH;
-    return { x, y, entry: e };
-  });
-
-  const polyline = points.map((p) => `${p.x},${p.y}`).join(' ');
-
-  // Y-axis labels: min, mid, max
   const yMid = (yMin + yMax) / 2;
   const yLabels = [
-    { value: yMax, y: padT },
-    { value: yMid, y: padT + innerH / 2 },
-    { value: yMin, y: padT + innerH },
+    { label: yMax.toFixed(1), y: padT },
+    { label: yMid.toFixed(1), y: padT + innerH / 2 },
+    { label: yMin.toFixed(1), y: padT + innerH },
   ];
 
   return (
-    <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
-      {/* Grid lines */}
-      {yLabels.map((label) => (
-        <line
-          key={label.value}
-          x1={padL}
-          y1={label.y}
-          x2={chartW - padR}
-          y2={label.y}
-          stroke="currentColor"
-          className="text-border"
-          strokeWidth="0.5"
-          strokeDasharray="3,3"
-        />
-      ))}
-
-      {/* Y-axis labels */}
-      {yLabels.map((label) => (
-        <text
-          key={label.value}
-          x={padL - 5}
-          y={label.y + 3}
-          textAnchor="end"
-          className="text-text-secondary"
-          fontSize="9"
-          fontFamily="var(--font-mono)"
-        >
-          {label.value.toFixed(1)}
-        </text>
-      ))}
-
-      {/* Line */}
-      <polyline
-        points={polyline}
-        fill="none"
-        stroke="#D4AF37"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Data points */}
-      {points.map((p) => (
-        <g key={p.entry.id}>
-          <circle cx={p.x} cy={p.y} r="4" fill="#D4AF37" />
-          <circle cx={p.x} cy={p.y} r="2" fill="white" />
-        </g>
-      ))}
-
-      {/* X-axis date labels */}
-      {points.map((p, i) => {
-        // Show label for first, last, and if many entries skip some
-        if (entries.length > 5 && i !== 0 && i !== entries.length - 1 && i % 2 !== 0) return null;
-        const day = new Date(p.entry.date).getDate();
+    <InteractiveChart entryCount={entries.length} yLabels={yLabels} chartH={chartH}>
+      {(spacing, padL) => {
+        const points = entries.map((e, i) => ({
+          x: padL + i * spacing,
+          y: padT + innerH - ((e.weight_kg - yMin) / (yMax - yMin)) * innerH,
+          entry: e,
+        }));
+        const polyline = points.map((p) => `${p.x},${p.y}`).join(' ');
+        const labelStep = Math.max(1, Math.ceil(40 / spacing));
         return (
-          <text
-            key={p.entry.id}
-            x={p.x}
-            y={chartH - 3}
-            textAnchor="middle"
-            className="text-text-secondary"
-            fontSize="8"
-            fontFamily="var(--font-mono)"
-          >
-            {day}
-          </text>
+          <>
+            <polyline
+              points={polyline}
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {points.map((p) => (
+              <g key={p.entry.id}>
+                <circle cx={p.x} cy={p.y} r="4" fill="#D4AF37" />
+                <circle cx={p.x} cy={p.y} r="2" fill="white" />
+              </g>
+            ))}
+            {points.map((p, i) => {
+              if (i % labelStep !== 0 && i !== entries.length - 1) return null;
+              const d = new Date(p.entry.date + 'T00:00:00');
+              const label = `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+              return (
+                <text
+                  key={p.entry.id}
+                  x={p.x}
+                  y={chartH - 3}
+                  textAnchor="middle"
+                  className="text-text-secondary"
+                  fontSize="8"
+                  fontFamily="var(--font-mono)"
+                >
+                  {label}
+                </text>
+              );
+            })}
+          </>
         );
-      })}
-    </svg>
+      }}
+    </InteractiveChart>
   );
 }
 
@@ -635,98 +724,65 @@ function SleepChart({ entries }: { entries: SleepEntry[] }) {
   const yMin = minH - padding;
   const yMax = maxH + padding;
 
-  const chartW = 320;
   const chartH = 140;
-  const padL = 40;
-  const padR = 10;
   const padT = 10;
   const padB = 25;
-  const innerW = chartW - padL - padR;
   const innerH = chartH - padT - padB;
-
-  const points = entries.map((e, i) => {
-    const x = padL + (entries.length === 1 ? innerW / 2 : (i / (entries.length - 1)) * innerW);
-    const y = padT + innerH - ((e.sleep_hours - yMin) / (yMax - yMin)) * innerH;
-    return { x, y, entry: e };
-  });
-
-  const polyline = points.map((p) => `${p.x},${p.y}`).join(' ');
 
   const yMid = (yMin + yMax) / 2;
   const yLabels = [
-    { value: yMax, y: padT },
-    { value: yMid, y: padT + innerH / 2 },
-    { value: yMin, y: padT + innerH },
+    { label: yMax.toFixed(1), y: padT },
+    { label: yMid.toFixed(1), y: padT + innerH / 2 },
+    { label: yMin.toFixed(1), y: padT + innerH },
   ];
 
   return (
-    <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
-      {/* Grid lines */}
-      {yLabels.map((label) => (
-        <line
-          key={label.value}
-          x1={padL}
-          y1={label.y}
-          x2={chartW - padR}
-          y2={label.y}
-          stroke="currentColor"
-          className="text-border"
-          strokeWidth="0.5"
-          strokeDasharray="3,3"
-        />
-      ))}
-
-      {/* Y-axis labels */}
-      {yLabels.map((label) => (
-        <text
-          key={label.value}
-          x={padL - 5}
-          y={label.y + 3}
-          textAnchor="end"
-          className="text-text-secondary"
-          fontSize="9"
-          fontFamily="var(--font-mono)"
-        >
-          {label.value.toFixed(1)}
-        </text>
-      ))}
-
-      {/* Line */}
-      <polyline
-        points={polyline}
-        fill="none"
-        stroke="#38bdf8"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Data points */}
-      {points.map((p) => (
-        <g key={p.entry.id}>
-          <circle cx={p.x} cy={p.y} r="4" fill="#38bdf8" />
-          <circle cx={p.x} cy={p.y} r="2" fill="white" />
-        </g>
-      ))}
-
-      {/* X-axis date labels */}
-      {points.map((p, i) => {
-        if (entries.length > 5 && i !== 0 && i !== entries.length - 1 && i % 2 !== 0) return null;
-        const day = new Date(p.entry.date).getDate();
+    <InteractiveChart entryCount={entries.length} yLabels={yLabels} chartH={chartH}>
+      {(spacing, padL) => {
+        const points = entries.map((e, i) => ({
+          x: padL + i * spacing,
+          y: padT + innerH - ((e.sleep_hours - yMin) / (yMax - yMin)) * innerH,
+          entry: e,
+        }));
+        const polyline = points.map((p) => `${p.x},${p.y}`).join(' ');
+        const labelStep = Math.max(1, Math.ceil(40 / spacing));
         return (
-          <text
-            key={p.entry.id}
-            x={p.x}
-            y={chartH - 3}
-            textAnchor="middle"
-            className="text-text-secondary"
-            fontSize="8"
-            fontFamily="var(--font-mono)"
-          >
-            {day}
-          </text>
+          <>
+            <polyline
+              points={polyline}
+              fill="none"
+              stroke="#38bdf8"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {points.map((p) => (
+              <g key={p.entry.id}>
+                <circle cx={p.x} cy={p.y} r="4" fill="#38bdf8" />
+                <circle cx={p.x} cy={p.y} r="2" fill="white" />
+              </g>
+            ))}
+            {points.map((p, i) => {
+              if (i % labelStep !== 0 && i !== entries.length - 1) return null;
+              const d = new Date(p.entry.date + 'T00:00:00');
+              const label = `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+              return (
+                <text
+                  key={p.entry.id}
+                  x={p.x}
+                  y={chartH - 3}
+                  textAnchor="middle"
+                  className="text-text-secondary"
+                  fontSize="8"
+                  fontFamily="var(--font-mono)"
+                >
+                  {label}
+                </text>
+              );
+            })}
+          </>
         );
-      })}
-    </svg>
+      }}
+    </InteractiveChart>
   );
 }
