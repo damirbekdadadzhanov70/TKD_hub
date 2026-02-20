@@ -103,9 +103,12 @@ export interface TournamentDetail {
   files: TournamentFile[];
 }
 
+export type FileCategory = 'protocol' | 'bracket' | 'results';
+
 export interface TournamentFile {
   id: string;
   tournament_id: string;
+  category: FileCategory;
   filename: string;
   blob_url: string;
   file_size: number;

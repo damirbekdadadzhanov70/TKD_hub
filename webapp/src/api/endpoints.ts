@@ -206,8 +206,8 @@ export function getTournamentResults(tournamentId: string): Promise<TournamentRe
   return apiRequest<TournamentResult[]>(`/tournaments/${tournamentId}/results`);
 }
 
-export function uploadTournamentFile(tournamentId: string, file: File): Promise<TournamentFile> {
-  return apiUpload<TournamentFile>(`/tournaments/${tournamentId}/files`, file);
+export function uploadTournamentFile(tournamentId: string, file: File, category: string): Promise<TournamentFile> {
+  return apiUpload<TournamentFile>(`/tournaments/${tournamentId}/files?category=${encodeURIComponent(category)}`, file);
 }
 
 export function deleteTournamentFile(tournamentId: string, fileId: string): Promise<void> {

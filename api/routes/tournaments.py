@@ -248,6 +248,7 @@ def _build_tournament_read(tournament) -> TournamentRead:
         TournamentFileRead(
             id=f.id,
             tournament_id=f.tournament_id,
+            category=f.category,
             filename=f.filename,
             blob_url=f.blob_url,
             file_size=f.file_size,
@@ -866,6 +867,7 @@ async def create_tournament_result(
 MAX_FILE_SIZE = 4 * 1024 * 1024  # 4 MB
 MAX_FILES_PER_TOURNAMENT = 10
 PDF_MAGIC = b"%PDF"
+ALLOWED_FILE_CATEGORIES = {"protocol", "bracket", "results"}
 
 
 async def _upload_to_vercel_blob(filename: str, content: bytes, content_type: str) -> str:
@@ -939,6 +941,7 @@ async def list_tournament_files(
         TournamentFileRead(
             id=f.id,
             tournament_id=f.tournament_id,
+            category=f.category,
             filename=f.filename,
             blob_url=f.blob_url,
             file_size=f.file_size,
@@ -957,9 +960,16 @@ async def list_tournament_files(
 async def upload_tournament_file(
     tournament_id: uuid.UUID,
     file: UploadFile,
+    category: str = Query("protocol", max_length=20),
     ctx: AuthContext = Depends(get_current_user),
 ):
     _check_admin(ctx.user)
+
+    if category not in ALLOWED_FILE_CATEGORIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid category. Allowed: {', '.join(ALLOWED_FILE_CATEGORIES)}",
+        )
 
     # Verify tournament exists
     t_result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
@@ -999,6 +1009,7 @@ async def upload_tournament_file(
     # Save to DB
     db_file = TournamentFile(
         tournament_id=tournament_id,
+        category=category,
         filename=safe_filename,
         blob_url=blob_url,
         file_size=len(content),
@@ -1012,6 +1023,7 @@ async def upload_tournament_file(
     return TournamentFileRead(
         id=db_file.id,
         tournament_id=db_file.tournament_id,
+        category=db_file.category,
         filename=db_file.filename,
         blob_url=db_file.blob_url,
         file_size=db_file.file_size,

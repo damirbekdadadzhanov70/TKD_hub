@@ -21,6 +21,7 @@ def upgrade() -> None:
         "tournament_files",
         sa.Column("id", sa.Uuid(), primary_key=True),
         sa.Column("tournament_id", sa.Uuid(), sa.ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("category", sa.String(20), nullable=False, server_default="protocol"),
         sa.Column("filename", sa.String(255), nullable=False),
         sa.Column("blob_url", sa.String(1000), nullable=False),
         sa.Column("file_size", sa.Integer(), nullable=False),

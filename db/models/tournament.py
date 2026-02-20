@@ -116,6 +116,7 @@ class TournamentFile(Base):
     tournament_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
     )
+    category: Mapped[str] = mapped_column(String(20), nullable=False, default="protocol")
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     blob_url: Mapped[str] = mapped_column(String(1000), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)

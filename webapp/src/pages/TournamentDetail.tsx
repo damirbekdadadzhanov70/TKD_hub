@@ -26,7 +26,7 @@ import {
 import { CITIES } from '../constants/cities';
 import { formatDate } from '../constants/format';
 import { getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults } from '../api/mock';
-import type { CoachAthlete, MeResponse, TournamentCreate, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentFile, TournamentResult } from '../types';
+import type { CoachAthlete, FileCategory, MeResponse, TournamentCreate, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentFile, TournamentResult } from '../types';
 
 const MEDAL_COLORS: Record<number, string> = {
   1: 'text-medal-gold',
@@ -709,6 +709,8 @@ export function ResultsAccordion({ results }: { results: TournamentResult[] }) {
 
 /* ---- Documents section ---- */
 
+const FILE_CATEGORIES: FileCategory[] = ['protocol', 'bracket', 'results'];
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -727,10 +729,20 @@ function DocumentsSection({
   const { t } = useI18n();
   const { hapticNotification } = useTelegram();
   const { showToast } = useToast();
-  const [uploading, setUploading] = useState(false);
+  const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<TournamentFile | null>(null);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const filesByCategory = useMemo(() => {
+    const map = new Map<string, TournamentFile[]>();
+    for (const cat of FILE_CATEGORIES) map.set(cat, []);
+    for (const f of tournament.files) {
+      const list = map.get(f.category);
+      if (list) list.push(f);
+    }
+    return map;
+  }, [tournament.files]);
+
+  const handleUpload = async (category: FileCategory, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
@@ -748,9 +760,9 @@ function DocumentsSection({
       return;
     }
 
-    setUploading(true);
+    setUploadingCategory(category);
     try {
-      await uploadTournamentFile(tournament.id, file);
+      await uploadTournamentFile(tournament.id, file, category);
       hapticNotification('success');
       showToast(t('tournamentDetail.fileUploaded'));
       onChanged(true);
@@ -758,7 +770,7 @@ function DocumentsSection({
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
     }
-    setUploading(false);
+    setUploadingCategory(null);
   };
 
   const handleDelete = async (fileId: string) => {
@@ -776,60 +788,73 @@ function DocumentsSection({
   return (
     <>
       <Card>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-sm text-text">
-            {t('tournamentDetail.documents')}
-          </h3>
-          {isAdmin && (
-            <label className="text-xs text-accent cursor-pointer active:opacity-80 hover:opacity-80 transition-opacity">
-              {uploading ? t('tournamentDetail.uploading') : t('tournamentDetail.upload')}
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={handleUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
-          )}
-        </div>
-        {tournament.files.length === 0 ? (
-          <p className="text-xs text-text-disabled">{t('tournamentDetail.noDocuments')}</p>
-        ) : (
-          <div className="space-y-1.5">
-            {tournament.files.map((f) => (
-              <div key={f.id} className="flex items-center gap-2">
-                <button
-                  onClick={() => setViewingFile(f)}
-                  className="flex-1 min-w-0 flex items-center gap-2 border-none bg-transparent cursor-pointer p-1.5 rounded-lg text-left hover:bg-bg-secondary active:opacity-80 transition-all"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] text-text truncate">{f.filename}</p>
-                    <p className="text-[11px] text-text-secondary">{formatFileSize(f.file_size)}</p>
+        <h3 className="font-semibold text-sm text-text mb-3">
+          {t('tournamentDetail.documents')}
+        </h3>
+        <div className="space-y-4">
+          {FILE_CATEGORIES.map((cat) => {
+            const files = filesByCategory.get(cat) || [];
+            const catLabel = t(`tournamentDetail.fileCategory_${cat}`);
+            const isUploading = uploadingCategory === cat;
+
+            return (
+              <div key={cat}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs font-medium text-text-secondary">{catLabel}</p>
+                  {isAdmin && (
+                    <label className="text-[11px] text-accent cursor-pointer active:opacity-80 hover:opacity-80 transition-opacity">
+                      {isUploading ? t('tournamentDetail.uploading') : t('tournamentDetail.upload')}
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => handleUpload(cat, e)}
+                        disabled={uploadingCategory !== null}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                {files.length === 0 ? (
+                  <p className="text-[11px] text-text-disabled">{t('tournamentDetail.noFiles')}</p>
+                ) : (
+                  <div className="space-y-1">
+                    {files.map((f) => (
+                      <div key={f.id} className="flex items-center gap-2">
+                        <button
+                          onClick={() => setViewingFile(f)}
+                          className="flex-1 min-w-0 flex items-center gap-2 border-none bg-transparent cursor-pointer p-1.5 rounded-lg text-left hover:bg-bg-secondary active:opacity-80 transition-all"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] text-text truncate">{f.filename}</p>
+                            <p className="text-[11px] text-text-secondary">{formatFileSize(f.file_size)}</p>
+                          </div>
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDelete(f.id)}
+                            aria-label={t('common.delete')}
+                            className="text-rose-500 border-none bg-transparent cursor-pointer p-1.5 rounded hover:bg-rose-500/10 active:opacity-80 transition-all shrink-0"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </button>
-                {isAdmin && (
-                  <button
-                    onClick={() => handleDelete(f.id)}
-                    aria-label={t('common.delete')}
-                    className="text-rose-500 border-none bg-transparent cursor-pointer p-1.5 rounded hover:bg-rose-500/10 active:opacity-80 transition-all shrink-0"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
                 )}
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </Card>
 
       {viewingFile && (

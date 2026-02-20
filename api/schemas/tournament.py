@@ -131,6 +131,7 @@ class TournamentUpdate(BaseModel):
 class TournamentFileRead(BaseModel):
     id: uuid.UUID
     tournament_id: uuid.UUID
+    category: str
     filename: str
     blob_url: str
     file_size: int

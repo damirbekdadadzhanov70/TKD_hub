@@ -17,6 +17,7 @@ async def main():
         CREATE TABLE IF NOT EXISTS tournament_files (
             id UUID PRIMARY KEY,
             tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+            category VARCHAR(20) NOT NULL DEFAULT 'protocol',
             filename VARCHAR(255) NOT NULL,
             blob_url VARCHAR(1000) NOT NULL,
             file_size INTEGER NOT NULL,
