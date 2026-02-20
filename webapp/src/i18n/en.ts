@@ -141,6 +141,8 @@ const en = {
     filesSaved: 'Files saved',
     savingFiles: 'Saving...',
     fileDeleted: 'File deleted',
+    deleteFileTitle: 'Delete file?',
+    deleteFileDesc: 'This file will be permanently deleted.',
   },
   training: {
     title: 'Training Log',

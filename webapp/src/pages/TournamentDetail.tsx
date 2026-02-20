@@ -229,13 +229,11 @@ export default function TournamentDetail() {
         )}
 
         {/* Documents section */}
-        {(syncedTournament.files.length > 0 || isAdmin) && (
-          <DocumentsSection
-            tournament={syncedTournament}
-            isAdmin={isAdmin}
-            onChanged={refetch}
-          />
-        )}
+        <DocumentsSection
+          tournament={syncedTournament}
+          isAdmin={isAdmin}
+          onChanged={refetch}
+        />
 
         {/* Contacts section */}
         {(syncedTournament.organizer_name || syncedTournament.organizer_phone || syncedTournament.organizer_telegram) && (
@@ -736,7 +734,9 @@ function DocumentsSection({
   const { showToast } = useToast();
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [viewingFile, setViewingFile] = useState<TournamentFile | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
   const filesByCategory = useMemo(() => {
     const map = new Map<string, TournamentFile[]>();
@@ -747,6 +747,9 @@ function DocumentsSection({
     }
     return map;
   }, [tournament.files]);
+
+  // Check if any category has files (for non-admin visibility)
+  const hasAnyFiles = tournament.files.length > 0;
 
   const handleSelectFile = (category: FileCategory, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -766,7 +769,6 @@ function DocumentsSection({
       return;
     }
 
-    // Replace pending file for this category or add new
     setPendingFiles((prev) => [
       ...prev.filter((p) => p.category !== category),
       { category, file },
@@ -780,10 +782,16 @@ function DocumentsSection({
   const handleSave = async () => {
     if (pendingFiles.length === 0) return;
     setSaving(true);
+    setUploadProgress(0);
     let successCount = 0;
-    for (const pf of pendingFiles) {
+    const totalFiles = pendingFiles.length;
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const pf = pendingFiles[i];
       try {
-        await uploadTournamentFile(tournament.id, pf.file, pf.category);
+        await uploadTournamentFile(tournament.id, pf.file, pf.category, (filePercent) => {
+          const overallPercent = Math.round(((i + filePercent / 100) / totalFiles) * 100);
+          setUploadProgress(overallPercent);
+        });
         successCount++;
       } catch (err) {
         hapticNotification('error');
@@ -797,9 +805,13 @@ function DocumentsSection({
     }
     setPendingFiles([]);
     setSaving(false);
+    setUploadProgress(0);
   };
 
-  const handleDelete = async (fileId: string) => {
+  const handleDeleteConfirm = async () => {
+    if (!deletingFileId) return;
+    const fileId = deletingFileId;
+    setDeletingFileId(null);
     try {
       await deleteTournamentFile(tournament.id, fileId);
       hapticNotification('success');
@@ -810,6 +822,9 @@ function DocumentsSection({
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
     }
   };
+
+  // Non-admin: only show if there are files
+  if (!isAdmin && !hasAnyFiles) return null;
 
   return (
     <>
@@ -822,6 +837,9 @@ function DocumentsSection({
             const files = filesByCategory.get(cat) || [];
             const pending = pendingFiles.find((p) => p.category === cat);
             const catLabel = t(`tournamentDetail.fileCategory_${cat}`);
+
+            // Non-admin: skip empty categories
+            if (!isAdmin && files.length === 0) return null;
 
             return (
               <div key={cat}>
@@ -864,9 +882,10 @@ function DocumentsSection({
                   </div>
                 )}
                 {/* Existing uploaded files */}
-                {files.length === 0 && !pending ? (
-                  <p className="text-[11px] text-text-disabled">{t('tournamentDetail.noFiles')}</p>
-                ) : (
+                {files.length === 0 && isAdmin && !pending && (
+                  <p className="text-[11px] text-text-disabled">--</p>
+                )}
+                {files.length > 0 && (
                   <div className="space-y-1">
                     {files.map((f) => (
                       <div key={f.id} className="flex items-center gap-2">
@@ -887,7 +906,7 @@ function DocumentsSection({
                         </button>
                         {isAdmin && (
                           <button
-                            onClick={() => handleDelete(f.id)}
+                            onClick={() => setDeletingFileId(f.id)}
                             aria-label={t('common.delete')}
                             className="text-rose-500 border-none bg-transparent cursor-pointer p-1.5 rounded hover:bg-rose-500/10 active:opacity-80 transition-all shrink-0"
                           >
@@ -906,7 +925,23 @@ function DocumentsSection({
           })}
         </div>
 
-        {/* Save button — only when there are pending files */}
+        {/* Upload progress bar */}
+        {saving && (
+          <div className="mt-3">
+            <div className="flex justify-between text-[11px] text-text-secondary mb-1">
+              <span>{t('tournamentDetail.uploading')}</span>
+              <span className="font-mono">{uploadProgress}%</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-bg-divider overflow-hidden">
+              <div
+                className="h-full rounded-full bg-accent transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Save button */}
         {pendingFiles.length > 0 && (
           <button
             onClick={handleSave}
@@ -917,6 +952,34 @@ function DocumentsSection({
           </button>
         )}
       </Card>
+
+      {/* Delete confirmation */}
+      {deletingFileId && (
+        <BottomSheet onClose={() => setDeletingFileId(null)}>
+          <div className="p-4 pt-5 text-center">
+            <h2 className="text-lg font-bold text-text mb-1">
+              {t('tournamentDetail.deleteFileTitle')}
+            </h2>
+            <p className="text-sm text-text-secondary mb-5">
+              {t('tournamentDetail.deleteFileDesc')}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeletingFileId(null)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border border-border bg-transparent cursor-pointer text-text active:opacity-80 transition-all"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-rose-500 text-white active:opacity-80 transition-all"
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+      )}
 
       {viewingFile && (
         <PdfViewerSheet

@@ -141,6 +141,8 @@ const ru = {
     filesSaved: 'Файлы сохранены',
     savingFiles: 'Сохранение...',
     fileDeleted: 'Файл удалён',
+    deleteFileTitle: 'Удалить файл?',
+    deleteFileDesc: 'Файл будет удалён безвозвратно.',
   },
   training: {
     title: 'Дневник тренировок',
