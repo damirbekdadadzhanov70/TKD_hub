@@ -1,16 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import BottomSheet from '../components/BottomSheet';
 import PullToRefresh from '../components/PullToRefresh';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../components/Toast';
+import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
-import {
-  mockWeightEntries,
-  addMockWeightEntry,
-  deleteMockWeightEntry,
-} from '../api/mock';
+import { getWeightEntries, createWeightEntry, deleteWeightEntry } from '../api/endpoints';
+import { mockWeightEntries } from '../api/mock';
 import type { WeightEntry } from '../types';
 
 function getDaysInMonth(year: number, month: number) {
@@ -33,8 +32,12 @@ export default function Health() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [entries, setEntries] = useState<WeightEntry[]>(mockWeightEntries);
-  const reload = useCallback(() => setEntries([...mockWeightEntries]), []);
+
+  const { data: entries, loading, refetch } = useApi<WeightEntry[]>(
+    getWeightEntries,
+    mockWeightEntries,
+    [],
+  );
 
   const weightDates = useMemo(() => {
     const map = new Map<string, WeightEntry>();
@@ -82,7 +85,7 @@ export default function Health() {
   };
 
   return (
-    <PullToRefresh onRefresh={reload}>
+    <PullToRefresh onRefresh={() => refetch(true)}>
       <div className="relative">
         <div className="px-4 pt-4 pb-2">
           <h1 className="text-3xl font-heading text-text-heading">
@@ -146,7 +149,9 @@ export default function Health() {
             <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">
               {t('health.weightChart')}
             </h3>
-            {monthEntries.length === 0 ? (
+            {loading ? (
+              <LoadingSpinner />
+            ) : monthEntries.length === 0 ? (
               <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
             ) : (
               <WeightChart entries={monthEntries} />
@@ -163,7 +168,7 @@ export default function Health() {
             onSaved={() => {
               setShowForm(false);
               setSelectedDate(null);
-              reload();
+              refetch(true);
             }}
           />
         )}
@@ -190,22 +195,34 @@ function WeightForm({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const val = parseFloat(weight);
     if (!val || val <= 0) return;
     setSaving(true);
-    addMockWeightEntry(date, val);
-    hapticNotification('success');
-    showToast(t('health.weightSaved'), 'success');
-    onSaved();
+    try {
+      await createWeightEntry({ date, weight_kg: val });
+      hapticNotification('success');
+      showToast(t('health.weightSaved'), 'success');
+      onSaved();
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+      setSaving(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!existing) return;
     setDeleting(true);
-    deleteMockWeightEntry(existing.id);
-    hapticNotification('success');
-    onSaved();
+    try {
+      await deleteWeightEntry(existing.id);
+      hapticNotification('success');
+      onSaved();
+    } catch {
+      hapticNotification('error');
+      showToast(t('common.error'), 'error');
+      setDeleting(false);
+    }
   };
 
   const formattedDate = (() => {

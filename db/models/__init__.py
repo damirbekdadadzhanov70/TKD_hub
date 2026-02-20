@@ -7,6 +7,7 @@ from db.models.role_request import RoleRequest
 from db.models.tournament import Tournament, TournamentEntry, TournamentFile, TournamentInterest, TournamentResult
 from db.models.training import TrainingLog
 from db.models.user import User
+from db.models.weight_entry import WeightEntry
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "TrainingLog",
     "RoleRequest",
     "InviteToken",
+    "WeightEntry",
 ]
