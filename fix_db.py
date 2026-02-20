@@ -26,6 +26,7 @@ async def main():
             created_at TIMESTAMP DEFAULT NOW()
         )
     """)
+    await c.execute("ALTER TABLE tournament_files ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'protocol'")
     rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournaments'")
     print("OK! Columns:", [r["column_name"] for r in rows])
     tf_rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournament_files'")
