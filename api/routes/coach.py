@@ -219,9 +219,7 @@ async def reject_athlete_request(
     return {"status": "rejected"}
 
 
-async def _verify_coach_athlete_link(
-    ctx: AuthContext, athlete_id: str
-) -> uuid.UUID:
+async def _verify_coach_athlete_link(ctx: AuthContext, athlete_id: str) -> uuid.UUID:
     """Check that the current user is a coach with an accepted link to the given athlete."""
     if not ctx.user.coach:
         raise HTTPException(
@@ -262,11 +260,7 @@ async def get_coach_athlete_training_log(
 ):
     aid = await _verify_coach_athlete_link(ctx, athlete_id)
 
-    query = (
-        select(TrainingLog)
-        .where(TrainingLog.athlete_id == aid)
-        .order_by(TrainingLog.date.desc())
-    )
+    query = select(TrainingLog).where(TrainingLog.athlete_id == aid).order_by(TrainingLog.date.desc())
     if month:
         query = query.where(extract("month", TrainingLog.date) == month)
     if year:

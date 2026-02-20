@@ -4151,9 +4151,7 @@ async def test_coach_view_athlete_training_log(
     db_session.add(log)
     await db_session.commit()
 
-    resp = await coach_client.get(
-        f"/api/coach/athletes/{athlete_u.athlete.id}/training-log"
-    )
+    resp = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/training-log")
     assert resp.status_code == 200
     data = resp.json()
     assert data["total"] == 1
@@ -4183,9 +4181,7 @@ async def test_coach_view_athlete_training_stats(
         db_session.add(log)
     await db_session.commit()
 
-    resp = await coach_client.get(
-        f"/api/coach/athletes/{athlete_u.athlete.id}/training-log/stats?month=2&year=2026"
-    )
+    resp = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/training-log/stats?month=2&year=2026")
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_sessions"] == 3
@@ -4219,9 +4215,7 @@ async def test_coach_cannot_view_unlinked_athlete_log(
     db_session.add(other_athlete)
     await db_session.commit()
 
-    resp = await coach_client.get(
-        f"/api/coach/athletes/{other_athlete.id}/training-log"
-    )
+    resp = await coach_client.get(f"/api/coach/athletes/{other_athlete.id}/training-log")
     assert resp.status_code == 403
 
 
@@ -4250,7 +4244,5 @@ async def test_coach_cannot_view_pending_athlete_log(
     db_session.add(link)
     await db_session.commit()
 
-    resp = await coach_client.get(
-        f"/api/coach/athletes/{athlete_u.athlete.id}/training-log"
-    )
+    resp = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/training-log")
     assert resp.status_code == 403
