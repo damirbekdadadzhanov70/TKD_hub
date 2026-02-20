@@ -369,6 +369,12 @@ export interface WeightEntry {
   weight_kg: number;
 }
 
+export interface SleepEntry {
+  id: string;
+  date: string;       // 'YYYY-MM-DD'
+  sleep_hours: number;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

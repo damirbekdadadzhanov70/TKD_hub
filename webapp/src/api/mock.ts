@@ -13,6 +13,7 @@ import type {
   ProfileStats,
   RatingEntry,
   RoleRequestItem,
+  SleepEntry,
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
@@ -858,4 +859,39 @@ export function addMockWeightEntry(date: string, weight_kg: number): WeightEntry
 export function deleteMockWeightEntry(id: string) {
   mockWeightEntries = mockWeightEntries.filter((e) => e.id !== id);
   saveWeightEntries();
+}
+
+// ── Sleep Entries ──────────────────────────────────────────
+
+const defaultSleepEntries: SleepEntry[] = [
+  { id: 's1', date: '2026-02-18', sleep_hours: 7.5 },
+  { id: 's2', date: '2026-02-15', sleep_hours: 8.0 },
+  { id: 's3', date: '2026-02-12', sleep_hours: 6.5 },
+  { id: 's4', date: '2026-02-08', sleep_hours: 7.0 },
+  { id: 's5', date: '2026-02-05', sleep_hours: 8.5 },
+  { id: 's6', date: '2026-02-01', sleep_hours: 7.0 },
+];
+
+export let mockSleepEntries: SleepEntry[] = load('sleep_entries', defaultSleepEntries);
+
+function saveSleepEntries() {
+  save('sleep_entries', mockSleepEntries);
+}
+
+export function addMockSleepEntry(date: string, sleep_hours: number): SleepEntry {
+  const existing = mockSleepEntries.find((e) => e.date === date);
+  if (existing) {
+    existing.sleep_hours = sleep_hours;
+    mockSleepEntries = [...mockSleepEntries];
+  } else {
+    const entry: SleepEntry = { id: `s-${Date.now()}`, date, sleep_hours };
+    mockSleepEntries = [entry, ...mockSleepEntries];
+  }
+  saveSleepEntries();
+  return mockSleepEntries.find((e) => e.date === date)!;
+}
+
+export function deleteMockSleepEntry(id: string) {
+  mockSleepEntries = mockSleepEntries.filter((e) => e.id !== id);
+  saveSleepEntries();
 }

@@ -17,6 +17,7 @@ import type {
   ProfileStats,
   RatingEntry,
   RoleRequestItem,
+  SleepEntry,
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
@@ -378,6 +379,25 @@ export function createWeightEntry(data: { date: string; weight_kg: number }): Pr
 
 export function deleteWeightEntry(id: string): Promise<void> {
   return apiRequest<void>(`/weight-entries/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// --- Sleep Entries ---
+
+export function getSleepEntries(): Promise<SleepEntry[]> {
+  return apiRequest<SleepEntry[]>('/sleep-entries');
+}
+
+export function createSleepEntry(data: { date: string; sleep_hours: number }): Promise<SleepEntry> {
+  return apiRequest<SleepEntry>('/sleep-entries', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteSleepEntry(id: string): Promise<void> {
+  return apiRequest<void>(`/sleep-entries/${id}`, {
     method: 'DELETE',
   });
 }
