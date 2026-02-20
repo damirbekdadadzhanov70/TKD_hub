@@ -967,9 +967,7 @@ async def upload_tournament_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
 
     # Check file count limit
-    count_result = await ctx.session.execute(
-        select(func.count()).where(TournamentFile.tournament_id == tournament_id)
-    )
+    count_result = await ctx.session.execute(select(func.count()).where(TournamentFile.tournament_id == tournament_id))
     if count_result.scalar() >= MAX_FILES_PER_TOURNAMENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
