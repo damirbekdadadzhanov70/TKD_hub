@@ -127,7 +127,7 @@ export interface TournamentResult {
   gender: string | null;
   place: number;
   rating_points_earned: number;
-  is_matched: boolean;
+  is_matched?: boolean;
 }
 
 export interface CsvProcessingSummary {
