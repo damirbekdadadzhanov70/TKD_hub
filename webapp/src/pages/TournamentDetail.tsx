@@ -927,14 +927,9 @@ function DocumentsSection({
                         <button
                           onClick={() => {
                             const isCsv = f.filename.toLowerCase().endsWith('.csv');
-                            if (isCsv || isTelegram) {
-                              // CSV or Telegram: open directly (iframe blocked in TG)
-                              try {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                (window as any).Telegram?.WebApp?.openLink?.(f.blob_url);
-                              } catch {
-                                window.open(f.blob_url, '_blank');
-                              }
+                            if (isCsv) {
+                              // CSV: open directly (no viewer needed)
+                              window.open(f.blob_url, '_blank');
                             } else {
                               setViewingFile(f);
                             }
