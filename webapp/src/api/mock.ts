@@ -815,6 +815,7 @@ export function searchMockUsers(q?: string): UserSearchItem[] {
     role: u.role,
     city: u.city,
     club: null,
+    photo_url: null,
   }));
   if (!q) return items;
   return items.filter((u) => u.full_name?.toLowerCase().includes(q.toLowerCase()));
