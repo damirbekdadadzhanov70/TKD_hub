@@ -2561,7 +2561,9 @@ async def test_request_coach_link(auth_client: AsyncClient, coach_user: User, db
 
 
 @pytest.mark.asyncio
-async def test_request_coach_link_duplicate_same_coach(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+async def test_request_coach_link_duplicate_same_coach(
+    auth_client: AsyncClient, coach_user: User, db_session: AsyncSession
+):
     """Cannot request a duplicate link with the same coach."""
     from sqlalchemy.orm import selectinload
 
