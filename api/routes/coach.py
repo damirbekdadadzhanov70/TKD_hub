@@ -10,7 +10,7 @@ from api.schemas.coach import CoachAthleteRead, CoachEntryRead, CoachSearchResul
 from api.schemas.pagination import PaginatedResponse
 from api.schemas.training import TrainingLogRead, TrainingLogStats
 from api.utils.pagination import paginate_query
-from db.models import CoachAthlete, TrainingLog, TournamentEntry
+from db.models import CoachAthlete, TournamentEntry, TrainingLog
 from db.models.coach import Coach
 
 router = APIRouter()
