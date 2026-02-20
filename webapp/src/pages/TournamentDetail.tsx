@@ -966,12 +966,11 @@ function PdfViewerSheet({
         <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted shrink-0">×</button>
       </div>
 
-      <div className="flex-1 min-h-0 px-4 pb-2">
+      <div className="flex-1 min-h-0 overflow-hidden px-4 pb-2">
         <iframe
           src={viewerUrl}
           title={file.filename}
-          className="w-full rounded-lg border border-border"
-          style={{ height: 'calc(100vh - 220px)', minHeight: '300px' }}
+          className="w-full h-full rounded-lg border border-border"
         />
       </div>
 
@@ -1180,16 +1179,6 @@ function EditTournamentModal({
           />
         </label>
 
-        <label className="block">
-          <span className="text-xs mb-1 block text-text-secondary">{t('tournamentDetail.resultsUrl')}</span>
-          <input
-            type="url"
-            value={form.results_url ?? ''}
-            onChange={(e) => update('results_url', e.target.value || null)}
-            className="w-full rounded-lg px-3 py-2 text-sm border border-border bg-bg-secondary text-text outline-none"
-            placeholder={t('common.optional')}
-          />
-        </label>
 
         <label className="block">
           <span className="text-xs mb-1 block text-text-secondary">{t('tournaments.organizerName')}</span>

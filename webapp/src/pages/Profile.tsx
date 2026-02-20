@@ -628,6 +628,9 @@ export default function Profile() {
   const { t } = useI18n();
   const { data: me, loading, mutate } = useApi<MeResponse>(getMe, mockMe, []);
   const { data: stats, loading: statsLoading } = useApi<ProfileStats>(getProfileStats, mockProfileStats, []);
+  const cachedStatsRef = useRef<ProfileStats | null>(null);
+  if (stats) cachedStatsRef.current = stats;
+  const stableStats = stats ?? cachedStatsRef.current;
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
@@ -746,7 +749,7 @@ export default function Profile() {
       {isAthlete && me.athlete && (
         <AthleteSection
           me={me}
-          stats={stats}
+          stats={stableStats}
           mutate={mutate}
           editing={editing}
           setEditing={setEditing}
@@ -763,8 +766,8 @@ export default function Profile() {
         <div className="px-4">
           <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
           <InfoRow label={t('profile.role')} value={t('profile.administrator')} />
-          <InfoRow label="Users" value={`${stats?.users_count ?? 0} ${t('profile.usersCount')}`} />
-          <InfoRow label={t('nav.tournaments')} value={`${stats?.tournaments_total ?? 0} ${t('profile.tournamentsCount')}`} />
+          <InfoRow label="Users" value={`${stableStats?.users_count ?? 0} ${t('profile.usersCount')}`} />
+          <InfoRow label={t('nav.tournaments')} value={`${stableStats?.tournaments_total ?? 0} ${t('profile.tournamentsCount')}`} />
         </div>
       )}
 
