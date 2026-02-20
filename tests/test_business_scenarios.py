@@ -2559,6 +2559,20 @@ async def test_request_coach_link(auth_client: AsyncClient, coach_user: User, db
     assert data["full_name"] == "Test Coach"
     assert "link_id" in data
 
+    # Verify in-app notification was created for the coach
+    from db.models.notification import Notification
+
+    notif_result = await db_session.execute(
+        select(Notification).where(
+            Notification.user_id == coach_user.id,
+            Notification.type == "new_athlete_request",
+        )
+    )
+    notif = notif_result.scalar_one_or_none()
+    assert notif is not None, "Coach should receive in-app notification"
+    assert notif.role == "coach"
+    assert "Test Athlete" in notif.body
+
 
 @pytest.mark.asyncio
 async def test_request_coach_link_duplicate_same_coach(
