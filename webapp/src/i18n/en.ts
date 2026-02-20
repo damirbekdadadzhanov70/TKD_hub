@@ -197,6 +197,7 @@ const en = {
     noAthleteSelected: 'Select an athlete to view their training log',
     noAcceptedAthletes: 'No accepted athletes',
     athleteLog: 'Log',
+    myLog: 'My log',
   },
   rating: {
     title: 'Rating',

@@ -109,13 +109,17 @@ export default function TrainingLogPage() {
     [],
   );
 
-  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
+  // 'self' = coach's own log, athlete UUID = viewing that athlete's log, null = nothing selected
+  const coachHasAthlete = isCoach && !!me?.athlete;
+  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(coachHasAthlete ? 'self' : null);
   const [showAthleteSelector, setShowAthleteSelector] = useState(false);
   const [athleteSearch, setAthleteSearch] = useState('');
 
+  const isSelfLog = selectedAthleteId === 'self';
+
   const selectedAthlete = useMemo(
-    () => athletes?.find((a) => a.id === selectedAthleteId) ?? null,
-    [athletes, selectedAthleteId],
+    () => (isSelfLog ? null : athletes?.find((a) => a.id === selectedAthleteId) ?? null),
+    [athletes, selectedAthleteId, isSelfLog],
   );
 
   const filteredAthletes = useMemo(() => {
@@ -126,41 +130,44 @@ export default function TrainingLogPage() {
   }, [athletes, athleteSearch]);
 
   // Conditional data fetching based on role
+  // 'self' → own training log endpoints, athlete UUID → coach athlete endpoints
+  const viewingOtherAthlete = isCoach && selectedAthleteId && !isSelfLog;
+
   const logsFetcher = useCallback(() => {
-    if (isCoach && selectedAthleteId) {
+    if (viewingOtherAthlete) {
       return getCoachAthleteTrainingLogs(selectedAthleteId, { month, year });
     }
     return getTrainingLogs({ month, year });
-  }, [isCoach, selectedAthleteId, month, year]);
+  }, [viewingOtherAthlete, selectedAthleteId, month, year]);
 
   const logsMock = useMemo(() => {
-    if (isCoach && selectedAthleteId) {
+    if (viewingOtherAthlete) {
       return getMockCoachAthleteTrainingLogs(selectedAthleteId, month, year);
     }
     if (isCoach && !selectedAthleteId) {
       return null;
     }
     return mockTrainingLogs;
-  }, [isCoach, selectedAthleteId, month, year]);
+  }, [viewingOtherAthlete, isCoach, selectedAthleteId, month, year]);
 
   const statsFetcher = useCallback(() => {
-    if (isCoach && selectedAthleteId) {
+    if (viewingOtherAthlete) {
       return getCoachAthleteTrainingStats(selectedAthleteId, { month, year });
     }
     return getTrainingStats({ month, year });
-  }, [isCoach, selectedAthleteId, month, year]);
+  }, [viewingOtherAthlete, selectedAthleteId, month, year]);
 
   const statsMock = useMemo(() => {
-    if (isCoach && selectedAthleteId) {
+    if (viewingOtherAthlete) {
       return getMockCoachAthleteTrainingStats(selectedAthleteId, month, year);
     }
     if (isCoach && !selectedAthleteId) {
       return null;
     }
     return mockTrainingStats;
-  }, [isCoach, selectedAthleteId, month, year]);
+  }, [viewingOtherAthlete, isCoach, selectedAthleteId, month, year]);
 
-  // Skip API calls when coach has no athlete selected
+  // Skip API calls when coach has no athlete selected (and no 'self')
   const shouldFetch = !isCoach || !!selectedAthleteId;
 
   const [logs, setLogs] = useState<TrainingLogType[] | null>(null);
@@ -257,8 +264,8 @@ export default function TrainingLogPage() {
     }
   };
 
-  // Coach: read-only mode
-  const readOnly = isCoach;
+  // Coach viewing other athlete's log = read-only; own log = editable
+  const readOnly = isCoach && !isSelfLog;
 
   return (
     <PullToRefresh onRefresh={() => refetch(true)}>
@@ -279,8 +286,12 @@ export default function TrainingLogPage() {
             }}
             className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-bg-secondary text-sm cursor-pointer hover:border-accent active:opacity-80 transition-all"
           >
-            <span className={selectedAthlete ? 'text-text font-medium' : 'text-text-secondary'}>
-              {selectedAthlete ? `${t('training.athleteLog')}: ${selectedAthlete.full_name}` : t('training.selectAthlete')}
+            <span className={selectedAthleteId ? 'text-text font-medium' : 'text-text-secondary'}>
+              {isSelfLog
+                ? t('training.myLog')
+                : selectedAthlete
+                  ? `${t('training.athleteLog')}: ${selectedAthlete.full_name}`
+                  : t('training.selectAthlete')}
             </span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary shrink-0">
               <path d="M6 9l6 6 6-6" />
@@ -587,10 +598,30 @@ export default function TrainingLogPage() {
               className="w-full rounded-lg px-3 py-2.5 text-sm border border-border bg-bg-secondary text-text outline-none mb-3"
               autoFocus
             />
-            {filteredAthletes.length === 0 ? (
+            {filteredAthletes.length === 0 && !coachHasAthlete ? (
               <p className="text-sm text-text-secondary text-center py-4">{t('training.noAcceptedAthletes')}</p>
             ) : (
               <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+                {/* Coach's own log option */}
+                {coachHasAthlete && (!athleteSearch.trim() || me!.athlete!.full_name.toLowerCase().includes(athleteSearch.toLowerCase())) && (
+                  <button
+                    onClick={() => {
+                      setSelectedAthleteId('self');
+                      setSelectedDay(null);
+                      setShowAthleteSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-3 rounded-xl border-none cursor-pointer active:opacity-80 transition-all ${
+                      isSelfLog
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-transparent text-text hover:bg-bg-secondary'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{t('training.myLog')}</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">
+                      {me!.athlete!.full_name} · {me!.athlete!.weight_category}
+                    </p>
+                  </button>
+                )}
                 {filteredAthletes.map((athlete) => (
                   <button
                     key={athlete.id}

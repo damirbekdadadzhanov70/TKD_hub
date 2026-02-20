@@ -197,6 +197,7 @@ const ru = {
     noAthleteSelected: 'Выберите спортсмена для просмотра дневника',
     noAcceptedAthletes: 'Нет подтверждённых спортсменов',
     athleteLog: 'Дневник',
+    myLog: 'Мой дневник',
   },
   rating: {
     title: 'Рейтинг',
