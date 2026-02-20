@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PullToRefresh from '../components/PullToRefresh';
 import BottomSheet from '../components/BottomSheet';
@@ -50,19 +50,97 @@ const STATUS_VALUES = ['', 'upcoming', 'ongoing', 'completed'] as const;
 
 
 
-function CheckIcon() {
+function LocationIcon({ size = 16 }: { size?: number }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
     </svg>
   );
 }
 
-function FilterIcon() {
+function CalendarIcon({ size = 16 }: { size?: number }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function FilterDropdown<T extends string>({
+  icon,
+  value,
+  options,
+  onSelect,
+  ariaLabel,
+}: {
+  icon: React.ReactNode;
+  value: T;
+  options: { value: T; label: string }[];
+  onSelect: (v: T) => void;
+  ariaLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+  const isActive = value !== '';
+
+  return (
+    <div ref={ref} className="relative flex-1 min-w-0">
+      <button
+        aria-label={ariaLabel}
+        onClick={() => setOpen((o) => !o)}
+        className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm border cursor-pointer transition-colors ${
+          isActive
+            ? 'bg-accent/10 text-accent border-accent/30'
+            : 'bg-bg-secondary text-text-secondary border-border hover:border-accent/40'
+        }`}
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="flex-1 text-left truncate font-medium text-[13px]">{selected?.label}</span>
+        <span className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
+          <ChevronDownIcon />
+        </span>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border border-border bg-bg shadow-lg z-50 overflow-y-auto max-h-64">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => { onSelect(o.value); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 text-sm border-none cursor-pointer text-left transition-colors ${
+                value === o.value
+                  ? 'bg-accent text-white'
+                  : 'bg-transparent text-text hover:bg-bg-secondary'
+              }`}
+            >
+              <span className="font-medium">{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -100,7 +178,11 @@ export default function Tournaments() {
       : v === 'ongoing' ? t('tournaments.ongoing')
       : t('tournaments.completed'),
   }));
-  const [showCityPicker, setShowCityPicker] = useState(false);
+
+  const CITY_OPTIONS = [
+    { value: '' as string, label: t('tournaments.allCities') },
+    ...CITIES.map((c) => ({ value: c, label: c })),
+  ];
 
   const { data: tournaments, loading, refetch } = useApi<TournamentListItem[]>(
     () => getTournaments({ city: city || undefined, status: status || undefined }),
@@ -131,88 +213,23 @@ export default function Tournaments() {
         </div>
       )}
 
-      {/* Status segments + city filter */}
+      {/* Filters */}
       <div className="flex items-center gap-2 px-4 py-2">
-        <div className="flex flex-1 gap-1 overflow-x-auto no-scrollbar">
-          {STATUSES.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setStatus(s.value)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                status === s.value
-                  ? 'bg-accent text-white border-accent'
-                  : 'bg-bg-secondary text-text-secondary border-border hover:border-accent/40'
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <button
-          aria-label={t('tournaments.filterByCity')}
-          onClick={() => setShowCityPicker(true)}
-          className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center border cursor-pointer transition-colors ${
-            city
-              ? 'bg-accent text-white border-accent'
-              : 'bg-bg-secondary text-text-secondary border-border hover:border-accent/40'
-          }`}
-        >
-          <FilterIcon />
-        </button>
+        <FilterDropdown
+          icon={<CalendarIcon />}
+          value={status}
+          options={STATUSES}
+          onSelect={setStatus}
+          ariaLabel={t('tournaments.all')}
+        />
+        <FilterDropdown
+          icon={<LocationIcon />}
+          value={city}
+          options={CITY_OPTIONS}
+          onSelect={setCity}
+          ariaLabel={t('tournaments.filterByCity')}
+        />
       </div>
-
-      {/* Active city badge */}
-      {city && (
-        <div className="px-4 pb-1">
-          <button
-            onClick={() => setCity('')}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-accent-light text-accent border-none cursor-pointer"
-          >
-            {city}
-            <span className="text-sm leading-none">&times;</span>
-          </button>
-        </div>
-      )}
-
-      {/* City picker bottom sheet */}
-      {showCityPicker && (
-        <BottomSheet onClose={() => setShowCityPicker(false)}>
-          <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
-            <button
-              onClick={() => setShowCityPicker(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary border-none cursor-pointer text-text-secondary active:opacity-70 transition-opacity"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-semibold text-text">{t('tournaments.selectCity')}</h2>
-          </div>
-          <div className="px-4 pb-4 space-y-1.5 overflow-y-auto">
-            <button
-              onClick={() => { setCity(''); setShowCityPicker(false); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 ${
-                !city ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
-              }`}
-            >
-              <span className="text-sm font-medium">{t('tournaments.allCities')}</span>
-              {!city && <CheckIcon />}
-            </button>
-            {CITIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => { setCity(c); setShowCityPicker(false); }}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border-none cursor-pointer text-left transition-all active:opacity-80 ${
-                  city === c ? 'bg-accent text-white' : 'bg-bg-secondary text-text'
-                }`}
-              >
-                <span className="text-sm font-medium">{c}</span>
-                {city === c && <CheckIcon />}
-              </button>
-            ))}
-          </div>
-        </BottomSheet>
-      )}
 
       <div className="px-4">
         {loading ? (
