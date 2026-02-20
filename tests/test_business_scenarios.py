@@ -3979,3 +3979,83 @@ class TestCsvOcrParsing:
         assert grish and grish[0].place == 9  # "916" → 9-16 → 9
         zabol = [r for r in rows if "Заболотный" in r.full_name]
         assert zabol and zabol[0].place == 17  # "1721" → 17-21 → 17
+
+
+@pytest.mark.asyncio
+async def test_csv_delete_rollback_points(admin_client, admin_user, db_session):
+    """Deleting a CSV protocol file rolls back rating points."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=2)
+
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;1\n"
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    mock_delete = AsyncMock()
+
+    # Upload CSV
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+    assert resp.status_code == 201
+    file_id = resp.json()["id"]
+    assert resp.json()["csv_summary"]["matched"] == 1
+    # 1st place × importance 2 = 24
+    assert resp.json()["csv_summary"]["points_awarded"] == 24
+
+    from sqlalchemy import select
+
+    athlete_result = await db_session.execute(select(Athlete).where(Athlete.user_id == admin_user.id))
+    athlete = athlete_result.scalar_one()
+    await db_session.refresh(athlete)
+    points_before = athlete.rating_points
+
+    # Delete CSV file → points should be rolled back
+    with patch("api.routes.tournaments._delete_from_vercel_blob", mock_delete):
+        resp2 = await admin_client.delete(f"/api/tournaments/{tournament.id}/files/{file_id}")
+    assert resp2.status_code == 204
+
+    await db_session.refresh(athlete)
+    assert athlete.rating_points == points_before - 24
+
+
+@pytest.mark.asyncio
+async def test_csv_multiple_tournaments_accumulate(admin_client, admin_user, db_session):
+    """Points from multiple tournaments accumulate."""
+    t1 = await create_tournament(db_session, admin_user, importance_level=1)
+    t2 = await create_tournament(db_session, admin_user, importance_level=2)
+
+    csv1 = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;1\n"
+    csv2 = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;2\n"
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        r1 = await admin_client.post(
+            f"/api/tournaments/{t1.id}/files?category=protocol",
+            files={"file": ("r1.csv", csv1.encode(), "text/csv")},
+        )
+        r2 = await admin_client.post(
+            f"/api/tournaments/{t2.id}/files?category=protocol",
+            files={"file": ("r2.csv", csv2.encode(), "text/csv")},
+        )
+
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+    # T1: 1st × 1 = 12; T2: 2nd × 2 = 20
+    p1 = r1.json()["csv_summary"]["points_awarded"]
+    p2 = r2.json()["csv_summary"]["points_awarded"]
+    assert p1 == 12
+    assert p2 == 20
+
+    from sqlalchemy import select
+
+    athlete_result = await db_session.execute(select(Athlete).where(Athlete.user_id == admin_user.id))
+    athlete = athlete_result.scalar_one()
+    await db_session.refresh(athlete)
+    assert athlete.rating_points >= p1 + p2

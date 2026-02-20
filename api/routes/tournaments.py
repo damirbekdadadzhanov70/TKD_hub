@@ -1227,6 +1227,24 @@ async def delete_tournament_file(
     if not db_file:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
+    # If deleting a CSV protocol, rollback rating points and remove results
+    is_csv = db_file.filename.lower().endswith(".csv") and db_file.category == "protocol"
+    if is_csv:
+        # Load CSV-based results for this tournament
+        csv_results = await ctx.session.execute(
+            select(TournamentResult)
+            .options(selectinload(TournamentResult.athlete))
+            .where(
+                TournamentResult.tournament_id == tournament_id,
+                TournamentResult.raw_full_name.isnot(None),
+            )
+        )
+        for r in csv_results.scalars().all():
+            # Subtract points from matched athletes
+            if r.athlete and r.rating_points_earned > 0:
+                r.athlete.rating_points = max(0, r.athlete.rating_points - r.rating_points_earned)
+            await ctx.session.delete(r)
+
     # Delete from Vercel Blob
     await _delete_from_vercel_blob(db_file.blob_url)
 
