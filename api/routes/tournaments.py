@@ -1,8 +1,9 @@
 import logging
+import os
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +13,7 @@ from api.schemas.tournament import (
     TournamentBatchEnter,
     TournamentCreate,
     TournamentEntryRead,
+    TournamentFileRead,
     TournamentInterestResponse,
     TournamentListItem,
     TournamentRead,
@@ -33,6 +35,7 @@ from db.models import (
     CoachAthlete,
     Tournament,
     TournamentEntry,
+    TournamentFile,
     TournamentInterest,
     TournamentResult,
 )
@@ -164,13 +167,19 @@ async def delete_tournament(
 ):
     _check_admin(ctx.user)
 
-    result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
+    result = await ctx.session.execute(
+        select(Tournament).where(Tournament.id == tournament_id).options(selectinload(Tournament.files))
+    )
     tournament = result.scalar_one_or_none()
     if not tournament:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tournament not found",
         )
+
+    # Clean up blob files before cascade delete
+    for f in tournament.files:
+        await _delete_from_vercel_blob(f.blob_url)
 
     await ctx.session.delete(tournament)
     await ctx.session.commit()
@@ -235,6 +244,19 @@ def _build_tournament_read(tournament) -> TournamentRead:
         for r in tournament.results
     ]
 
+    files = [
+        TournamentFileRead(
+            id=f.id,
+            tournament_id=f.tournament_id,
+            filename=f.filename,
+            blob_url=f.blob_url,
+            file_size=f.file_size,
+            file_type=f.file_type,
+            created_at=f.created_at.isoformat() if f.created_at else "",
+        )
+        for f in tournament.files
+    ]
+
     return TournamentRead(
         id=tournament.id,
         name=tournament.name,
@@ -259,6 +281,7 @@ def _build_tournament_read(tournament) -> TournamentRead:
         importance_level=tournament.importance_level,
         entries=entries,
         results=results,
+        files=files,
     )
 
 
@@ -268,6 +291,7 @@ def _load_tournament_options():
         selectinload(Tournament.entries).selectinload(TournamentEntry.athlete),
         selectinload(Tournament.entries).selectinload(TournamentEntry.coach),
         selectinload(Tournament.results).selectinload(TournamentResult.athlete),
+        selectinload(Tournament.files),
     ]
 
 
@@ -835,3 +859,193 @@ async def create_tournament_result(
         place=result.place,
         rating_points_earned=result.rating_points_earned,
     )
+
+
+# ── Tournament Files ────────────────────────────────────────
+
+MAX_FILE_SIZE = 4 * 1024 * 1024  # 4 MB
+MAX_FILES_PER_TOURNAMENT = 10
+PDF_MAGIC = b"%PDF"
+
+
+async def _upload_to_vercel_blob(filename: str, content: bytes, content_type: str) -> str:
+    """Upload file to Vercel Blob and return the public URL."""
+    import httpx
+
+    token = os.environ.get("BLOB_READ_WRITE_TOKEN", "")
+    if not token:
+        raise HTTPException(status_code=500, detail="Blob storage not configured")
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(
+            f"https://blob.vercel-storage.com/{filename}",
+            content=content,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "x-content-type": content_type,
+                "x-api-version": "7",
+            },
+            timeout=30,
+        )
+        if resp.status_code not in (200, 201):
+            logger.error("Vercel Blob upload failed: %s %s", resp.status_code, resp.text)
+            raise HTTPException(status_code=502, detail="File upload failed")
+        return resp.json()["url"]
+
+
+async def _delete_from_vercel_blob(blob_url: str) -> None:
+    """Delete a file from Vercel Blob."""
+    import httpx
+
+    token = os.environ.get("BLOB_READ_WRITE_TOKEN", "")
+    if not token:
+        return
+
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "https://blob.vercel-storage.com/delete",
+                json={"urls": [blob_url]},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "x-api-version": "7",
+                },
+                timeout=15,
+            )
+    except Exception:
+        logger.exception("Failed to delete blob: %s", blob_url)
+
+
+@router.get(
+    "/tournaments/{tournament_id}/files",
+    response_model=list[TournamentFileRead],
+)
+async def list_tournament_files(
+    tournament_id: uuid.UUID,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    t_result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
+    if not t_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
+
+    result = await ctx.session.execute(
+        select(TournamentFile)
+        .where(TournamentFile.tournament_id == tournament_id)
+        .order_by(TournamentFile.created_at.desc())
+    )
+    files = result.scalars().all()
+
+    return [
+        TournamentFileRead(
+            id=f.id,
+            tournament_id=f.tournament_id,
+            filename=f.filename,
+            blob_url=f.blob_url,
+            file_size=f.file_size,
+            file_type=f.file_type,
+            created_at=f.created_at.isoformat() if f.created_at else "",
+        )
+        for f in files
+    ]
+
+
+@router.post(
+    "/tournaments/{tournament_id}/files",
+    response_model=TournamentFileRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_tournament_file(
+    tournament_id: uuid.UUID,
+    file: UploadFile,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _check_admin(ctx.user)
+
+    # Verify tournament exists
+    t_result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
+    if not t_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
+
+    # Check file count limit
+    count_result = await ctx.session.execute(
+        select(func.count()).where(TournamentFile.tournament_id == tournament_id)
+    )
+    if count_result.scalar() >= MAX_FILES_PER_TOURNAMENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {MAX_FILES_PER_TOURNAMENT} files per tournament",
+        )
+
+    # Read file content
+    content = await file.read()
+
+    # Validate size
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large. Maximum 4 MB",
+        )
+
+    # Validate PDF (content type + magic bytes)
+    if file.content_type != "application/pdf" or not content[:4].startswith(PDF_MAGIC):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are allowed",
+        )
+
+    # Upload to Vercel Blob
+    safe_filename = (file.filename or "document.pdf").replace("/", "_")
+    blob_path = f"tournaments/{tournament_id}/{uuid.uuid4()}_{safe_filename}"
+    blob_url = await _upload_to_vercel_blob(blob_path, content, "application/pdf")
+
+    # Save to DB
+    db_file = TournamentFile(
+        tournament_id=tournament_id,
+        filename=safe_filename,
+        blob_url=blob_url,
+        file_size=len(content),
+        file_type="application/pdf",
+        uploaded_by=ctx.user.id,
+    )
+    ctx.session.add(db_file)
+    await ctx.session.commit()
+    await ctx.session.refresh(db_file)
+
+    return TournamentFileRead(
+        id=db_file.id,
+        tournament_id=db_file.tournament_id,
+        filename=db_file.filename,
+        blob_url=db_file.blob_url,
+        file_size=db_file.file_size,
+        file_type=db_file.file_type,
+        created_at=db_file.created_at.isoformat() if db_file.created_at else "",
+    )
+
+
+@router.delete(
+    "/tournaments/{tournament_id}/files/{file_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_tournament_file(
+    tournament_id: uuid.UUID,
+    file_id: uuid.UUID,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    _check_admin(ctx.user)
+
+    result = await ctx.session.execute(
+        select(TournamentFile).where(
+            TournamentFile.id == file_id,
+            TournamentFile.tournament_id == tournament_id,
+        )
+    )
+    db_file = result.scalar_one_or_none()
+    if not db_file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    # Delete from Vercel Blob
+    await _delete_from_vercel_blob(db_file.blob_url)
+
+    # Delete from DB
+    await ctx.session.delete(db_file)
+    await ctx.session.commit()

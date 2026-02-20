@@ -4,7 +4,7 @@ from db.models.coach import Coach, CoachAthlete
 from db.models.invite_token import InviteToken
 from db.models.notification import Notification
 from db.models.role_request import RoleRequest
-from db.models.tournament import Tournament, TournamentEntry, TournamentInterest, TournamentResult
+from db.models.tournament import Tournament, TournamentEntry, TournamentFile, TournamentInterest, TournamentResult
 from db.models.training import TrainingLog
 from db.models.user import User
 
@@ -17,6 +17,7 @@ __all__ = [
     "Notification",
     "Tournament",
     "TournamentEntry",
+    "TournamentFile",
     "TournamentInterest",
     "TournamentResult",
     "TrainingLog",

@@ -11,6 +11,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import {
   approveCoachEntries,
   deleteTournament,
+  deleteTournamentFile,
   enterTournament,
   getCoachAthletes,
   getMe,
@@ -20,11 +21,12 @@ import {
   rejectCoachEntries,
   removeEntry,
   updateTournament,
+  uploadTournamentFile,
 } from '../api/endpoints';
 import { CITIES } from '../constants/cities';
 import { formatDate } from '../constants/format';
 import { getMockTournamentDetail, mockCoachAthletes, mockMe, mockTournamentResults } from '../api/mock';
-import type { CoachAthlete, MeResponse, TournamentCreate, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentResult } from '../types';
+import type { CoachAthlete, MeResponse, TournamentCreate, TournamentDetail as TournamentDetailType, TournamentEntry, TournamentFile, TournamentResult } from '../types';
 
 const MEDAL_COLORS: Record<number, string> = {
   1: 'text-medal-gold',
@@ -224,6 +226,15 @@ export default function TournamentDetail() {
               </svg>
             </a>
           </Card>
+        )}
+
+        {/* Documents section */}
+        {(syncedTournament.files.length > 0 || isAdmin) && (
+          <DocumentsSection
+            tournament={syncedTournament}
+            isAdmin={isAdmin}
+            onChanged={refetch}
+          />
         )}
 
         {/* Contacts section */}
@@ -693,6 +704,200 @@ export function ResultsAccordion({ results }: { results: TournamentResult[] }) {
         </div>
       )}
     </Card>
+  );
+}
+
+/* ---- Documents section ---- */
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function DocumentsSection({
+  tournament,
+  isAdmin,
+  onChanged,
+}: {
+  tournament: TournamentDetailType;
+  isAdmin: boolean;
+  onChanged: (silent?: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const { hapticNotification } = useTelegram();
+  const { showToast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [viewingFile, setViewingFile] = useState<TournamentFile | null>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (file.type !== 'application/pdf') {
+      showToast(t('tournamentDetail.onlyPdf'), 'error');
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      showToast(t('tournamentDetail.fileTooLarge'), 'error');
+      return;
+    }
+    if (tournament.files.length >= 10) {
+      showToast(t('tournamentDetail.maxFilesReached'), 'error');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      await uploadTournamentFile(tournament.id, file);
+      hapticNotification('success');
+      showToast(t('tournamentDetail.fileUploaded'));
+      onChanged(true);
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+    }
+    setUploading(false);
+  };
+
+  const handleDelete = async (fileId: string) => {
+    try {
+      await deleteTournamentFile(tournament.id, fileId);
+      hapticNotification('success');
+      showToast(t('tournamentDetail.fileDeleted'));
+      onChanged(true);
+    } catch (err) {
+      hapticNotification('error');
+      showToast(err instanceof Error ? err.message : t('common.error'), 'error');
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-sm text-text">
+            {t('tournamentDetail.documents')}
+          </h3>
+          {isAdmin && (
+            <label className="text-xs text-accent cursor-pointer active:opacity-80 hover:opacity-80 transition-opacity">
+              {uploading ? t('tournamentDetail.uploading') : t('tournamentDetail.upload')}
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handleUpload}
+                disabled={uploading}
+                className="hidden"
+              />
+            </label>
+          )}
+        </div>
+        {tournament.files.length === 0 ? (
+          <p className="text-xs text-text-disabled">{t('tournamentDetail.noDocuments')}</p>
+        ) : (
+          <div className="space-y-1.5">
+            {tournament.files.map((f) => (
+              <div key={f.id} className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewingFile(f)}
+                  className="flex-1 min-w-0 flex items-center gap-2 border-none bg-transparent cursor-pointer p-1.5 rounded-lg text-left hover:bg-bg-secondary active:opacity-80 transition-all"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] text-text truncate">{f.filename}</p>
+                    <p className="text-[11px] text-text-secondary">{formatFileSize(f.file_size)}</p>
+                  </div>
+                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDelete(f.id)}
+                    aria-label={t('common.delete')}
+                    className="text-rose-500 border-none bg-transparent cursor-pointer p-1.5 rounded hover:bg-rose-500/10 active:opacity-80 transition-all shrink-0"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {viewingFile && (
+        <PdfViewerSheet
+          file={viewingFile}
+          onClose={() => setViewingFile(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/* ---- PDF viewer bottom sheet ---- */
+
+function PdfViewerSheet({
+  file,
+  onClose,
+}: {
+  file: TournamentFile;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const { isTelegram } = useTelegram();
+
+  const isLocalBlob = file.blob_url.startsWith('blob:');
+  const viewerUrl = isLocalBlob
+    ? file.blob_url
+    : `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(file.blob_url)}`;
+
+  const handleOpenExternal = () => {
+    const url = file.blob_url;
+    if (isTelegram) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).Telegram?.WebApp?.openLink?.(url);
+      } catch {
+        window.open(url, '_blank');
+      }
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="flex justify-between items-center p-4 pb-2 shrink-0">
+        <h2 className="text-base font-bold text-text truncate pr-4">{file.filename}</h2>
+        <button onClick={onClose} className="text-2xl border-none bg-transparent cursor-pointer text-muted shrink-0">×</button>
+      </div>
+
+      <div className="flex-1 min-h-0 px-4 pb-2">
+        <iframe
+          src={viewerUrl}
+          title={file.filename}
+          className="w-full rounded-lg border border-border"
+          style={{ height: 'calc(100vh - 220px)', minHeight: '300px' }}
+        />
+      </div>
+
+      <div className="p-4 pt-2 shrink-0" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        <button
+          onClick={handleOpenExternal}
+          className="w-full py-3 rounded-xl text-sm font-semibold border-none cursor-pointer bg-accent text-accent-text active:opacity-80 hover:opacity-90 transition-all"
+        >
+          {t('tournamentDetail.openInBrowser')}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 

@@ -57,6 +57,7 @@ class TournamentRead(BaseModel):
     importance_level: int
     entries: list[TournamentEntryRead] = []
     results: list["TournamentResultRead"] = []
+    files: list["TournamentFileRead"] = []
 
     model_config = {"from_attributes": True}
 
@@ -125,6 +126,18 @@ class TournamentUpdate(BaseModel):
     organizer_name: str | None = None
     organizer_phone: str | None = None
     organizer_telegram: str | None = None
+
+
+class TournamentFileRead(BaseModel):
+    id: uuid.UUID
+    tournament_id: uuid.UUID
+    filename: str
+    blob_url: str
+    file_size: int
+    file_type: str
+    created_at: str
+
+    model_config = {"from_attributes": True}
 
 
 class TournamentResultCreate(BaseModel):

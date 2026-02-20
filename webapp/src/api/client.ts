@@ -36,3 +36,36 @@ export async function apiRequest<T>(
 
   return response.json();
 }
+
+export async function apiUpload<T>(
+  path: string,
+  file: File,
+): Promise<T> {
+  if (!REAL_API_URL) return {} as T;
+
+  const initData = WebApp.initData || '';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const headers: HeadersInit = {
+    ...(initData ? { Authorization: `tma ${initData}` } : {}),
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: formData,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}

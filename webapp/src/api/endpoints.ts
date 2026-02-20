@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, apiUpload } from './client';
 import type {
   AdminUserDetail,
   AdminUserItem,
@@ -20,6 +20,7 @@ import type {
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
+  TournamentFile,
   TournamentInterestResponse,
   TournamentListItem,
   TournamentResult,
@@ -203,6 +204,16 @@ export function rejectCoachEntries(tournamentId: string, coachId: string): Promi
 
 export function getTournamentResults(tournamentId: string): Promise<TournamentResult[]> {
   return apiRequest<TournamentResult[]>(`/tournaments/${tournamentId}/results`);
+}
+
+export function uploadTournamentFile(tournamentId: string, file: File): Promise<TournamentFile> {
+  return apiUpload<TournamentFile>(`/tournaments/${tournamentId}/files`, file);
+}
+
+export function deleteTournamentFile(tournamentId: string, fileId: string): Promise<void> {
+  return apiRequest<void>(`/tournaments/${tournamentId}/files/${fileId}`, {
+    method: 'DELETE',
+  });
 }
 
 // --- Training Log ---

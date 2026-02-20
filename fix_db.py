@@ -13,8 +13,22 @@ async def main():
     await c.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organizer_telegram VARCHAR(100)")
     await c.execute("ALTER TABLE tournament_results ADD COLUMN IF NOT EXISTS gender VARCHAR(10)")
     await c.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS results_url VARCHAR(500)")
+    await c.execute("""
+        CREATE TABLE IF NOT EXISTS tournament_files (
+            id UUID PRIMARY KEY,
+            tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+            filename VARCHAR(255) NOT NULL,
+            blob_url VARCHAR(1000) NOT NULL,
+            file_size INTEGER NOT NULL,
+            file_type VARCHAR(50) NOT NULL,
+            uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
     rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournaments'")
     print("OK! Columns:", [r["column_name"] for r in rows])
+    tf_rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournament_files'")
+    print("tournament_files columns:", [r["column_name"] for r in tf_rows])
     await c.close()
 
 

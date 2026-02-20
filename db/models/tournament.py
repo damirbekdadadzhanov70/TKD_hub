@@ -48,6 +48,9 @@ class Tournament(Base):
     interests: Mapped[list["TournamentInterest"]] = relationship(
         back_populates="tournament", cascade="all, delete-orphan", passive_deletes=True
     )
+    files: Mapped[list["TournamentFile"]] = relationship(
+        back_populates="tournament", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class TournamentEntry(Base):
@@ -104,3 +107,23 @@ class TournamentInterest(Base):
 
     tournament: Mapped["Tournament"] = relationship(back_populates="interests")
     athlete: Mapped["Athlete"] = relationship()
+
+
+class TournamentFile(Base):
+    __tablename__ = "tournament_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tournament_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    blob_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    tournament: Mapped["Tournament"] = relationship(back_populates="files")
+    uploader: Mapped["User"] = relationship()

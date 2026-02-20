@@ -100,6 +100,17 @@ export interface TournamentDetail {
   importance_level: number;
   entries: TournamentEntry[];
   results: TournamentResult[];
+  files: TournamentFile[];
+}
+
+export interface TournamentFile {
+  id: string;
+  tournament_id: string;
+  filename: string;
+  blob_url: string;
+  file_size: number;
+  file_type: string;
+  created_at: string;
 }
 
 export interface TournamentResult {

@@ -379,6 +379,7 @@ mockTournamentDetailsMap.set('00000000-0000-0000-0000-000000000010', {
   organizer_name: 'Федерация ТКД России',
   organizer_phone: '+7 495 123-45-67',
   organizer_telegram: '@russian_tkd',
+  files: [],
   results: [],
   entries: [
     { id: '00000000-0000-0000-0000-000000000020', athlete_id: '00000000-0000-0000-0000-000000000001', coach_id: '00000000-0000-0000-0000-000000000002', coach_name: 'Alikhanov Damir', athlete_name: 'Alikhanov Damir', weight_category: '-68kg', age_category: 'Seniors', status: 'approved' },
@@ -414,6 +415,7 @@ export function getMockTournamentDetail(id: string): TournamentDetail | null {
     organizer_telegram: null,
     results: [],
     entries: [],
+    files: [],
   };
   mockTournamentDetailsMap.set(id, detail);
   return detail;
@@ -452,6 +454,7 @@ export function addMockTournament(data: TournamentCreate): TournamentListItem {
     organizer_telegram: data.organizer_telegram,
     results: [],
     entries: [],
+    files: [],
   });
 
   return item;
