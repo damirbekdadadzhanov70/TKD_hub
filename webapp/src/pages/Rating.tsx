@@ -302,7 +302,7 @@ export default function Rating() {
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
   const { data: ratings, loading, isDemo, refetch } = useApi<RatingEntry[]>(
     () => getRatings({
-      country: city || undefined,
+      city: city || undefined,
       weight_category: weight || undefined,
       gender: gender || undefined,
     }),

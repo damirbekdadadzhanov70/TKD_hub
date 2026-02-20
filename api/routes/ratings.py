@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/ratings", response_model=PaginatedResponse[RatingEntry])
 async def get_ratings(
-    country: str | None = Query(None, max_length=100),
+    city: str | None = Query(None, max_length=100),
     weight_category: str | None = Query(None, max_length=50),
     gender: str | None = Query(None, max_length=10),
     page: int = Query(1, ge=1),
@@ -20,8 +20,8 @@ async def get_ratings(
     ctx: AuthContext = Depends(get_current_user),
 ):
     query = select(Athlete).where(Athlete.is_active.is_(True)).order_by(Athlete.rating_points.desc())
-    if country:
-        query = query.where(Athlete.country == country)
+    if city:
+        query = query.where(Athlete.city == city)
     if weight_category:
         query = query.where(Athlete.weight_category == weight_category)
     if gender:
@@ -34,6 +34,7 @@ async def get_ratings(
             rank=(page - 1) * limit + i + 1,
             athlete_id=a.id,
             full_name=a.full_name,
+            gender=a.gender,
             country=a.country,
             city=a.city,
             club=a.club,

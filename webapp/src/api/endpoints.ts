@@ -273,12 +273,12 @@ export function getTrainingStats(params?: {
 // --- Ratings ---
 
 export async function getRatings(params?: {
-  country?: string;
+  city?: string;
   weight_category?: string;
   gender?: string;
 }): Promise<RatingEntry[]> {
   const searchParams = new URLSearchParams();
-  if (params?.country) searchParams.set('country', params.country);
+  if (params?.city) searchParams.set('city', params.city);
   if (params?.weight_category) searchParams.set('weight_category', params.weight_category);
   if (params?.gender) searchParams.set('gender', params.gender);
   const qs = searchParams.toString();

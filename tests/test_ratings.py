@@ -21,7 +21,7 @@ async def test_get_ratings(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_ratings_filter_by_country(auth_client: AsyncClient, db_session: AsyncSession):
+async def test_ratings_filter_by_city(auth_client: AsyncClient, db_session: AsyncSession):
     # Create another athlete from different country
     user2 = User(telegram_id=111222333, username="user2", language="en")
     db_session.add(user2)
@@ -41,11 +41,11 @@ async def test_ratings_filter_by_country(auth_client: AsyncClient, db_session: A
     db_session.add(athlete2)
     await db_session.commit()
 
-    response = await auth_client.get("/api/ratings?country=KZ")
+    response = await auth_client.get("/api/ratings?city=Almaty")
     assert response.status_code == 200
     data = response.json()["items"]
     assert len(data) == 1
-    assert data[0]["country"] == "KZ"
+    assert data[0]["city"] == "Almaty"
 
 
 @pytest.mark.asyncio

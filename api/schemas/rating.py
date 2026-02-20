@@ -8,6 +8,7 @@ class RatingEntry(BaseModel):
     rank: int
     athlete_id: uuid.UUID
     full_name: str
+    gender: str
     country: str
     city: str
     club: Optional[str] = None
