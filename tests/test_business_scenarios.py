@@ -3733,8 +3733,11 @@ async def test_csv_idempotent(admin_client, admin_user, db_session):
             files={"file": ("results2.csv", csv_bytes, "text/csv")},
         )
         assert resp2.status_code == 201
-        assert resp2.json()["csv_summary"]["matched"] == 0
-        assert resp2.json()["csv_summary"]["unmatched"] == 0
+        # Re-upload returns existing results from DB
+        s2 = resp2.json()["csv_summary"]
+        assert s2["skipped"] == 1
+        assert s2["matched"] == 1  # loaded from DB
+        assert s2["matched_details"][0]["name"] == "Admin User"
 
     from sqlalchemy import func, select
 

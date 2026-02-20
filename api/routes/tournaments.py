@@ -1047,6 +1047,37 @@ async def _process_csv_results(
 
     await session.flush()
 
+    # If all rows were skipped (re-upload), load existing results for this tournament
+    if skipped > 0 and matched == 0 and unmatched == 0:
+        existing_results = await session.execute(
+            select(TournamentResult)
+            .options(selectinload(TournamentResult.athlete))
+            .where(
+                TournamentResult.tournament_id == tournament_id,
+                TournamentResult.athlete_id.isnot(None),
+            )
+        )
+        for r in existing_results.scalars().all():
+            matched += 1
+            total_points += r.rating_points_earned
+            matched_details.append(
+                {
+                    "name": r.athlete.full_name if r.athlete else (r.raw_full_name or "?"),
+                    "points": r.rating_points_earned,
+                    "place": r.place,
+                }
+            )
+        # Count unmatched from existing results
+        unmatched_results = await session.execute(
+            select(func.count())
+            .select_from(TournamentResult)
+            .where(
+                TournamentResult.tournament_id == tournament_id,
+                TournamentResult.athlete_id.is_(None),
+            )
+        )
+        unmatched = unmatched_results.scalar() or 0
+
     return CsvProcessingSummary(
         total_rows=len(scorable_rows),
         matched=matched,
