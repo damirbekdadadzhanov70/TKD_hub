@@ -504,6 +504,8 @@ function InteractiveChart({
   const PAD_R = 15;
 
   const [scale, setScale] = useState(1.0);
+  const [scrollRatio, setScrollRatio] = useState(1);
+  const [thumbRatio, setThumbRatio] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(1.0);
   const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
@@ -513,10 +515,23 @@ function InteractiveChart({
   const spacing = BASE_SPACING * scale;
   const svgW = PAD_L + Math.max((entryCount - 1) * spacing, 100) + PAD_R;
 
+  const updateScrollInfo = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) {
+      setScrollRatio(0);
+      setThumbRatio(1);
+      return;
+    }
+    setThumbRatio(el.clientWidth / el.scrollWidth);
+    setScrollRatio(el.scrollLeft / (el.scrollWidth - el.clientWidth));
+  }, []);
+
   // Auto-scroll to right on mount / data change
   useEffect(() => {
     const el = containerRef.current;
-    if (el) el.scrollLeft = el.scrollWidth - el.clientWidth;
+    if (el) {
+      el.scrollLeft = el.scrollWidth - el.clientWidth;
+    }
   }, [entryCount]);
 
   // Ctrl+Wheel zoom (non-passive for preventDefault)
@@ -593,8 +608,9 @@ function InteractiveChart({
       {/* Scrollable chart area */}
       <div
         ref={containerRef}
-        className="overflow-y-hidden"
+        className="overflow-y-hidden hide-scrollbar"
         style={{ marginLeft: `${Y_AXIS_W}px`, overflowX: 'auto', touchAction: 'pan-x' }}
+        onScroll={updateScrollInfo}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -617,23 +633,24 @@ function InteractiveChart({
           {children(spacing, PAD_L)}
         </svg>
       </div>
+
+      {/* Scroll indicator */}
+      {thumbRatio < 1 && (
+        <div className="mt-2 rounded-full bg-border/30" style={{ marginLeft: `${Y_AXIS_W}px`, height: 3 }}>
+          <div
+            className="h-full rounded-full bg-accent/40 transition-[left] duration-75"
+            style={{
+              width: `${thumbRatio * 100}%`,
+              marginLeft: `${scrollRatio * (1 - thumbRatio) * 100}%`,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 function WeightChart({ entries }: { entries: WeightEntry[] }) {
-  const { t } = useI18n();
-
-  if (entries.length < 2) {
-    const entry = entries[0];
-    return (
-      <div className="flex items-center justify-center py-6">
-        <span className="text-2xl font-mono font-bold text-accent">{entry.weight_kg}</span>
-        <span className="text-sm text-text-secondary ml-1">{t('health.kg')}</span>
-      </div>
-    );
-  }
-
   const weights = entries.map((e) => e.weight_kg);
   const minW = Math.min(...weights);
   const maxW = Math.max(...weights);
@@ -677,6 +694,19 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
               <g key={p.entry.id}>
                 <circle cx={p.x} cy={p.y} r="4" fill="#D4AF37" />
                 <circle cx={p.x} cy={p.y} r="2" fill="white" />
+                {entries.length === 1 && (
+                  <text
+                    x={p.x}
+                    y={p.y - 10}
+                    textAnchor="middle"
+                    fill="#D4AF37"
+                    fontSize="11"
+                    fontWeight="bold"
+                    fontFamily="var(--font-mono)"
+                  >
+                    {p.entry.weight_kg}
+                  </text>
+                )}
               </g>
             ))}
             {points.map((p, i) => {
@@ -705,18 +735,6 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
 }
 
 function SleepChart({ entries }: { entries: SleepEntry[] }) {
-  const { t } = useI18n();
-
-  if (entries.length < 2) {
-    const entry = entries[0];
-    return (
-      <div className="flex items-center justify-center py-6">
-        <span className="text-2xl font-mono font-bold text-sky-400">{entry.sleep_hours}</span>
-        <span className="text-sm text-text-secondary ml-1">{t('health.hours')}</span>
-      </div>
-    );
-  }
-
   const hours = entries.map((e) => e.sleep_hours);
   const minH = Math.min(...hours);
   const maxH = Math.max(...hours);
@@ -760,6 +778,19 @@ function SleepChart({ entries }: { entries: SleepEntry[] }) {
               <g key={p.entry.id}>
                 <circle cx={p.x} cy={p.y} r="4" fill="#38bdf8" />
                 <circle cx={p.x} cy={p.y} r="2" fill="white" />
+                {entries.length === 1 && (
+                  <text
+                    x={p.x}
+                    y={p.y - 10}
+                    textAnchor="middle"
+                    fill="#38bdf8"
+                    fontSize="11"
+                    fontWeight="bold"
+                    fontFamily="var(--font-mono)"
+                  >
+                    {p.entry.sleep_hours}
+                  </text>
+                )}
               </g>
             ))}
             {points.map((p, i) => {

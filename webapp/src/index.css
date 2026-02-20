@@ -44,7 +44,7 @@
 
 body {
   margin: 0;
-  font-family: var(--font-body);
+  font-family: var(--font-body), sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
   min-height: 100vh;
@@ -112,4 +112,13 @@ body {
 
 .podium-text {
   animation: podium-fade 200ms ease-out both;
+}
+
+/* Hide native scrollbar but keep scroll */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
