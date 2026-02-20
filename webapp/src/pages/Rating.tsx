@@ -299,10 +299,11 @@ export default function Rating() {
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
 
   // Load cities and weight categories from API (real data from DB)
-  const { data: apiCities, isDemo } = useApi<string[]>(getRatingCities, () => CITIES, []);
+  const { data: apiCities, isDemo } = useApi<string[]>(getRatingCities, CITIES, []);
+  const defaultWeights = gender === 'M' ? WEIGHT_M : gender === 'F' ? WEIGHT_F : [...WEIGHT_F, ...WEIGHT_M];
   const { data: apiWeights } = useApi<string[]>(
     () => getRatingWeights(gender || undefined),
-    () => (gender === 'M' ? WEIGHT_M : gender === 'F' ? WEIGHT_F : [...WEIGHT_F, ...WEIGHT_M]),
+    defaultWeights,
     [gender],
   );
 
