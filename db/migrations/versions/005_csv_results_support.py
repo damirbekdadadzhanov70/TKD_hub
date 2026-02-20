@@ -25,8 +25,19 @@ def upgrade() -> None:
     op.add_column("tournament_results", sa.Column("raw_full_name", sa.String(255), nullable=True))
     op.add_column("tournament_results", sa.Column("raw_weight_category", sa.String(50), nullable=True))
 
-    # Drop old unique constraint, create new one
-    op.drop_constraint("uq_tournament_results_tournament_id", "tournament_results", type_="unique")
+    # Drop old unique constraint (name may vary between SQLite/PostgreSQL)
+    # Use raw SQL to safely handle any constraint name
+    op.execute("""
+        DO $$ DECLARE r RECORD;
+        BEGIN
+            FOR r IN SELECT conname FROM pg_constraint
+                WHERE conrelid = 'tournament_results'::regclass AND contype = 'u'
+            LOOP
+                EXECUTE 'ALTER TABLE tournament_results DROP CONSTRAINT ' || r.conname;
+            END LOOP;
+        END $$;
+    """)
+
     op.create_unique_constraint(
         "uq_tournament_results_csv",
         "tournament_results",
