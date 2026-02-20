@@ -192,6 +192,11 @@ const ru = {
     weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
     prevMonth: 'Предыдущий месяц',
     nextMonth: 'Следующий месяц',
+    selectAthlete: 'Выберите спортсмена',
+    searchAthlete: 'Поиск спортсмена...',
+    noAthleteSelected: 'Выберите спортсмена для просмотра дневника',
+    noAcceptedAthletes: 'Нет подтверждённых спортсменов',
+    athleteLog: 'Дневник',
   },
   rating: {
     title: 'Рейтинг',

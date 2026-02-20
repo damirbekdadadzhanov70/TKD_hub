@@ -537,6 +537,37 @@ export function deleteMockTrainingLog(id: string) {
   saveTrainingData();
 }
 
+export function getMockCoachAthleteTrainingLogs(
+  _athleteId: string,
+  month?: number,
+  year?: number,
+): TrainingLog[] {
+  let logs = mockTrainingLogs;
+  if (month || year) {
+    logs = logs.filter((l) => {
+      const d = new Date(l.date);
+      if (month && d.getMonth() + 1 !== month) return false;
+      if (year && d.getFullYear() !== year) return false;
+      return true;
+    });
+  }
+  return logs;
+}
+
+export function getMockCoachAthleteTrainingStats(
+  athleteId: string,
+  month?: number,
+  year?: number,
+): TrainingLogStats {
+  const logs = getMockCoachAthleteTrainingLogs(athleteId, month, year);
+  if (logs.length === 0) return { total_sessions: 0, total_minutes: 0, avg_intensity: 'low', training_days: 0 };
+  const total_minutes = logs.reduce((s, l) => s + l.duration_minutes, 0);
+  const intensityScore = logs.reduce((s, l) => s + (l.intensity === 'high' ? 3 : l.intensity === 'medium' ? 2 : 1), 0);
+  const avg = intensityScore / logs.length;
+  const avg_intensity = avg >= 2.5 ? 'high' : avg >= 1.5 ? 'medium' : 'low';
+  return { total_sessions: logs.length, total_minutes, avg_intensity, training_days: new Set(logs.map(l => l.date)).size };
+}
+
 // ── Ratings ─────────────────────────────────────────────────
 
 export const mockRatings: RatingEntry[] = [

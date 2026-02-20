@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import BottomSheet from '../components/BottomSheet';
 import PullToRefresh from '../components/PullToRefresh';
 import Card from '../components/Card';
@@ -11,15 +11,25 @@ import { useI18n } from '../i18n/I18nProvider';
 import {
   createTrainingLog,
   deleteTrainingLog,
+  getCoachAthleteTrainingLogs,
+  getCoachAthleteTrainingStats,
+  getCoachAthletes,
+  getMe,
   getTrainingLogs,
   getTrainingStats,
   updateTrainingLog,
 } from '../api/endpoints';
 import {
+  getMockCoachAthleteTrainingLogs,
+  getMockCoachAthleteTrainingStats,
+  mockCoachAthletes,
+  mockMe,
   mockTrainingLogs,
   mockTrainingStats,
 } from '../api/mock';
 import type {
+  CoachAthlete,
+  MeResponse,
   TrainingLog as TrainingLogType,
   TrainingLogCreate,
   TrainingLogStats,
@@ -89,17 +99,111 @@ export default function TrainingLogPage() {
   const [deleting, setDeleting] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const { data: logs, loading, refetch } = useApi<TrainingLogType[]>(
-    () => getTrainingLogs({ month, year }),
-    mockTrainingLogs,
-    [month, year],
+  // Coach mode
+  const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
+  const isCoach = me?.role === 'coach';
+
+  const { data: athletes } = useApi<CoachAthlete[]>(
+    getCoachAthletes,
+    mockCoachAthletes,
+    [],
   );
 
-  const { data: stats } = useApi<TrainingLogStats>(
-    () => getTrainingStats({ month, year }),
-    mockTrainingStats,
-    [month, year],
+  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
+  const [showAthleteSelector, setShowAthleteSelector] = useState(false);
+  const [athleteSearch, setAthleteSearch] = useState('');
+
+  const selectedAthlete = useMemo(
+    () => athletes?.find((a) => a.id === selectedAthleteId) ?? null,
+    [athletes, selectedAthleteId],
   );
+
+  const filteredAthletes = useMemo(() => {
+    if (!athletes) return [];
+    if (!athleteSearch.trim()) return athletes;
+    const q = athleteSearch.toLowerCase();
+    return athletes.filter((a) => a.full_name.toLowerCase().includes(q));
+  }, [athletes, athleteSearch]);
+
+  // Conditional data fetching based on role
+  const logsFetcher = useCallback(() => {
+    if (isCoach && selectedAthleteId) {
+      return getCoachAthleteTrainingLogs(selectedAthleteId, { month, year });
+    }
+    return getTrainingLogs({ month, year });
+  }, [isCoach, selectedAthleteId, month, year]);
+
+  const logsMock = useMemo(() => {
+    if (isCoach && selectedAthleteId) {
+      return getMockCoachAthleteTrainingLogs(selectedAthleteId, month, year);
+    }
+    if (isCoach && !selectedAthleteId) {
+      return null;
+    }
+    return mockTrainingLogs;
+  }, [isCoach, selectedAthleteId, month, year]);
+
+  const statsFetcher = useCallback(() => {
+    if (isCoach && selectedAthleteId) {
+      return getCoachAthleteTrainingStats(selectedAthleteId, { month, year });
+    }
+    return getTrainingStats({ month, year });
+  }, [isCoach, selectedAthleteId, month, year]);
+
+  const statsMock = useMemo(() => {
+    if (isCoach && selectedAthleteId) {
+      return getMockCoachAthleteTrainingStats(selectedAthleteId, month, year);
+    }
+    if (isCoach && !selectedAthleteId) {
+      return null;
+    }
+    return mockTrainingStats;
+  }, [isCoach, selectedAthleteId, month, year]);
+
+  // Skip API calls when coach has no athlete selected
+  const shouldFetch = !isCoach || !!selectedAthleteId;
+
+  const [logs, setLogs] = useState<TrainingLogType[] | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [stats, setStats] = useState<TrainingLogStats | null>(null);
+
+  const fetchLogs = useCallback(async (silent = false) => {
+    if (!shouldFetch) {
+      setLogs(null);
+      setStats(null);
+      return;
+    }
+    if (!silent) setLogsLoading(true);
+    // Check if we're in demo/non-Telegram mode
+    const hasApi = !!import.meta.env.VITE_API_URL;
+    const isTg = !!(window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData;
+    if (!isTg || !hasApi) {
+      await new Promise((r) => setTimeout(r, 300));
+      setLogs(logsMock as TrainingLogType[] | null);
+      setStats(statsMock);
+      setLogsLoading(false);
+      return;
+    }
+    try {
+      const [logsResult, statsResult] = await Promise.all([
+        logsFetcher(),
+        statsFetcher(),
+      ]);
+      setLogs(logsResult);
+      setStats(statsResult);
+    } catch (err) {
+      console.error('Training log fetch error:', err);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [shouldFetch, logsFetcher, statsFetcher, logsMock, statsMock]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const loading = logsLoading;
+  const refetch = fetchLogs;
 
   const logDates = useMemo(() => {
     const set = new Set<number>();
@@ -153,6 +257,9 @@ export default function TrainingLogPage() {
     }
   };
 
+  // Coach: read-only mode
+  const readOnly = isCoach;
+
   return (
     <PullToRefresh onRefresh={() => refetch(true)}>
     <div className="relative">
@@ -162,166 +269,203 @@ export default function TrainingLogPage() {
         </h1>
       </div>
 
-      {/* Calendar */}
-      <div className="px-4">
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <button aria-label={t('training.prevMonth')} onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">‹</button>
-            <span className="font-semibold text-sm text-text">
-              {MONTH_NAMES[month - 1]} {year}
+      {/* Coach: Athlete Selector */}
+      {isCoach && (
+        <div className="px-4 mb-2">
+          <button
+            onClick={() => {
+              setAthleteSearch('');
+              setShowAthleteSelector(true);
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-bg-secondary text-sm cursor-pointer hover:border-accent active:opacity-80 transition-all"
+          >
+            <span className={selectedAthlete ? 'text-text font-medium' : 'text-text-secondary'}>
+              {selectedAthlete ? `${t('training.athleteLog')}: ${selectedAthlete.full_name}` : t('training.selectAthlete')}
             </span>
-            <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>›</button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {WEEKDAYS.map((d: string) => (
-              <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
-            ))}
-            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const hasLog = logDates.has(day);
-              const isToday = isCurrentMonth && day === today;
-              const isSelected = selectedDay === day;
-              const isFuture = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1) || (isCurrentMonth && day > today);
-              return (
-                <div
-                  key={day}
-                  onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)}
-                  className={`py-1.5 rounded-lg relative text-xs transition-colors ${
-                    isFuture
-                      ? 'text-text-disabled cursor-default'
-                      : isSelected
-                        ? 'bg-accent/20 text-accent font-bold cursor-pointer'
-                        : isToday
-                          ? 'bg-accent text-white font-bold cursor-pointer'
-                          : 'text-text cursor-pointer'
-                  }`}
-                >
-                  {day}
-                  {hasLog && (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary shrink-0">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Coach: no athlete selected state */}
+      {isCoach && !selectedAthleteId && (
+        <div className="px-4 pt-8">
+          <EmptyState
+            title={t('training.selectAthlete')}
+            description={t('training.noAthleteSelected')}
+          />
+        </div>
+      )}
+
+      {/* Main content — show when athlete mode OR coach with selected athlete */}
+      {(!isCoach || selectedAthleteId) && (
+        <>
+          {/* Calendar */}
+          <div className="px-4">
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <button aria-label={t('training.prevMonth')} onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">‹</button>
+                <span className="font-semibold text-sm text-text">
+                  {MONTH_NAMES[month - 1]} {year}
+                </span>
+                <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>›</button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                {WEEKDAYS.map((d: string) => (
+                  <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
+                ))}
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                  <div key={`empty-${i}`} />
+                ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const hasLog = logDates.has(day);
+                  const isToday = isCurrentMonth && day === today;
+                  const isSelected = selectedDay === day;
+                  const isFuture = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1) || (isCurrentMonth && day > today);
+                  return (
                     <div
-                      className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
-                        isSelected ? 'bg-accent' : isToday ? 'bg-white' : 'bg-accent'
+                      key={day}
+                      onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)}
+                      className={`py-1.5 rounded-lg relative text-xs transition-colors ${
+                        isFuture
+                          ? 'text-text-disabled cursor-default'
+                          : isSelected
+                            ? 'bg-accent/20 text-accent font-bold cursor-pointer'
+                            : isToday
+                              ? 'bg-accent text-white font-bold cursor-pointer'
+                              : 'text-text cursor-pointer'
                       }`}
-                    />
+                    >
+                      {day}
+                      {hasLog && (
+                        <div
+                          className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
+                            isSelected ? 'bg-accent' : isToday ? 'bg-white' : 'bg-accent'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Selected day details */}
+              {selectedDay !== null && (
+                <div className="mt-3 pt-3 border-t border-dashed border-border">
+                  <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
+                    {selectedDay} {MONTH_NAMES[month - 1]}
+                  </p>
+                  {selectedDayLogs.length === 0 ? (
+                    <p className="text-sm text-text-secondary py-2">{t('training.noTrainingThisDay')}</p>
+                  ) : (
+                    selectedDayLogs.map((log) => (
+                      <div key={log.id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
+                            <TrainingTypeIcon type={log.type} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold capitalize text-text">{log.type}</p>
+                            <p className="text-[11px] text-text-secondary">
+                              {log.duration_minutes} {t('common.min')} · {INTENSITY_LABELS[log.intensity] || log.intensity}
+                            </p>
+                          </div>
+                        </div>
+                        {log.weight && (
+                          <span className="text-xs font-mono text-text-secondary shrink-0 ml-2">{log.weight} kg</span>
+                        )}
+                      </div>
+                    ))
                   )}
                 </div>
-              );
-            })}
+              )}
+            </Card>
           </div>
 
-          {/* Selected day details */}
-          {selectedDay !== null && (
-            <div className="mt-3 pt-3 border-t border-dashed border-border">
-              <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
-                {selectedDay} {MONTH_NAMES[month - 1]}
-              </p>
-              {selectedDayLogs.length === 0 ? (
-                <p className="text-sm text-text-secondary py-2">{t('training.noTrainingThisDay')}</p>
-              ) : (
-                selectedDayLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
+          {/* Monthly stats */}
+          {stats && stats.total_sessions > 0 && (
+            <div className="px-4">
+              <Card>
+                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">{t('training.monthSummary')}</h3>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-accent-light rounded-xl py-3">
+                    <p className="text-xl font-bold text-accent">{stats.total_sessions}</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">{t('training.sessions')}</p>
+                  </div>
+                  <div className="bg-accent-light rounded-xl py-3">
+                    <p className="text-xl font-bold text-accent">{(stats.total_minutes / 60).toFixed(1)}</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">{t('training.hours')}</p>
+                  </div>
+                  <div className="bg-accent-light rounded-xl py-3">
+                    <p className="text-xl font-bold text-accent capitalize">{INTENSITY_LABELS[stats.avg_intensity] || stats.avg_intensity}</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">{t('training.avgIntensity')}</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Log list */}
+          <div className="px-4">
+            <h3 className="text-sm font-semibold text-text-secondary mb-2">{t('training.recentSessions')}</h3>
+            {loading ? (
+              <LoadingSpinner />
+            ) : !logs || logs.length === 0 ? (
+              <EmptyState title={t('training.noTrainingLogs')} description={readOnly ? '' : t('training.noTrainingLogsDesc')} />
+            ) : (
+              logs.map((log) => (
+                <Card key={log.id} onClick={readOnly ? undefined : () => setActionLog(log)}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
                         <TrainingTypeIcon type={log.type} />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold capitalize text-text">{log.type}</p>
-                        <p className="text-[11px] text-text-secondary">
-                          {log.duration_minutes} {t('common.min')} · {INTENSITY_LABELS[log.intensity] || log.intensity}
+                      <div>
+                        <p className="font-semibold text-sm capitalize text-text">
+                          {log.type}
+                        </p>
+                        <p className="text-xs mt-0.5 text-text-secondary">
+                          {log.date} · {log.duration_minutes} {t('common.min')} · {INTENSITY_LABELS[log.intensity] || log.intensity}
                         </p>
                       </div>
                     </div>
                     {log.weight && (
-                      <span className="text-xs font-mono text-text-secondary shrink-0 ml-2">{log.weight} kg</span>
+                      <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
+                        {log.weight} kg
+                      </span>
                     )}
                   </div>
-                ))
-              )}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Monthly stats */}
-      {stats && stats.total_sessions > 0 && (
-        <div className="px-4">
-          <Card>
-            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">{t('training.monthSummary')}</h3>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent">{stats.total_sessions}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5">{t('training.sessions')}</p>
-              </div>
-              <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent">{(stats.total_minutes / 60).toFixed(1)}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5">{t('training.hours')}</p>
-              </div>
-              <div className="bg-accent-light rounded-xl py-3">
-                <p className="text-xl font-bold text-accent capitalize">{INTENSITY_LABELS[stats.avg_intensity] || stats.avg_intensity}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5">{t('training.avgIntensity')}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
+                  {log.notes && (
+                    <p className="text-xs mt-2 text-text ml-12">{log.notes}</p>
+                  )}
+                  {log.coach_comment && (
+                    <p className="text-xs mt-1 italic text-accent ml-12">
+                      {t('training.coach')}: {log.coach_comment}
+                    </p>
+                  )}
+                </Card>
+              ))
+            )}
+          </div>
+        </>
       )}
 
-      {/* Log list */}
-      <div className="px-4">
-        <h3 className="text-sm font-semibold text-text-secondary mb-2">{t('training.recentSessions')}</h3>
-        {loading ? (
-          <LoadingSpinner />
-        ) : !logs || logs.length === 0 ? (
-          <EmptyState title={t('training.noTrainingLogs')} description={t('training.noTrainingLogsDesc')} />
-        ) : (
-          logs.map((log) => (
-            <Card key={log.id} onClick={() => setActionLog(log)}>
-              <div className="flex justify-between items-start">
-                <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${INTENSITY_STYLES[log.intensity] || INTENSITY_STYLES.low}`}>
-                    <TrainingTypeIcon type={log.type} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm capitalize text-text">
-                      {log.type}
-                    </p>
-                    <p className="text-xs mt-0.5 text-text-secondary">
-                      {log.date} · {log.duration_minutes} {t('common.min')} · {INTENSITY_LABELS[log.intensity] || log.intensity}
-                    </p>
-                  </div>
-                </div>
-                {log.weight && (
-                  <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
-                    {log.weight} kg
-                  </span>
-                )}
-              </div>
-              {log.notes && (
-                <p className="text-xs mt-2 text-text ml-12">{log.notes}</p>
-              )}
-              {log.coach_comment && (
-                <p className="text-xs mt-1 italic text-accent ml-12">
-                  {t('training.coach')}: {log.coach_comment}
-                </p>
-              )}
-            </Card>
-          ))
-        )}
-      </div>
+      {/* FAB — only for athletes */}
+      {!readOnly && (
+        <button
+          aria-label={t('training.addTraining')}
+          onClick={() => setShowForm(true)}
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
+        >
+          +
+        </button>
+      )}
 
-      {/* FAB */}
-      <button
-        aria-label={t('training.addTraining')}
-        onClick={() => setShowForm(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
-      >
-        +
-      </button>
-
-      {/* Action sheet */}
-      {actionLog && (
+      {/* Action sheet — only for athletes */}
+      {!readOnly && actionLog && (
         <BottomSheet onClose={() => setActionLog(null)}>
           <div className="p-4 pt-5">
             <p className="text-sm text-text-secondary text-center mb-1">
@@ -362,8 +506,8 @@ export default function TrainingLogPage() {
         </BottomSheet>
       )}
 
-      {/* Confirmation popup */}
-      {confirmAction && (
+      {/* Confirmation popup — only for athletes */}
+      {!readOnly && confirmAction && (
         <BottomSheet onClose={() => setConfirmAction(null)}>
           <div className="p-4 pt-5 text-center">
             <h2 className="text-lg font-bold text-text mb-1">
@@ -428,6 +572,49 @@ export default function TrainingLogPage() {
             refetch(true);
           }}
         />
+      )}
+
+      {/* Athlete selector bottom sheet */}
+      {showAthleteSelector && (
+        <BottomSheet onClose={() => setShowAthleteSelector(false)}>
+          <div className="p-4 pt-5">
+            <h2 className="text-lg font-bold text-text mb-3">{t('training.selectAthlete')}</h2>
+            <input
+              type="text"
+              value={athleteSearch}
+              onChange={(e) => setAthleteSearch(e.target.value)}
+              placeholder={t('training.searchAthlete')}
+              className="w-full rounded-lg px-3 py-2.5 text-sm border border-border bg-bg-secondary text-text outline-none mb-3"
+              autoFocus
+            />
+            {filteredAthletes.length === 0 ? (
+              <p className="text-sm text-text-secondary text-center py-4">{t('training.noAcceptedAthletes')}</p>
+            ) : (
+              <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+                {filteredAthletes.map((athlete) => (
+                  <button
+                    key={athlete.id}
+                    onClick={() => {
+                      setSelectedAthleteId(athlete.id);
+                      setSelectedDay(null);
+                      setShowAthleteSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-3 rounded-xl border-none cursor-pointer active:opacity-80 transition-all ${
+                      selectedAthleteId === athlete.id
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-transparent text-text hover:bg-bg-secondary'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{athlete.full_name}</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">
+                      {athlete.weight_category}{athlete.club ? ` · ${athlete.club}` : ''}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </BottomSheet>
       )}
     </div>
     </PullToRefresh>

@@ -335,6 +335,35 @@ export async function getCoachEntries(): Promise<CoachEntry[]> {
   return res.items;
 }
 
+// --- Coach: Athlete Training Log ---
+
+export async function getCoachAthleteTrainingLogs(
+  athleteId: string,
+  params?: { month?: number; year?: number },
+): Promise<TrainingLog[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.month) searchParams.set('month', String(params.month));
+  if (params?.year) searchParams.set('year', String(params.year));
+  const qs = searchParams.toString();
+  const res = await apiRequest<PaginatedResponse<TrainingLog>>(
+    `/coach/athletes/${athleteId}/training-log${qs ? `?${qs}` : ''}`,
+  );
+  return res.items;
+}
+
+export function getCoachAthleteTrainingStats(
+  athleteId: string,
+  params?: { month?: number; year?: number },
+): Promise<TrainingLogStats> {
+  const searchParams = new URLSearchParams();
+  if (params?.month) searchParams.set('month', String(params.month));
+  if (params?.year) searchParams.set('year', String(params.year));
+  const qs = searchParams.toString();
+  return apiRequest<TrainingLogStats>(
+    `/coach/athletes/${athleteId}/training-log/stats${qs ? `?${qs}` : ''}`,
+  );
+}
+
 // --- Notifications ---
 
 export function getNotifications(page = 1): Promise<NotificationItem[]> {

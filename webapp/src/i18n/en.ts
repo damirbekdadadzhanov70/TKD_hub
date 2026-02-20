@@ -192,6 +192,11 @@ const en = {
     weekdays: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
+    selectAthlete: 'Select athlete',
+    searchAthlete: 'Search athlete...',
+    noAthleteSelected: 'Select an athlete to view their training log',
+    noAcceptedAthletes: 'No accepted athletes',
+    athleteLog: 'Log',
   },
   rating: {
     title: 'Rating',

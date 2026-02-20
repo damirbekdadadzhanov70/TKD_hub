@@ -4123,3 +4123,134 @@ async def test_csv_multiple_tournaments_accumulate(admin_client, admin_user, db_
     athlete = athlete_result.scalar_one()
     await db_session.refresh(athlete)
     assert athlete.rating_points >= p1 + p2
+
+
+# ═══════════════════════════════════════════════════════════════
+#  COACH TRAINING LOG VIEWER
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_coach_view_athlete_training_log(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    coach_with_athlete: tuple,
+):
+    """Coach can view training logs of an accepted athlete."""
+    coach_u, athlete_u = coach_with_athlete
+
+    from db.models.training import TrainingLog as TrainingLogModel
+
+    log = TrainingLogModel(
+        athlete_id=athlete_u.athlete.id,
+        date=date(2026, 2, 10),
+        type="sparring",
+        duration_minutes=90,
+        intensity="high",
+    )
+    db_session.add(log)
+    await db_session.commit()
+
+    resp = await coach_client.get(
+        f"/api/coach/athletes/{athlete_u.athlete.id}/training-log"
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 1
+    assert data["items"][0]["type"] == "sparring"
+    assert data["items"][0]["duration_minutes"] == 90
+
+
+@pytest.mark.asyncio
+async def test_coach_view_athlete_training_stats(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    coach_with_athlete: tuple,
+):
+    """Coach can view training stats of an accepted athlete."""
+    coach_u, athlete_u = coach_with_athlete
+
+    from db.models.training import TrainingLog as TrainingLogModel
+
+    for i in range(3):
+        log = TrainingLogModel(
+            athlete_id=athlete_u.athlete.id,
+            date=date(2026, 2, 10 + i),
+            type="cardio",
+            duration_minutes=45,
+            intensity="medium",
+        )
+        db_session.add(log)
+    await db_session.commit()
+
+    resp = await coach_client.get(
+        f"/api/coach/athletes/{athlete_u.athlete.id}/training-log/stats?month=2&year=2026"
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_sessions"] == 3
+    assert data["total_minutes"] == 135
+    assert data["training_days"] == 3
+    assert data["avg_intensity"] == "medium"
+
+
+@pytest.mark.asyncio
+async def test_coach_cannot_view_unlinked_athlete_log(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    coach_user: User,
+):
+    """Coach gets 403 when trying to view logs of an unlinked athlete."""
+    # Create a standalone athlete not linked to this coach
+    other_user = User(telegram_id=555555555, username="other_athlete", language="ru")
+    db_session.add(other_user)
+    await db_session.flush()
+    other_athlete = Athlete(
+        user_id=other_user.id,
+        full_name="Other Athlete",
+        date_of_birth=date(2000, 1, 1),
+        gender="M",
+        weight_category="-68kg",
+        current_weight=68,
+        sport_rank="1 разряд",
+        country="Россия",
+        city="Москва",
+    )
+    db_session.add(other_athlete)
+    await db_session.commit()
+
+    resp = await coach_client.get(
+        f"/api/coach/athletes/{other_athlete.id}/training-log"
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_coach_cannot_view_pending_athlete_log(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    coach_user: User,
+):
+    """Coach gets 403 when athlete link is still pending."""
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+    athlete_result = await db_session.execute(
+        select(User).where(User.id == test_user.id).options(selectinload(User.athlete))
+    )
+    athlete_u = athlete_result.scalar_one()
+
+    link = CoachAthlete(
+        coach_id=coach_u.coach.id,
+        athlete_id=athlete_u.athlete.id,
+        status="pending",
+    )
+    db_session.add(link)
+    await db_session.commit()
+
+    resp = await coach_client.get(
+        f"/api/coach/athletes/{athlete_u.athlete.id}/training-log"
+    )
+    assert resp.status_code == 403
