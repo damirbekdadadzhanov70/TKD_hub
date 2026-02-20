@@ -995,6 +995,7 @@ async def _process_csv_results(
     matched = 0
     unmatched = 0
     total_points = 0
+    matched_details: list[dict[str, object]] = []
     scorable_rows = [r for r in rows if r.place <= 10]
 
     for row in scorable_rows:
@@ -1032,9 +1033,15 @@ async def _process_csv_results(
             athlete.rating_points += points
             matched += 1
             total_points += points
+            matched_details.append(
+                {
+                    "name": athlete.full_name,
+                    "points": points,
+                    "place": row.place,
+                }
+            )
         else:
             unmatched += 1
-            total_points += points
 
     await session.flush()
 
@@ -1043,6 +1050,7 @@ async def _process_csv_results(
         matched=matched,
         unmatched=unmatched,
         points_awarded=total_points,
+        matched_details=matched_details,
     )
 
 

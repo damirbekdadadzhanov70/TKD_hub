@@ -143,6 +143,7 @@ const en = {
     csvMatched: 'Athletes matched',
     csvUnmatched: 'Not matched',
     csvPointsAwarded: 'Points awarded',
+    csvPlace: 'place',
     fileTooLarge: 'File too large. Maximum 10 MB',
     selectFile: 'Select',
     fileUploaded: 'File uploaded',

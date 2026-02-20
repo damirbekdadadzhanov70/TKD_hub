@@ -143,6 +143,7 @@ const ru = {
     csvMatched: 'Найдено спортсменов',
     csvUnmatched: 'Не найдено',
     csvPointsAwarded: 'Начислено очков',
+    csvPlace: 'место',
     fileTooLarge: 'Файл слишком большой. Максимум 10 МБ',
     selectFile: 'Выбрать',
     fileUploaded: 'Файл загружен',

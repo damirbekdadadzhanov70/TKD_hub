@@ -130,11 +130,18 @@ export interface TournamentResult {
   is_matched?: boolean;
 }
 
+export interface CsvMatchedDetail {
+  name: string;
+  points: number;
+  place: number;
+}
+
 export interface CsvProcessingSummary {
   total_rows: number;
   matched: number;
   unmatched: number;
   points_awarded: number;
+  matched_details: CsvMatchedDetail[];
 }
 
 export interface TournamentFileUploadResponse extends TournamentFile {

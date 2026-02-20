@@ -806,11 +806,20 @@ function DocumentsSection({
         // Show CSV processing summary
         if (resp.csv_summary) {
           const s = resp.csv_summary;
-          showToast(
-            `${t('tournamentDetail.csvProcessed')}: ${t('tournamentDetail.csvMatched')}: ${s.matched}, ${t('tournamentDetail.csvUnmatched')}: ${s.unmatched}, ${t('tournamentDetail.csvPointsAwarded')}: ${s.points_awarded}`,
-            'success',
-            true,
-          );
+          const lines = [`${t('tournamentDetail.csvProcessed')}`];
+          if (s.matched_details.length > 0) {
+            lines.push(`${t('tournamentDetail.csvMatched')}: ${s.matched}`);
+            for (const d of s.matched_details) {
+              lines.push(`  ${d.name} — ${d.place} ${t('tournamentDetail.csvPlace')}, +${d.points} pts`);
+            }
+          }
+          if (s.unmatched > 0) {
+            lines.push(`${t('tournamentDetail.csvUnmatched')}: ${s.unmatched}`);
+          }
+          if (s.points_awarded > 0) {
+            lines.push(`${t('tournamentDetail.csvPointsAwarded')}: ${s.points_awarded}`);
+          }
+          showToast(lines.join('\n'), 'success', true);
         }
       } catch (err) {
         hapticNotification('error');

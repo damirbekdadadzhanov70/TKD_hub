@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   opacity: toast.visible ? 1 : 0,
                 }}
               >
-                <p className={`text-sm ${toast.type === 'error' ? 'text-rose-500' : 'text-text'}`}>{toast.message}</p>
+                <p className={`text-sm whitespace-pre-line ${toast.type === 'error' ? 'text-rose-500' : 'text-text'}`}>{toast.message}</p>
                 {toast.persistent && (
                   <button
                     onClick={() => dismissToast(toast.id)}

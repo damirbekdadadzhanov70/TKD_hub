@@ -151,11 +151,18 @@ class TournamentResultCreate(BaseModel):
     rating_points_earned: int = Field(0, ge=0)
 
 
+class CsvMatchedDetail(BaseModel):
+    name: str
+    points: int
+    place: int
+
+
 class CsvProcessingSummary(BaseModel):
     total_rows: int
     matched: int
     unmatched: int
     points_awarded: int
+    matched_details: list[CsvMatchedDetail] = []
 
 
 class TournamentFileUploadResponse(TournamentFileRead):

@@ -3594,8 +3594,11 @@ async def test_csv_upload_and_match(admin_client, admin_user, db_session):
     assert summary["total_rows"] == 2
     assert summary["matched"] == 1
     assert summary["unmatched"] == 1
-    # 1st place × importance 2 = 12 × 2 = 24; 3rd × 2 = 16
-    assert summary["points_awarded"] == 24 + 16
+    # Only matched athlete gets counted: 1st place × importance 2 = 12 × 2 = 24
+    assert summary["points_awarded"] == 24
+    assert len(summary["matched_details"]) == 1
+    assert summary["matched_details"][0]["name"] == "Admin User"
+    assert summary["matched_details"][0]["points"] == 24
 
     from sqlalchemy import select
 
@@ -3636,8 +3639,8 @@ async def test_csv_upload_section_format(admin_client, admin_user, db_session):
     # normalize("80kg") != normalize("80"), so no match. That's expected for this test.
     # All 3 are unmatched because weight normalization differs
     assert summary["matched"] + summary["unmatched"] == 3
-    # Place 5 (from "5-8") has 5 base points
-    assert summary["points_awarded"] > 0
+    # All unmatched — points_awarded only counts matched athletes
+    assert summary["points_awarded"] == 0
 
 
 @pytest.mark.asyncio
@@ -3701,7 +3704,9 @@ async def test_csv_place_range_points(admin_client, admin_user, db_session):
     summary = resp.json()["csv_summary"]
     # place 1 = 12, place 5 = 5, place 9 = 1, place 17 = 0 (out of top-10)
     assert summary["total_rows"] == 3  # Only places ≤ 10 are scorable
-    assert summary["points_awarded"] == 12 + 5 + 1
+    # All unmatched — points_awarded only counts matched athletes
+    assert summary["points_awarded"] == 0
+    assert summary["unmatched"] == 3
 
 
 @pytest.mark.asyncio
