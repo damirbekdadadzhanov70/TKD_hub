@@ -326,6 +326,7 @@ export interface UserSearchItem {
   role: string;
   city: string | null;
   club: string | null;
+  photo_url: string | null;
 }
 
 export interface PaginatedResponse<T> {

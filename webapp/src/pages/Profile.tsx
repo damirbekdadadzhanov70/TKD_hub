@@ -335,9 +335,17 @@ function UserSearchSheet({ onClose }: { onClose: () => void }) {
             }}
             className="w-full flex items-center gap-3 py-2.5 border-b border-dashed border-border bg-transparent border-x-0 border-t-0 cursor-pointer text-left active:opacity-70 hover:bg-bg-secondary transition-colors"
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
-              {(u.full_name || '?').charAt(0)}
-            </div>
+            {u.photo_url ? (
+              <img
+                src={u.photo_url}
+                alt={u.full_name || ''}
+                className="w-9 h-9 rounded-full object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+                {(u.full_name || '?').charAt(0)}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-medium text-text truncate">{u.full_name || u.id}</p>
               <div className="flex items-center gap-1.5">

@@ -25,6 +25,7 @@ class UserSearchItem(BaseModel):
     role: str
     city: Optional[str] = None
     club: Optional[str] = None
+    photo_url: Optional[str] = None
 
 
 class UserDetailResponse(BaseModel):
@@ -69,10 +70,12 @@ async def search_users(
         full_name = None
         city = None
         club = None
+        photo_url = None
         if u.athlete:
             full_name = u.athlete.full_name
             city = u.athlete.city
             club = u.athlete.club
+            photo_url = u.athlete.photo_url
         elif u.coach:
             full_name = u.coach.full_name
             city = u.coach.city
@@ -84,6 +87,7 @@ async def search_users(
                 role=role,
                 city=city,
                 club=club,
+                photo_url=photo_url,
             )
         )
 

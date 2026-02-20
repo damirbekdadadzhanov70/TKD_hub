@@ -123,12 +123,21 @@ export default function AdminUserProfile() {
 
       {/* Avatar + name + role */}
       <div className="flex flex-col items-center pb-4 px-4">
-        <div
-          className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-medium bg-accent-light text-accent mb-3"
-          style={{ border: '1px solid var(--color-accent)' }}
-        >
-          {initial}
-        </div>
+        {user.athlete?.photo_url ? (
+          <img
+            src={user.athlete.photo_url}
+            alt={displayName}
+            className="w-24 h-24 rounded-full object-cover mb-3"
+            style={{ border: '1px solid var(--color-accent)' }}
+          />
+        ) : (
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-medium bg-accent-light text-accent mb-3"
+            style={{ border: '1px solid var(--color-accent)' }}
+          >
+            {initial}
+          </div>
+        )}
         <h1 className="text-[22px] font-heading text-text-heading text-center">
           {displayName}
         </h1>
