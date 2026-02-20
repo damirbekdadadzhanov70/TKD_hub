@@ -25,13 +25,7 @@ async def list_training_logs(
     limit: int = Query(50, ge=1, le=100),
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes have training logs",
-        )
-
-    query = select(TrainingLog).where(TrainingLog.athlete_id == ctx.user.athlete.id).order_by(TrainingLog.date.desc())
+    query = select(TrainingLog).where(TrainingLog.user_id == ctx.user.id).order_by(TrainingLog.date.desc())
     if month:
         query = query.where(extract("month", TrainingLog.date) == month)
     if year:
@@ -53,14 +47,9 @@ async def create_training_log(
     data: TrainingLogCreate,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can create training logs",
-        )
-
     log = TrainingLog(
-        athlete_id=ctx.user.athlete.id,
+        user_id=ctx.user.id,
+        athlete_id=ctx.user.athlete.id if ctx.user.athlete else None,
         date=data.date,
         type=data.type,
         duration_minutes=data.duration_minutes,
@@ -81,13 +70,7 @@ async def get_training_stats(
     year: int | None = Query(None, ge=2020),
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes have training stats",
-        )
-
-    filters = [TrainingLog.athlete_id == ctx.user.athlete.id]
+    filters = [TrainingLog.user_id == ctx.user.id]
     if month:
         filters.append(extract("month", TrainingLog.date) == month)
     if year:
@@ -139,16 +122,10 @@ async def update_training_log(
     data: TrainingLogUpdate,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can update training logs",
-        )
-
     result = await ctx.session.execute(
         select(TrainingLog).where(
             TrainingLog.id == log_id,
-            TrainingLog.athlete_id == ctx.user.athlete.id,
+            TrainingLog.user_id == ctx.user.id,
         )
     )
     log = result.scalar_one_or_none()
@@ -173,16 +150,10 @@ async def delete_training_log(
     log_id: uuid.UUID,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can delete training logs",
-        )
-
     result = await ctx.session.execute(
         select(TrainingLog).where(
             TrainingLog.id == log_id,
-            TrainingLog.athlete_id == ctx.user.athlete.id,
+            TrainingLog.user_id == ctx.user.id,
         )
     )
     log = result.scalar_one_or_none()

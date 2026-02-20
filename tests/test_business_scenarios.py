@@ -4142,6 +4142,7 @@ async def test_coach_view_athlete_training_log(
     from db.models.training import TrainingLog as TrainingLogModel
 
     log = TrainingLogModel(
+        user_id=athlete_u.id,
         athlete_id=athlete_u.athlete.id,
         date=date(2026, 2, 10),
         type="sparring",
@@ -4172,6 +4173,7 @@ async def test_coach_view_athlete_training_stats(
 
     for i in range(3):
         log = TrainingLogModel(
+            user_id=athlete_u.id,
             athlete_id=athlete_u.athlete.id,
             date=date(2026, 2, 10 + i),
             type="cardio",

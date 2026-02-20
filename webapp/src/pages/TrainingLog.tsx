@@ -110,8 +110,7 @@ export default function TrainingLogPage() {
   );
 
   // 'self' = coach's own log, athlete UUID = viewing that athlete's log, null = nothing selected
-  const coachHasAthlete = isCoach && !!me?.athlete;
-  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(coachHasAthlete ? 'self' : null);
+  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>('self');
   const [showAthleteSelector, setShowAthleteSelector] = useState(false);
   const [athleteSearch, setAthleteSearch] = useState('');
 
@@ -598,12 +597,10 @@ export default function TrainingLogPage() {
               className="w-full rounded-lg px-3 py-2.5 text-sm border border-border bg-bg-secondary text-text outline-none mb-3"
               autoFocus
             />
-            {filteredAthletes.length === 0 && !coachHasAthlete ? (
-              <p className="text-sm text-text-secondary text-center py-4">{t('training.noAcceptedAthletes')}</p>
-            ) : (
+            {filteredAthletes.length === 0 ? (
               <div className="space-y-1 max-h-[50vh] overflow-y-auto">
-                {/* Coach's own log option */}
-                {coachHasAthlete && (!athleteSearch.trim() || me!.athlete!.full_name.toLowerCase().includes(athleteSearch.toLowerCase())) && (
+                {/* Coach's own log — always available */}
+                {(!athleteSearch.trim() || t('training.myLog').toLowerCase().includes(athleteSearch.toLowerCase()) || (me?.athlete?.full_name && me.athlete.full_name.toLowerCase().includes(athleteSearch.toLowerCase()))) && (
                   <button
                     onClick={() => {
                       setSelectedAthleteId('self');
@@ -617,9 +614,39 @@ export default function TrainingLogPage() {
                     }`}
                   >
                     <p className="text-sm font-semibold">{t('training.myLog')}</p>
-                    <p className="text-[11px] text-text-secondary mt-0.5">
-                      {me!.athlete!.full_name} · {me!.athlete!.weight_category}
-                    </p>
+                    {me?.athlete && (
+                      <p className="text-[11px] text-text-secondary mt-0.5">
+                        {me.athlete.full_name} · {me.athlete.weight_category}
+                      </p>
+                    )}
+                  </button>
+                )}
+                {filteredAthletes.length === 0 && athleteSearch.trim() === '' && (
+                  <p className="text-sm text-text-secondary text-center py-4">{t('training.noAcceptedAthletes')}</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+                {/* Coach's own log — always available */}
+                {(!athleteSearch.trim() || t('training.myLog').toLowerCase().includes(athleteSearch.toLowerCase()) || (me?.athlete?.full_name && me.athlete.full_name.toLowerCase().includes(athleteSearch.toLowerCase()))) && (
+                  <button
+                    onClick={() => {
+                      setSelectedAthleteId('self');
+                      setSelectedDay(null);
+                      setShowAthleteSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-3 rounded-xl border-none cursor-pointer active:opacity-80 transition-all ${
+                      isSelfLog
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-transparent text-text hover:bg-bg-secondary'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{t('training.myLog')}</p>
+                    {me?.athlete && (
+                      <p className="text-[11px] text-text-secondary mt-0.5">
+                        {me.athlete.full_name} · {me.athlete.weight_category}
+                      </p>
+                    )}
                   </button>
                 )}
                 {filteredAthletes.map((athlete) => (
