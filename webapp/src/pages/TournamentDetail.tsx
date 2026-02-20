@@ -621,7 +621,6 @@ export function ResultsTab({ tournamentId }: { tournamentId: string }) {
 
 /* ---- Results accordion (hidden in UI, kept for future use) ---- */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ResultsAccordion({ results }: { results: TournamentResult[] }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);

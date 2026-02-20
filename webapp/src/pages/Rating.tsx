@@ -326,7 +326,7 @@ export default function Rating() {
       const a = me.athlete;
       raw = raw.map((e) =>
         e.athlete_id === myAthleteId
-          ? { ...e, full_name: a.full_name, city: a.city, club: a.club, weight_category: a.weight_category, sport_rank: a.sport_rank, rating_points: a.rating_points }
+          ? { ...e, full_name: a.full_name, city: a.city, club: a.club, weight_category: a.weight_category, sport_rank: a.sport_rank, rating_points: a.rating_points, photo_url: a.photo_url }
           : e,
       );
     }

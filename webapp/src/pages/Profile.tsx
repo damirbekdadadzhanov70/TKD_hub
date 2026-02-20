@@ -965,7 +965,6 @@ function CoachSection({ me, mutate }: { me: MeResponse; mutate: (d: MeResponse) 
   const { showToast } = useToast();
   const { hapticNotification } = useTelegram();
   const coach = me.coach!;
-  const navigate = useNavigate();
   const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState(false);
   const { data: rawAthletes, loading: loadingAthletes, refetch: refetchAthletes } = useApi<CoachAthlete[]>(
