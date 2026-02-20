@@ -76,7 +76,7 @@ class TournamentInterestResponse(BaseModel):
 class TournamentResultRead(BaseModel):
     id: uuid.UUID
     tournament_id: uuid.UUID
-    athlete_id: uuid.UUID
+    athlete_id: Optional[uuid.UUID] = None
     athlete_name: str
     city: str
     weight_category: str
@@ -84,6 +84,7 @@ class TournamentResultRead(BaseModel):
     gender: Optional[str] = None
     place: int
     rating_points_earned: int
+    is_matched: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -148,3 +149,14 @@ class TournamentResultCreate(BaseModel):
     gender: str | None = Field(None, max_length=10)
     place: int = Field(..., ge=1)
     rating_points_earned: int = Field(0, ge=0)
+
+
+class CsvProcessingSummary(BaseModel):
+    total_rows: int
+    matched: int
+    unmatched: int
+    points_awarded: int
+
+
+class TournamentFileUploadResponse(TournamentFileRead):
+    csv_summary: Optional[CsvProcessingSummary] = None

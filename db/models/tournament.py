@@ -76,22 +76,26 @@ class TournamentEntry(Base):
 
 class TournamentResult(Base):
     __tablename__ = "tournament_results"
-    __table_args__ = (UniqueConstraint("tournament_id", "athlete_id", "weight_category", "age_category"),)
+    __table_args__ = (UniqueConstraint("tournament_id", "raw_full_name", "weight_category"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tournament_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
     )
-    athlete_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
+    athlete_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True
+    )
     weight_category: Mapped[str] = mapped_column(String(50), nullable=False)
     age_category: Mapped[str] = mapped_column(String(50), nullable=False)
     gender: Mapped[str | None] = mapped_column(String(10))
     place: Mapped[int] = mapped_column(Integer, nullable=False)
     rating_points_earned: Mapped[int] = mapped_column(Integer, default=0)
+    raw_full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    raw_weight_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     tournament: Mapped["Tournament"] = relationship(back_populates="results")
-    athlete: Mapped["Athlete"] = relationship()
+    athlete: Mapped["Athlete | None"] = relationship()
 
 
 class TournamentInterest(Base):

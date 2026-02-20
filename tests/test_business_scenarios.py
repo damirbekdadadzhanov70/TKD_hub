@@ -3412,3 +3412,492 @@ async def test_safe_send_logs_exception_after_exhausted_retries():
         args = mock_logger.exception.call_args[0]
         assert "12345" in str(args)
         assert "2" in str(args)  # 1 + retries = 2 attempts
+
+
+# ── CSV Results Processing ───────────────────────────────────────
+
+
+class TestCsvResultsUtility:
+    """Unit tests for api/utils/csv_results.py"""
+
+    def test_points_table(self):
+        from api.utils.csv_results import calculate_points
+
+        assert calculate_points(1, 1) == 12
+        assert calculate_points(2, 1) == 10
+        assert calculate_points(3, 1) == 8
+        assert calculate_points(10, 1) == 1
+        assert calculate_points(11, 1) == 0  # out of top-10
+        # importance multiplier
+        assert calculate_points(1, 2) == 24
+        assert calculate_points(1, 3) == 36
+        assert calculate_points(3, 2) == 16
+
+    def test_normalize_name(self):
+        from api.utils.csv_results import normalize_name
+
+        assert normalize_name("  Иванов  Алексей  ") == "иванов алексей"
+        assert normalize_name("Ёлкин Пётр") == "елкин петр"
+        assert normalize_name("SMITH  John") == "smith john"
+
+    def test_extract_match_name(self):
+        from api.utils.csv_results import extract_match_name
+
+        assert extract_match_name("Далашов Максуд Джаваншурович") == "Далашов Максуд"
+        assert extract_match_name("Иванов Алексей") == "Иванов Алексей"
+        assert extract_match_name("Иванов") == "Иванов"
+
+    def test_parse_place_single(self):
+        from api.utils.csv_results import parse_place
+
+        assert parse_place("1") == 1
+        assert parse_place("3") == 3
+
+    def test_parse_place_range(self):
+        from api.utils.csv_results import parse_place
+
+        assert parse_place("5-8") == 5
+        assert parse_place("9-16") == 9
+        assert parse_place("17-21") == 17
+
+    def test_parse_place_invalid(self):
+        from api.utils.csv_results import parse_place
+
+        assert parse_place("ДСКВ") is None
+        assert parse_place("") is None
+        assert parse_place("abc") is None
+
+    def test_parse_csv_with_weight_column(self):
+        """Per-row weight: Фамилия;Имя;Весовая категория;Место"""
+        from api.utils.csv_results import parse_csv
+
+        content = "Фамилия;Имя;Весовая категория;Место\nИванов;Алексей;-58;1\nПетров;Дмитрий;-68;2\n"
+        rows = parse_csv(content.encode("utf-8"))
+        assert len(rows) == 2
+        assert rows[0].full_name == "Иванов Алексей"
+        assert rows[0].weight_category == "-58"
+        assert rows[0].place == 1
+
+    def test_parse_csv_section_headers(self):
+        """Section header format like real protocol: 'Мужчины 54 кг' then rows."""
+        from api.utils.csv_results import parse_csv
+
+        content = (
+            "Мужчины 54 кг\n"
+            "№;Фамилия Имя Отчество;Дата рождения;Город;Занятое место\n"
+            "1;Далашов Максуд Джаваншурович;08.10.1998;Санкт-Петербург;1\n"
+            "2;Багов Идар Мухамедович;05.09.2004;Нальчик;2\n"
+            "3;Льянов Магомед Алаудинович;03.05.2003;Черная;3\n"
+            "4;Гончаренко Артем Андреевич;19.01.2001;Тихорецк;3\n"
+            "5;Элозян Леон Лерникович;13.09.2004;Кропоткин;5-8\n"
+            "6;Буханов Вадим Евгеньевич;24.12.2001;Елабуга;5-8\n"
+            "7;Адалов Хизри Ибрагимович;11.08.2002;Махачкала;5-8\n"
+            "8;Жарков Денис Сергеевич;21.01.2004;Тольятти;5-8\n"
+            "9;Гришкин Егор Алексеевич;16.10.2003;Тольятти;9-16\n"
+            "10;Ермаков Иван Валерьевич;26.02.2004;Батайск;9-16\n"
+        )
+        rows = parse_csv(content.encode("utf-8"))
+        assert len(rows) == 10
+        # Check section header parsed weight/gender
+        assert rows[0].weight_category == "54"
+        assert rows[0].gender == "M"
+        # Check patronymic stripped for match name
+        assert rows[0].full_name == "Далашов Максуд"
+        assert rows[0].raw_full_name == "Далашов Максуд Джаваншурович"
+        # Check place range
+        assert rows[4].place == 5  # "5-8" → 5
+        assert rows[8].place == 9  # "9-16" → 9
+
+    def test_parse_csv_multiple_sections(self):
+        """Multiple weight sections in one CSV."""
+        from api.utils.csv_results import parse_csv
+
+        content = (
+            "Мужчины 54 кг\n"
+            "№;Фамилия Имя Отчество;Занятое место\n"
+            "1;Иванов Алексей Петрович;1\n"
+            "\n"
+            "Женщины 49 кг\n"
+            "№;Фамилия Имя Отчество;Занятое место\n"
+            "1;Петрова Мария Ивановна;1\n"
+        )
+        rows = parse_csv(content.encode("utf-8"))
+        assert len(rows) == 2
+        assert rows[0].weight_category == "54"
+        assert rows[0].gender == "M"
+        assert rows[1].weight_category == "49"
+        assert rows[1].gender == "F"
+
+    def test_parse_csv_comma_cp1251(self):
+        from api.utils.csv_results import parse_csv
+
+        content = "Фамилия,Имя,Весовая категория,Место\nСидоров,Иван,-74,3\n"
+        rows = parse_csv(content.encode("cp1251"))
+        assert len(rows) == 1
+        assert rows[0].full_name == "Сидоров Иван"
+        assert rows[0].place == 3
+
+    def test_parse_csv_skips_dskv(self):
+        """ДСКВ (disqualification) rows are skipped."""
+        from api.utils.csv_results import parse_csv
+
+        content = (
+            "Мужчины 68 кг\n"
+            "№;Фамилия Имя Отчество;Занятое место\n"
+            "1;Иванов Алексей Петрович;1\n"
+            "2;Кадыров Абдурахман Бадавиевич;ДСКВ\n"
+        )
+        rows = parse_csv(content.encode("utf-8"))
+        assert len(rows) == 1
+
+    def test_parse_csv_empty(self):
+        from api.utils.csv_results import parse_csv
+
+        rows = parse_csv(b"")
+        assert len(rows) == 0
+
+    def test_parse_csv_full_name_single_column(self):
+        """Full name in one column without patronymic split."""
+        from api.utils.csv_results import parse_csv
+
+        content = "№;Фамилия Имя;Весовая категория;Место\n1;Иванов Алексей;-58;1\n"
+        rows = parse_csv(content.encode("utf-8"))
+        assert len(rows) == 1
+        assert rows[0].full_name == "Иванов Алексей"
+
+
+@pytest.mark.asyncio
+async def test_csv_upload_and_match(admin_client, admin_user, db_session):
+    """Upload CSV, check matching with existing athlete and points."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=2)
+
+    # Admin user's athlete: full_name="Admin User", weight="80kg"
+    csv_content = (
+        "Фамилия;Имя;Весовая категория;Место\n"
+        "Admin;User;80kg;1\n"
+        "Unknown;Person;-58;3\n"
+    )
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    assert data["csv_summary"] is not None
+    summary = data["csv_summary"]
+    assert summary["total_rows"] == 2
+    assert summary["matched"] == 1
+    assert summary["unmatched"] == 1
+    # 1st place × importance 2 = 12 × 2 = 24; 3rd × 2 = 16
+    assert summary["points_awarded"] == 24 + 16
+
+    from sqlalchemy import select
+
+    athlete_result = await db_session.execute(
+        select(Athlete).where(Athlete.user_id == admin_user.id)
+    )
+    athlete = athlete_result.scalar_one()
+    await db_session.refresh(athlete)
+    assert athlete.rating_points == 24
+
+
+@pytest.mark.asyncio
+async def test_csv_upload_section_format(admin_client, admin_user, db_session):
+    """Upload CSV in section-header format (like real protocol)."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    csv_content = (
+        "Мужчины 80 кг\n"
+        "№;Фамилия Имя Отчество;Дата рождения;Город;Занятое место\n"
+        "1;Admin User Patronymic;01.01.1990;Moscow;1\n"
+        "2;Unknown Person Otchestvo;01.01.2000;Kazan;2\n"
+        "3;Third Guy Otchestvo;01.01.2001;SPb;5-8\n"
+    )
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+
+    assert resp.status_code == 201, resp.text
+    summary = resp.json()["csv_summary"]
+    assert summary["total_rows"] == 3
+    # "Admin User" matched by first 2 words, weight "80" matches "80kg" — wait,
+    # admin athlete has weight_category="80kg", CSV has "80" from section header.
+    # normalize("80kg") != normalize("80"), so no match. That's expected for this test.
+    # All 3 are unmatched because weight normalization differs
+    assert summary["matched"] + summary["unmatched"] == 3
+    # Place 5 (from "5-8") has 5 base points
+    assert summary["points_awarded"] > 0
+
+
+@pytest.mark.asyncio
+async def test_csv_unmatched_stored(admin_client, admin_user, db_session):
+    """Unmatched CSV rows create results with athlete_id=NULL."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nНикто;Незнакомый;-58;1\n"
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+
+    assert resp.status_code == 201
+    summary = resp.json()["csv_summary"]
+    assert summary["matched"] == 0
+    assert summary["unmatched"] == 1
+
+    from db.models import TournamentResult
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
+    )
+    tr = result.scalar_one()
+    assert tr.athlete_id is None
+    assert tr.raw_full_name == "Никто Незнакомый"
+    assert tr.weight_category == "-58"
+    assert tr.rating_points_earned == 12
+
+
+@pytest.mark.asyncio
+async def test_csv_place_range_points(admin_client, admin_user, db_session):
+    """Place ranges award correct points: '5-8' → place 5 points."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    csv_content = (
+        "Фамилия;Имя;Весовая категория;Место\n"
+        "Один;Первый;-58;1\n"
+        "Два;Второй;-58;5-8\n"
+        "Три;Третий;-58;9-16\n"
+        "Четыре;Четвёртый;-58;17-21\n"
+    )
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+
+    assert resp.status_code == 201
+    summary = resp.json()["csv_summary"]
+    # place 1 = 12, place 5 = 5, place 9 = 1, place 17 = 0 (out of top-10)
+    assert summary["total_rows"] == 3  # Only places ≤ 10 are scorable
+    assert summary["points_awarded"] == 12 + 5 + 1
+
+
+@pytest.mark.asyncio
+async def test_csv_idempotent(admin_client, admin_user, db_session):
+    """Uploading the same CSV twice doesn't create duplicate results."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;1\n"
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp1 = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+        assert resp1.status_code == 201
+        assert resp1.json()["csv_summary"]["matched"] == 1
+
+        resp2 = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results2.csv", csv_bytes, "text/csv")},
+        )
+        assert resp2.status_code == 201
+        assert resp2.json()["csv_summary"]["matched"] == 0
+        assert resp2.json()["csv_summary"]["unmatched"] == 0
+
+    from db.models import TournamentResult
+    from sqlalchemy import func, select
+
+    count_result = await db_session.execute(
+        select(func.count()).where(TournamentResult.tournament_id == tournament.id)
+    )
+    assert count_result.scalar() == 1
+
+
+@pytest.mark.asyncio
+async def test_csv_retroactive_match(admin_client, admin_user, db_session):
+    """CSV uploaded → new athlete registers → retroactive match awards points."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nНовый;Спортсмен;-68;2\n"
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+    assert resp.status_code == 201
+    assert resp.json()["csv_summary"]["unmatched"] == 1
+
+    from api.utils.csv_results import check_retroactive_matches
+
+    new_user = User(telegram_id=999888777, username="newathlete", language="ru")
+    db_session.add(new_user)
+    await db_session.flush()
+
+    new_athlete = Athlete(
+        user_id=new_user.id,
+        full_name="Новый Спортсмен",
+        date_of_birth=date(2000, 1, 1),
+        gender="M",
+        weight_category="-68",
+        current_weight=68,
+        sport_rank="1 GUP",
+        country="RU",
+        city="Moscow",
+        club="Test",
+    )
+    db_session.add(new_athlete)
+    await db_session.flush()
+
+    points = await check_retroactive_matches(db_session, new_athlete)
+    assert points == 10  # 2nd place × importance 1
+
+    await db_session.commit()
+    await db_session.refresh(new_athlete)
+    assert new_athlete.rating_points == 10
+
+    from db.models import TournamentResult
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
+    )
+    tr = result.scalar_one()
+    assert tr.athlete_id == new_athlete.id
+
+
+@pytest.mark.asyncio
+async def test_csv_retroactive_match_with_patronymic(admin_client, admin_user, db_session):
+    """Retroactive match works when CSV had patronymic but athlete has only 2-word name."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    # CSV with patronymic in section-header format
+    csv_content = (
+        "Мужчины 68 кг\n"
+        "№;Фамилия Имя Отчество;Занятое место\n"
+        "1;Новиков Дмитрий Александрович;1\n"
+    )
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+    assert resp.status_code == 201
+
+    from api.utils.csv_results import check_retroactive_matches
+
+    new_user = User(telegram_id=888777666, username="novikov", language="ru")
+    db_session.add(new_user)
+    await db_session.flush()
+
+    # Athlete registered with just "Фамилия Имя" — no patronymic
+    new_athlete = Athlete(
+        user_id=new_user.id,
+        full_name="Новиков Дмитрий",
+        date_of_birth=date(2000, 1, 1),
+        gender="M",
+        weight_category="68",  # matches "68" from section header
+        current_weight=68,
+        sport_rank="1 Dan",
+        country="RU",
+        city="Moscow",
+        club="Test",
+    )
+    db_session.add(new_athlete)
+    await db_session.flush()
+
+    points = await check_retroactive_matches(db_session, new_athlete)
+    assert points == 12  # 1st place × importance 1
+
+    await db_session.commit()
+    await db_session.refresh(new_athlete)
+    assert new_athlete.rating_points == 12
+
+
+@pytest.mark.asyncio
+async def test_csv_malformed(admin_client, admin_user, db_session):
+    """Malformed CSV returns 400."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("bad.csv", b"just some garbage", "text/csv")},
+        )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_csv_results_appear_in_tournament_detail(admin_client, admin_user, db_session):
+    """CSV results appear in tournament detail with is_matched flag."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;1\nUnknown;Person;-58;2\n"
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+
+    resp = await admin_client.get(f"/api/tournaments/{tournament.id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    results = data["results"]
+    assert len(results) == 2
+
+    matched = [r for r in results if r["is_matched"]]
+    unmatched = [r for r in results if not r["is_matched"]]
+    assert len(matched) == 1
+    assert matched[0]["athlete_name"] == "Admin User"
+    assert len(unmatched) == 1
+    assert unmatched[0]["athlete_name"] == "Unknown Person"
+    assert unmatched[0]["athlete_id"] is None

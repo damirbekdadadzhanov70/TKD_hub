@@ -119,7 +119,7 @@ export interface TournamentFile {
 export interface TournamentResult {
   id: string;
   tournament_id: string;
-  athlete_id: string;
+  athlete_id: string | null;
   athlete_name: string;
   city: string;
   weight_category: string;
@@ -127,6 +127,18 @@ export interface TournamentResult {
   gender: string | null;
   place: number;
   rating_points_earned: number;
+  is_matched: boolean;
+}
+
+export interface CsvProcessingSummary {
+  total_rows: number;
+  matched: number;
+  unmatched: number;
+  points_awarded: number;
+}
+
+export interface TournamentFileUploadResponse extends TournamentFile {
+  csv_summary: CsvProcessingSummary | null;
 }
 
 export interface TournamentInterestResponse {

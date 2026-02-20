@@ -29,6 +29,24 @@ async def main():
     await c.execute(
         "ALTER TABLE tournament_files ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'protocol'"
     )
+    # CSV results support
+    await c.execute("ALTER TABLE tournament_results ALTER COLUMN athlete_id DROP NOT NULL")
+    await c.execute("ALTER TABLE tournament_results ADD COLUMN IF NOT EXISTS raw_full_name VARCHAR(255)")
+    await c.execute("ALTER TABLE tournament_results ADD COLUMN IF NOT EXISTS raw_weight_category VARCHAR(50)")
+    # Replace old unique constraint with new one (idempotent)
+    await c.execute("""
+        DO $$ BEGIN
+            ALTER TABLE tournament_results DROP CONSTRAINT IF EXISTS uq_tournament_results_tournament_id;
+        EXCEPTION WHEN undefined_object THEN NULL;
+        END $$
+    """)
+    await c.execute("""
+        DO $$ BEGIN
+            ALTER TABLE tournament_results ADD CONSTRAINT uq_tournament_results_csv
+                UNIQUE (tournament_id, raw_full_name, weight_category);
+        EXCEPTION WHEN duplicate_table THEN NULL;
+        END $$
+    """)
     rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournaments'")
     print("OK! Columns:", [r["column_name"] for r in rows])
     tf_rows = await c.fetch("SELECT column_name FROM information_schema.columns WHERE table_name='tournament_files'")

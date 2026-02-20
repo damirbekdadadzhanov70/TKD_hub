@@ -21,6 +21,7 @@ import type {
   TournamentDetail,
   TournamentEntry,
   TournamentFile,
+  TournamentFileUploadResponse,
   TournamentInterestResponse,
   TournamentListItem,
   TournamentResult,
@@ -211,8 +212,8 @@ export function uploadTournamentFile(
   file: File,
   category: string,
   onProgress?: (percent: number) => void,
-): Promise<TournamentFile> {
-  return apiUpload<TournamentFile>(
+): Promise<TournamentFileUploadResponse> {
+  return apiUpload<TournamentFileUploadResponse>(
     `/tournaments/${tournamentId}/files?category=${encodeURIComponent(category)}`,
     file,
     onProgress,

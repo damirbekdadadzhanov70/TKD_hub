@@ -10,10 +10,12 @@ from sqlalchemy.orm import selectinload
 from api.dependencies import AuthContext, get_current_user
 from api.schemas.pagination import PaginatedResponse
 from api.schemas.tournament import (
+    CsvProcessingSummary,
     TournamentBatchEnter,
     TournamentCreate,
     TournamentEntryRead,
     TournamentFileRead,
+    TournamentFileUploadResponse,
     TournamentInterestResponse,
     TournamentListItem,
     TournamentRead,
@@ -21,6 +23,7 @@ from api.schemas.tournament import (
     TournamentResultRead,
     TournamentUpdate,
 )
+from api.utils.csv_results import calculate_points, extract_match_name, normalize_name, parse_csv
 from api.utils.pagination import paginate_query
 from bot.config import settings
 from bot.utils.notifications import (
@@ -233,13 +236,14 @@ def _build_tournament_read(tournament) -> TournamentRead:
             id=r.id,
             tournament_id=r.tournament_id,
             athlete_id=r.athlete_id,
-            athlete_name=r.athlete.full_name,
-            city=r.athlete.city,
+            athlete_name=r.athlete.full_name if r.athlete else (r.raw_full_name or "?"),
+            city=r.athlete.city if r.athlete else "",
             weight_category=r.weight_category,
             age_category=r.age_category,
             gender=r.gender,
             place=r.place,
             rating_points_earned=r.rating_points_earned,
+            is_matched=r.athlete_id is not None,
         )
         for r in tournament.results
     ]
@@ -775,13 +779,14 @@ async def get_tournament_results(
             id=r.id,
             tournament_id=r.tournament_id,
             athlete_id=r.athlete_id,
-            athlete_name=r.athlete.full_name,
-            city=r.athlete.city,
+            athlete_name=r.athlete.full_name if r.athlete else (r.raw_full_name or "?"),
+            city=r.athlete.city if r.athlete else "",
             weight_category=r.weight_category,
             age_category=r.age_category,
             gender=r.gender,
             place=r.place,
             rating_points_earned=r.rating_points_earned,
+            is_matched=r.athlete_id is not None,
         )
         for r in results
     ]
@@ -868,6 +873,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 MAX_FILES_PER_TOURNAMENT = 10
 PDF_MAGIC = b"%PDF"
 ALLOWED_FILE_CATEGORIES = {"protocol", "bracket", "regulations"}
+CSV_CONTENT_TYPES = {"text/csv", "application/csv", "application/vnd.ms-excel"}
 
 
 async def _upload_to_vercel_blob(filename: str, content: bytes, content_type: str) -> str:
@@ -952,9 +958,97 @@ async def list_tournament_files(
     ]
 
 
+def _is_csv_file(file: UploadFile) -> bool:
+    """Check if an uploaded file is CSV."""
+    if file.content_type in CSV_CONTENT_TYPES:
+        return True
+    fname = (file.filename or "").lower()
+    return fname.endswith(".csv")
+
+
+def _is_pdf_file(file: UploadFile, content: bytes) -> bool:
+    """Check if an uploaded file is PDF."""
+    return file.content_type == "application/pdf" or content[:4].startswith(PDF_MAGIC)
+
+
+async def _process_csv_results(
+    session, tournament_id: uuid.UUID, content: bytes, importance_level: int
+) -> CsvProcessingSummary:
+    """Parse CSV and create TournamentResult rows, matching athletes where possible."""
+    rows = parse_csv(content)
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSV file is empty or has invalid format",
+        )
+
+    # Load all athletes for matching
+    athletes_result = await session.execute(select(Athlete))
+    all_athletes = athletes_result.scalars().all()
+
+    # Build lookup: (normalized_match_name, normalized_weight) → Athlete
+    athlete_lookup: dict[tuple[str, str], Athlete] = {}
+    for a in all_athletes:
+        key = (normalize_name(extract_match_name(a.full_name)), normalize_name(a.weight_category))
+        athlete_lookup[key] = a
+
+    matched = 0
+    unmatched = 0
+    total_points = 0
+    scorable_rows = [r for r in rows if r.place <= 10]
+
+    for row in scorable_rows:
+        points = calculate_points(row.place, importance_level)
+        norm_name = normalize_name(row.full_name)  # Already first two words
+        norm_weight = normalize_name(row.weight_category)
+
+        athlete = athlete_lookup.get((norm_name, norm_weight))
+
+        # Check for duplicate (idempotency) — use raw_full_name for uniqueness
+        existing = await session.execute(
+            select(TournamentResult).where(
+                TournamentResult.tournament_id == tournament_id,
+                TournamentResult.raw_full_name == row.raw_full_name,
+                TournamentResult.weight_category == row.weight_category,
+            )
+        )
+        if existing.scalar_one_or_none():
+            continue
+
+        result = TournamentResult(
+            tournament_id=tournament_id,
+            athlete_id=athlete.id if athlete else None,
+            weight_category=row.weight_category,
+            age_category="",
+            gender=row.gender or None,
+            place=row.place,
+            rating_points_earned=points,
+            raw_full_name=row.raw_full_name,
+            raw_weight_category=row.weight_category,
+        )
+        session.add(result)
+
+        if athlete:
+            athlete.rating_points += points
+            matched += 1
+            total_points += points
+        else:
+            unmatched += 1
+            total_points += points
+
+    await session.flush()
+
+    return CsvProcessingSummary(
+        total_rows=len(scorable_rows),
+        matched=matched,
+        unmatched=unmatched,
+        points_awarded=total_points,
+    )
+
+
 @router.post(
     "/tournaments/{tournament_id}/files",
-    response_model=TournamentFileRead,
+    response_model=TournamentFileUploadResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_tournament_file(
@@ -972,8 +1066,11 @@ async def upload_tournament_file(
         )
 
     # Verify tournament exists
-    t_result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
-    if not t_result.scalar_one_or_none():
+    t_result = await ctx.session.execute(
+        select(Tournament).where(Tournament.id == tournament_id)
+    )
+    tournament = t_result.scalar_one_or_none()
+    if not tournament:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
 
     # Check file count limit
@@ -994,33 +1091,46 @@ async def upload_tournament_file(
             detail="File too large. Maximum 10 MB",
         )
 
-    # Validate PDF (content type + magic bytes)
-    if file.content_type != "application/pdf" or not content[:4].startswith(PDF_MAGIC):
+    is_csv = _is_csv_file(file)
+    is_pdf = _is_pdf_file(file, content)
+
+    if not is_csv and not is_pdf:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF files are allowed",
+            detail="Only PDF or CSV files are allowed",
         )
 
-    # Upload to Vercel Blob
-    safe_filename = (file.filename or "document.pdf").replace("/", "_")
-    blob_path = f"tournaments/{tournament_id}/{uuid.uuid4()}_{safe_filename}"
-    blob_url = await _upload_to_vercel_blob(blob_path, content, "application/pdf")
+    safe_filename = (file.filename or "document").replace("/", "_")
+    content_type = "text/csv" if is_csv else "application/pdf"
+    file_type = content_type
 
-    # Save to DB
+    # Upload to Vercel Blob
+    blob_path = f"tournaments/{tournament_id}/{uuid.uuid4()}_{safe_filename}"
+    blob_url = await _upload_to_vercel_blob(blob_path, content, content_type)
+
+    # Save file record to DB
     db_file = TournamentFile(
         tournament_id=tournament_id,
         category=category,
         filename=safe_filename,
         blob_url=blob_url,
         file_size=len(content),
-        file_type="application/pdf",
+        file_type=file_type,
         uploaded_by=ctx.user.id,
     )
     ctx.session.add(db_file)
+
+    # Process CSV results if applicable
+    csv_summary = None
+    if is_csv and category == "protocol":
+        csv_summary = await _process_csv_results(
+            ctx.session, tournament_id, content, tournament.importance_level
+        )
+
     await ctx.session.commit()
     await ctx.session.refresh(db_file)
 
-    return TournamentFileRead(
+    return TournamentFileUploadResponse(
         id=db_file.id,
         tournament_id=db_file.tournament_id,
         category=db_file.category,
@@ -1029,6 +1139,7 @@ async def upload_tournament_file(
         file_size=db_file.file_size,
         file_type=db_file.file_type,
         created_at=db_file.created_at.isoformat() if db_file.created_at else "",
+        csv_summary=csv_summary,
     )
 
 

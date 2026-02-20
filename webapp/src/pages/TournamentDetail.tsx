@@ -756,9 +756,19 @@ function DocumentsSection({
     if (!file) return;
     e.target.value = '';
 
-    if (file.type !== 'application/pdf') {
-      showToast(t('tournamentDetail.onlyPdf'), 'error');
-      return;
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isCsv = file.type === 'text/csv' || file.type === 'application/csv' || file.name.toLowerCase().endsWith('.csv');
+
+    if (category === 'protocol') {
+      if (!isPdf && !isCsv) {
+        showToast(t('tournamentDetail.onlyPdfOrCsv'), 'error');
+        return;
+      }
+    } else {
+      if (!isPdf) {
+        showToast(t('tournamentDetail.onlyPdf'), 'error');
+        return;
+      }
     }
     if (file.size > 10 * 1024 * 1024) {
       showToast(t('tournamentDetail.fileTooLarge'), 'error');
@@ -788,11 +798,18 @@ function DocumentsSection({
     for (let i = 0; i < pendingFiles.length; i++) {
       const pf = pendingFiles[i];
       try {
-        await uploadTournamentFile(tournament.id, pf.file, pf.category, (filePercent) => {
+        const resp = await uploadTournamentFile(tournament.id, pf.file, pf.category, (filePercent) => {
           const overallPercent = Math.round(((i + filePercent / 100) / totalFiles) * 100);
           setUploadProgress(overallPercent);
         });
         successCount++;
+        // Show CSV processing summary
+        if (resp.csv_summary) {
+          const s = resp.csv_summary;
+          showToast(
+            `${t('tournamentDetail.csvProcessed')}: ${t('tournamentDetail.csvMatched')}: ${s.matched}, ${t('tournamentDetail.csvUnmatched')}: ${s.unmatched}, ${t('tournamentDetail.csvPointsAwarded')}: ${s.points_awarded}`,
+          );
+        }
       } catch (err) {
         hapticNotification('error');
         showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -800,7 +817,9 @@ function DocumentsSection({
     }
     if (successCount > 0) {
       hapticNotification('success');
-      showToast(t('tournamentDetail.filesSaved'));
+      if (!pendingFiles.some((pf) => pf.file.name.toLowerCase().endsWith('.csv'))) {
+        showToast(t('tournamentDetail.filesSaved'));
+      }
       onChanged(true);
     }
     setPendingFiles([]);
@@ -850,7 +869,7 @@ function DocumentsSection({
                       {t('tournamentDetail.selectFile')}
                       <input
                         type="file"
-                        accept="application/pdf"
+                        accept={cat === 'protocol' ? 'application/pdf,.csv,text/csv' : 'application/pdf'}
                         onChange={(e) => handleSelectFile(cat, e)}
                         disabled={saving}
                         className="hidden"

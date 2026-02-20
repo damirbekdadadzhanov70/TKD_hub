@@ -126,6 +126,11 @@ async def approve_role_request(
                 club=reg.club,
             )
             ctx.session.add(athlete)
+            await ctx.session.flush()
+            # Retroactive CSV matching
+            from api.utils.csv_results import check_retroactive_matches
+
+            await check_retroactive_matches(ctx.session, athlete)
 
         elif role_request.requested_role == "coach":
             if target_user.coach:

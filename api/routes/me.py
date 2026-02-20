@@ -451,6 +451,10 @@ async def register_profile(
         )
         ctx.session.add(athlete)
         await ctx.session.flush()
+        # Retroactive CSV matching
+        from api.utils.csv_results import check_retroactive_matches
+
+        await check_retroactive_matches(ctx.session, athlete)
         await ctx.session.refresh(user, ["athlete", "coach"])
 
     elif payload.role == "coach":
