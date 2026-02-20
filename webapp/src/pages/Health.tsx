@@ -98,7 +98,15 @@ export default function Health() {
     if (isFuture) return;
     hapticFeedback('light');
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    setSelectedDate(dateStr);
+    setSelectedDate(prev => prev === dateStr ? null : dateStr);
+  };
+
+  const handleFabClick = () => {
+    hapticFeedback('light');
+    if (!selectedDate) {
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      setSelectedDate(todayStr);
+    }
     setShowChoice(true);
   };
 
@@ -109,12 +117,10 @@ export default function Health() {
 
   const handleFormClose = () => {
     setFormType(null);
-    setSelectedDate(null);
   };
 
   const handleFormSaved = () => {
     setFormType(null);
-    setSelectedDate(null);
     refetchWeight(true);
     refetchSleep(true);
   };
@@ -155,6 +161,7 @@ export default function Health() {
                 const hasWeight = weightDates.has(dateStr);
                 const hasSleep = sleepDates.has(dateStr);
                 const isToday = isCurrentMonth && day === today;
+                const isSelected = selectedDate === dateStr;
                 const isFuture = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1) || (isCurrentMonth && day > today);
                 return (
                   <div
@@ -163,19 +170,23 @@ export default function Health() {
                     className={`py-1.5 rounded-lg relative text-xs transition-colors ${
                       isFuture
                         ? 'text-text-disabled cursor-default'
-                        : isToday
-                          ? 'bg-accent text-white font-bold cursor-pointer'
-                          : 'text-text cursor-pointer hover:bg-bg-secondary'
+                        : isSelected && isToday
+                          ? 'bg-accent text-white font-bold cursor-pointer ring-2 ring-accent ring-offset-1'
+                          : isSelected
+                            ? 'bg-accent/15 text-accent font-bold cursor-pointer'
+                            : isToday
+                              ? 'bg-accent text-white font-bold cursor-pointer'
+                              : 'text-text cursor-pointer hover:bg-bg-secondary'
                     }`}
                   >
                     {day}
                     {(hasWeight || hasSleep) && (
                       <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                         {hasWeight && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-accent'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white' : 'bg-accent'}`} />
                         )}
                         {hasSleep && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white/70' : 'bg-sky-400'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-sky-400'}`} />
                         )}
                       </div>
                     )}
@@ -183,6 +194,60 @@ export default function Health() {
                 );
               })}
             </div>
+
+            {/* Selected date data */}
+            {selectedDate && (() => {
+              const sw = weightDates.get(selectedDate);
+              const ss = sleepDates.get(selectedDate);
+              const d = new Date(selectedDate + 'T00:00:00');
+              return (
+                <div className="mt-3 pt-3 border-t border-dashed border-border">
+                  <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
+                    {d.getDate()} {MONTH_NAMES[d.getMonth()]}
+                  </p>
+                  {sw || ss ? (
+                    <>
+                      {sw && (
+                        <div
+                          onClick={() => setFormType('weight')}
+                          className="flex items-center justify-between py-2 cursor-pointer hover:bg-bg-secondary/50 -mx-2 px-2 rounded-lg active:opacity-80 transition-all"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-accent/10">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                                <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+                                <path d="M12 6.5V4" />
+                                <path d="M9 10h6" />
+                              </svg>
+                            </div>
+                            <span className="text-sm font-semibold text-text">{t('health.weight')}</span>
+                          </div>
+                          <span className="text-sm font-mono font-bold text-accent">{sw.weight_kg} {t('health.kg')}</span>
+                        </div>
+                      )}
+                      {ss && (
+                        <div
+                          onClick={() => setFormType('sleep')}
+                          className="flex items-center justify-between py-2 cursor-pointer hover:bg-bg-secondary/50 -mx-2 px-2 rounded-lg active:opacity-80 transition-all"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-sky-400/10">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-400">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                              </svg>
+                            </div>
+                            <span className="text-sm font-semibold text-text">{t('health.sleep')}</span>
+                          </div>
+                          <span className="text-sm font-mono font-bold text-sky-400">{ss.sleep_hours} {t('health.hours')}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-text-secondary py-2">{t('health.noDataThisDay')}</p>
+                  )}
+                </div>
+              );
+            })()}
           </Card>
         </div>
 
@@ -226,21 +291,30 @@ export default function Health() {
               sortedWeightEntries.length === 0 ? (
                 <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
               ) : (
-                <WeightChart entries={sortedWeightEntries} />
+                <WeightChart entries={sortedWeightEntries} highlightDate={selectedDate} />
               )
             ) : (
               sortedSleepEntries.length === 0 ? (
                 <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
               ) : (
-                <SleepChart entries={sortedSleepEntries} />
+                <SleepChart entries={sortedSleepEntries} highlightDate={selectedDate} />
               )
             )}
           </Card>
         </div>
 
+        {/* FAB */}
+        <button
+          aria-label={t('health.chooseType')}
+          onClick={handleFabClick}
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
+        >
+          +
+        </button>
+
         {/* Choice BottomSheet */}
         {showChoice && selectedDate && (
-          <BottomSheet onClose={() => { setShowChoice(false); setSelectedDate(null); }}>
+          <BottomSheet onClose={() => setShowChoice(false)}>
             <div className="p-4 pb-2">
               <h2 className="text-lg font-bold text-text">{t('health.chooseType')}</h2>
             </div>
@@ -650,7 +724,7 @@ function InteractiveChart({
   );
 }
 
-function WeightChart({ entries }: { entries: WeightEntry[] }) {
+function WeightChart({ entries, highlightDate }: { entries: WeightEntry[]; highlightDate: string | null }) {
   const weights = entries.map((e) => e.weight_kg);
   const minW = Math.min(...weights);
   const maxW = Math.max(...weights);
@@ -690,25 +764,29 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {points.map((p) => (
-              <g key={p.entry.id}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#D4AF37" />
-                <circle cx={p.x} cy={p.y} r="2" fill="white" />
-                {entries.length === 1 && (
-                  <text
-                    x={p.x}
-                    y={p.y - 10}
-                    textAnchor="middle"
-                    fill="#D4AF37"
-                    fontSize="11"
-                    fontWeight="bold"
-                    fontFamily="var(--font-mono)"
-                  >
-                    {p.entry.weight_kg}
-                  </text>
-                )}
-              </g>
-            ))}
+            {points.map((p) => {
+              const isHl = p.entry.date === highlightDate;
+              return (
+                <g key={p.entry.id}>
+                  {isHl && <circle cx={p.x} cy={p.y} r="8" fill="#D4AF37" opacity="0.2" />}
+                  <circle cx={p.x} cy={p.y} r={isHl ? 5 : 4} fill="#D4AF37" />
+                  <circle cx={p.x} cy={p.y} r="2" fill="white" />
+                  {(entries.length === 1 || isHl) && (
+                    <text
+                      x={p.x}
+                      y={p.y - 10}
+                      textAnchor="middle"
+                      fill="#D4AF37"
+                      fontSize="11"
+                      fontWeight="bold"
+                      fontFamily="var(--font-mono)"
+                    >
+                      {p.entry.weight_kg}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
             {points.map((p, i) => {
               if (i % labelStep !== 0 && i !== entries.length - 1) return null;
               const d = new Date(p.entry.date + 'T00:00:00');
@@ -734,7 +812,7 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
   );
 }
 
-function SleepChart({ entries }: { entries: SleepEntry[] }) {
+function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlightDate: string | null }) {
   const hours = entries.map((e) => e.sleep_hours);
   const minH = Math.min(...hours);
   const maxH = Math.max(...hours);
@@ -774,25 +852,29 @@ function SleepChart({ entries }: { entries: SleepEntry[] }) {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {points.map((p) => (
-              <g key={p.entry.id}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#38bdf8" />
-                <circle cx={p.x} cy={p.y} r="2" fill="white" />
-                {entries.length === 1 && (
-                  <text
-                    x={p.x}
-                    y={p.y - 10}
-                    textAnchor="middle"
-                    fill="#38bdf8"
-                    fontSize="11"
-                    fontWeight="bold"
-                    fontFamily="var(--font-mono)"
-                  >
-                    {p.entry.sleep_hours}
-                  </text>
-                )}
-              </g>
-            ))}
+            {points.map((p) => {
+              const isHl = p.entry.date === highlightDate;
+              return (
+                <g key={p.entry.id}>
+                  {isHl && <circle cx={p.x} cy={p.y} r="8" fill="#38bdf8" opacity="0.2" />}
+                  <circle cx={p.x} cy={p.y} r={isHl ? 5 : 4} fill="#38bdf8" />
+                  <circle cx={p.x} cy={p.y} r="2" fill="white" />
+                  {(entries.length === 1 || isHl) && (
+                    <text
+                      x={p.x}
+                      y={p.y - 10}
+                      textAnchor="middle"
+                      fill="#38bdf8"
+                      fontSize="11"
+                      fontWeight="bold"
+                      fontFamily="var(--font-mono)"
+                    >
+                      {p.entry.sleep_hours}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
             {points.map((p, i) => {
               if (i % labelStep !== 0 && i !== entries.length - 1) return null;
               const d = new Date(p.entry.date + 'T00:00:00');

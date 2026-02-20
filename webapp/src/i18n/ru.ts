@@ -342,6 +342,7 @@ const ru = {
     sleepChart: 'Динамика сна',
     hours: 'ч',
     chooseType: 'Что записать?',
+    noDataThisDay: 'Нет данных за этот день',
     sleep: 'Сон',
     weight: 'Вес',
   },

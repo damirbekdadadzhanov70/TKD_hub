@@ -342,6 +342,7 @@ const en = {
     sleepChart: 'Sleep dynamics',
     hours: 'h',
     chooseType: 'What to log?',
+    noDataThisDay: 'No data for this day',
     sleep: 'Sleep',
     weight: 'Weight',
   },
