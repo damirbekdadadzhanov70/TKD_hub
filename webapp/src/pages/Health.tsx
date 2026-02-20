@@ -186,7 +186,7 @@ export default function Health() {
                           <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white' : 'bg-accent'}`} />
                         )}
                         {hasSleep && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-sky-400'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-blue-600'}`} />
                         )}
                       </div>
                     )}
@@ -231,14 +231,14 @@ export default function Health() {
                           className="flex items-center justify-between py-2 cursor-pointer hover:bg-bg-secondary/50 -mx-2 px-2 rounded-lg active:opacity-80 transition-all"
                         >
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-sky-400/10">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-400">
+                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-600/10">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                               </svg>
                             </div>
                             <span className="text-sm font-semibold text-text">{t('health.sleep')}</span>
                           </div>
-                          <span className="text-sm font-mono font-bold text-sky-400">{ss.sleep_hours} {t('health.hours')}</span>
+                          <span className="text-sm font-mono font-bold text-blue-600">{ss.sleep_hours} {t('health.hours')}</span>
                         </div>
                       )}
                     </>
@@ -276,7 +276,7 @@ export default function Health() {
                   aria-label={t('health.sleep')}
                   onClick={() => setChartMode('sleep')}
                   className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-                    chartMode === 'sleep' ? 'text-sky-400 bg-sky-400/10' : 'text-text-secondary bg-transparent hover:text-text'
+                    chartMode === 'sleep' ? 'text-blue-600 bg-blue-600/10' : 'text-text-secondary bg-transparent hover:text-text'
                   }`}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -334,7 +334,7 @@ export default function Health() {
                 onClick={() => handleChoicePick('sleep')}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-bg-secondary text-text cursor-pointer hover:bg-bg-secondary/80 active:opacity-80 transition-all"
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-400 shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 shrink-0">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
                 <span className="font-semibold text-sm">{t('health.sleep')}</span>
@@ -565,16 +565,18 @@ function InteractiveChart({
   entryCount,
   yLabels,
   chartH,
+  highlightIndex,
   children,
 }: {
   entryCount: number;
   yLabels: { label: string; y: number }[];
   chartH: number;
+  highlightIndex: number;
   children: (spacing: number, padL: number) => ReactNode;
 }) {
   const BASE_SPACING = 60;
   const Y_AXIS_W = 40;
-  const PAD_L = 10;
+  const PAD_L = 25;
   const PAD_R = 15;
 
   const [scale, setScale] = useState(1.0);
@@ -607,6 +609,15 @@ function InteractiveChart({
       el.scrollLeft = el.scrollWidth - el.clientWidth;
     }
   }, [entryCount]);
+
+  // Scroll to highlighted point when selection changes
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || highlightIndex < 0) return;
+    const pointX = PAD_L + highlightIndex * spacing;
+    const center = pointX - el.clientWidth / 2;
+    el.scrollTo({ left: Math.max(0, center), behavior: 'smooth' });
+  }, [highlightIndex, spacing]);
 
   // Ctrl+Wheel zoom (non-passive for preventDefault)
   useEffect(() => {
@@ -659,7 +670,7 @@ function InteractiveChart({
     <div className="relative">
       {/* Fixed Y-axis overlay */}
       <div
-        className="absolute left-0 top-0 z-10 bg-bg-secondary"
+        className="absolute left-0 top-0 z-[1] bg-bg-secondary"
         style={{ width: `${Y_AXIS_W}px`, height: chartH }}
       >
         <svg width={Y_AXIS_W} height={chartH}>
@@ -725,6 +736,7 @@ function InteractiveChart({
 }
 
 function WeightChart({ entries, highlightDate }: { entries: WeightEntry[]; highlightDate: string | null }) {
+  const hlIndex = highlightDate ? entries.findIndex((e) => e.date === highlightDate) : -1;
   const weights = entries.map((e) => e.weight_kg);
   const minW = Math.min(...weights);
   const maxW = Math.max(...weights);
@@ -745,7 +757,7 @@ function WeightChart({ entries, highlightDate }: { entries: WeightEntry[]; highl
   ];
 
   return (
-    <InteractiveChart entryCount={entries.length} yLabels={yLabels} chartH={chartH}>
+    <InteractiveChart entryCount={entries.length} yLabels={yLabels} chartH={chartH} highlightIndex={hlIndex}>
       {(spacing, padL) => {
         const points = entries.map((e, i) => ({
           x: padL + i * spacing,
@@ -813,6 +825,7 @@ function WeightChart({ entries, highlightDate }: { entries: WeightEntry[]; highl
 }
 
 function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlightDate: string | null }) {
+  const hlIndex = highlightDate ? entries.findIndex((e) => e.date === highlightDate) : -1;
   const hours = entries.map((e) => e.sleep_hours);
   const minH = Math.min(...hours);
   const maxH = Math.max(...hours);
@@ -833,7 +846,7 @@ function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlig
   ];
 
   return (
-    <InteractiveChart entryCount={entries.length} yLabels={yLabels} chartH={chartH}>
+    <InteractiveChart entryCount={entries.length} yLabels={yLabels} chartH={chartH} highlightIndex={hlIndex}>
       {(spacing, padL) => {
         const points = entries.map((e, i) => ({
           x: padL + i * spacing,
@@ -847,7 +860,7 @@ function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlig
             <polyline
               points={polyline}
               fill="none"
-              stroke="#38bdf8"
+              stroke="#2563eb"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -856,15 +869,15 @@ function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlig
               const isHl = p.entry.date === highlightDate;
               return (
                 <g key={p.entry.id}>
-                  {isHl && <circle cx={p.x} cy={p.y} r="8" fill="#38bdf8" opacity="0.2" />}
-                  <circle cx={p.x} cy={p.y} r={isHl ? 5 : 4} fill="#38bdf8" />
+                  {isHl && <circle cx={p.x} cy={p.y} r="8" fill="#2563eb" opacity="0.2" />}
+                  <circle cx={p.x} cy={p.y} r={isHl ? 5 : 4} fill="#2563eb" />
                   <circle cx={p.x} cy={p.y} r="2" fill="white" />
                   {(entries.length === 1 || isHl) && (
                     <text
                       x={p.x}
                       y={p.y - 10}
                       textAnchor="middle"
-                      fill="#38bdf8"
+                      fill="#2563eb"
                       fontSize="11"
                       fontWeight="bold"
                       fontFamily="var(--font-mono)"
