@@ -191,6 +191,18 @@ async def notify_coach_athlete_interest(
     await _safe_send(bot, coach_telegram_id, text)
 
 
+async def notify_coach_new_athlete_request(
+    bot: Bot,
+    coach_telegram_id: int,
+    athlete_name: str,
+    lang: str = "ru",
+) -> None:
+    text = t("new_athlete_request_coach_notification", lang).format(
+        athlete=athlete_name,
+    )
+    await _safe_send(bot, coach_telegram_id, text)
+
+
 async def notify_coach_entry_status(
     bot: Bot,
     coach_telegram_id: int,

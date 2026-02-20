@@ -160,6 +160,8 @@
   "invalid_age_category": "⚠️ Invalid age category for this tournament.",
   "invalid_weight_category": "⚠️ Athlete {name} has weight category {category} which is not allowed in this tournament. Skipped.",
 
+  "new_athlete_request_coach_notification": "🤝 Athlete <b>{athlete}</b> sent you a link request. Open the app to accept or decline.",
+
   "interest_confirmed_athlete": "⭐ You marked interest in tournament <b>{tournament}</b>. Your coach will be notified.",
   "interest_coach_notification": "⭐ Athlete <b>{athlete}</b> is interested in tournament <b>{tournament}</b>.",
   "new_entry_admin_notification": "📋 New tournament entry for <b>{tournament}</b>\n\nCoach: {coach}\nAthletes: {count}",

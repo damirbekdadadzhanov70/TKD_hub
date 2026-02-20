@@ -356,7 +356,9 @@ async def request_coach_link(
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid coach_id") from err
 
-    coach_result = await ctx.session.execute(select(Coach).where(Coach.id == coach_uuid))
+    coach_result = await ctx.session.execute(
+        select(Coach).where(Coach.id == coach_uuid).options(selectinload(Coach.user))
+    )
     coach = coach_result.scalar_one_or_none()
     if not coach:
         raise HTTPException(status_code=404, detail="Coach not found")
@@ -374,8 +376,40 @@ async def request_coach_link(
         status="pending",
     )
     ctx.session.add(link)
+
+    # In-app notification for coach
+    athlete_name = ctx.user.athlete.full_name
+    await create_notification(
+        ctx.session,
+        user_id=coach.user_id,
+        type="new_athlete_request",
+        title="Новый запрос",
+        body=f"Спортсмен {athlete_name} отправил запрос на привязку.",
+        role="coach",
+    )
+
     await ctx.session.commit()
     await ctx.session.refresh(link)
+
+    # Telegram notification for coach
+    if coach.user:
+        try:
+            from api.utils import create_bot
+
+            bot = create_bot()
+            try:
+                from bot.utils.notifications import notify_coach_new_athlete_request
+
+                await notify_coach_new_athlete_request(
+                    bot,
+                    coach_telegram_id=coach.user.telegram_id,
+                    athlete_name=athlete_name,
+                    lang=coach.user.language or "ru",
+                )
+            finally:
+                await bot.session.close()
+        except Exception:
+            logger.exception("Failed to send coach notification for athlete request")
 
     return MyCoachRead(
         link_id=link.id,
