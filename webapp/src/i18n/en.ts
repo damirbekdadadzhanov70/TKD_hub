@@ -288,6 +288,8 @@ const en = {
     unlinkCoach: 'Unlink Coach',
     unlinkCoachConfirm: 'Unlink coach?',
     coachUnlinked: 'Coach unlinked',
+    pendingCoach: 'Pending',
+    cancelRequest: 'Cancel request',
     pendingRequests: 'Athlete Requests',
     athleteRequestAccepted: 'Athlete added',
     athleteRequestRejected: 'Request rejected',

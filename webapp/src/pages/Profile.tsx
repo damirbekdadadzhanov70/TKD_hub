@@ -874,13 +874,20 @@ function AthleteSection({
       <div className="px-4 mb-4">
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.myCoach')}</p>
         {myCoach ? (
-          <div className="p-3 rounded-xl bg-bg-secondary">
+          <div className={`p-3 rounded-xl ${myCoach.status === 'pending' ? 'bg-bg-secondary/60 border border-dashed border-border' : 'bg-bg-secondary'}`}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0 bg-accent-light text-accent">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${myCoach.status === 'pending' ? 'bg-bg-divider text-text-secondary' : 'bg-accent-light text-accent'}`}>
                 {myCoach.full_name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-medium text-text truncate">{myCoach.full_name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[15px] font-medium text-text truncate">{myCoach.full_name}</p>
+                  {myCoach.status === 'pending' && (
+                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                      {t('profile.pendingCoach')}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[13px] text-text-secondary">{myCoach.club} · {myCoach.city}</p>
               </div>
             </div>
@@ -889,7 +896,7 @@ function AthleteSection({
               disabled={unlinking}
               className="mt-2 text-sm text-text-disabled border-none bg-transparent cursor-pointer p-0 active:opacity-70 hover:text-text-secondary"
             >
-              {t('profile.unlinkCoach')}
+              {myCoach.status === 'pending' ? t('profile.cancelRequest') : t('profile.unlinkCoach')}
             </button>
           </div>
         ) : (

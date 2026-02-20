@@ -288,6 +288,8 @@ const ru = {
     unlinkCoach: 'Отвязать тренера',
     unlinkCoachConfirm: 'Отвязать тренера?',
     coachUnlinked: 'Тренер отвязан',
+    pendingCoach: 'Ожидание',
+    cancelRequest: 'Отменить запрос',
     pendingRequests: 'Запросы от спортсменов',
     athleteRequestAccepted: 'Спортсмен добавлен',
     athleteRequestRejected: 'Запрос отклонён',
