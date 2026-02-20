@@ -986,11 +986,13 @@ async def _process_csv_results(
     athletes_result = await session.execute(select(Athlete))
     all_athletes = athletes_result.scalars().all()
 
-    # Build lookup: (normalized_match_name, normalized_weight) → Athlete
-    athlete_lookup: dict[tuple[str, str], Athlete] = {}
+    # Build lookups: exact (name+weight) and name-only (for different weight class)
+    exact_lookup: dict[tuple[str, str], Athlete] = {}
+    name_lookup: dict[str, list[Athlete]] = {}
     for a in all_athletes:
-        key = (normalize_name(extract_match_name(a.full_name)), normalize_weight(a.weight_category))
-        athlete_lookup[key] = a
+        norm = normalize_name(extract_match_name(a.full_name))
+        exact_lookup[(norm, normalize_weight(a.weight_category))] = a
+        name_lookup.setdefault(norm, []).append(a)
 
     matched = 0
     unmatched = 0
@@ -1004,7 +1006,12 @@ async def _process_csv_results(
         norm_name = normalize_name(row.full_name)  # Already first two words
         norm_weight = normalize_weight(row.weight_category)
 
-        athlete = athlete_lookup.get((norm_name, norm_weight))
+        # Try exact match (name + weight), then name-only
+        athlete = exact_lookup.get((norm_name, norm_weight))
+        if not athlete:
+            candidates = name_lookup.get(norm_name, [])
+            if len(candidates) == 1:
+                athlete = candidates[0]
 
         # Check for duplicate (idempotency) — use raw_full_name for uniqueness
         existing = await session.execute(
@@ -1047,36 +1054,54 @@ async def _process_csv_results(
 
     await session.flush()
 
-    # If all rows were skipped (re-upload), load existing results for this tournament
-    if skipped > 0 and matched == 0 and unmatched == 0:
-        existing_results = await session.execute(
-            select(TournamentResult)
-            .options(selectinload(TournamentResult.athlete))
-            .where(
-                TournamentResult.tournament_id == tournament_id,
-                TournamentResult.athlete_id.isnot(None),
-            )
-        )
-        for r in existing_results.scalars().all():
-            matched += 1
-            total_points += r.rating_points_earned
-            matched_details.append(
-                {
-                    "name": r.athlete.full_name if r.athlete else (r.raw_full_name or "?"),
-                    "points": r.rating_points_earned,
-                    "place": r.place,
-                }
-            )
-        # Count unmatched from existing results
-        unmatched_results = await session.execute(
-            select(func.count())
-            .select_from(TournamentResult)
-            .where(
+    # If rows were skipped (re-upload), try to re-match previously unmatched + report all
+    if skipped > 0:
+        # Try to match previously unmatched results
+        unmatched_q = await session.execute(
+            select(TournamentResult).where(
                 TournamentResult.tournament_id == tournament_id,
                 TournamentResult.athlete_id.is_(None),
             )
         )
-        unmatched = unmatched_results.scalar() or 0
+        newly_matched = 0
+        for r in unmatched_q.scalars().all():
+            r_norm = normalize_name(extract_match_name(r.raw_full_name or ""))
+            r_weight = normalize_weight(r.raw_weight_category or r.weight_category)
+            athlete = exact_lookup.get((r_norm, r_weight))
+            if not athlete:
+                candidates = name_lookup.get(r_norm, [])
+                if len(candidates) == 1:
+                    athlete = candidates[0]
+            if athlete:
+                r.athlete_id = athlete.id
+                athlete.rating_points += r.rating_points_earned
+                newly_matched += 1
+        if newly_matched > 0:
+            await session.flush()
+
+        # Load all existing results for this tournament to report
+        matched = 0
+        unmatched = 0
+        total_points = 0
+        matched_details = []
+        all_results = await session.execute(
+            select(TournamentResult)
+            .options(selectinload(TournamentResult.athlete))
+            .where(TournamentResult.tournament_id == tournament_id)
+        )
+        for r in all_results.scalars().all():
+            if r.athlete:
+                matched += 1
+                total_points += r.rating_points_earned
+                matched_details.append(
+                    {
+                        "name": r.athlete.full_name,
+                        "points": r.rating_points_earned,
+                        "place": r.place,
+                    }
+                )
+            else:
+                unmatched += 1
 
     return CsvProcessingSummary(
         total_rows=len(scorable_rows),

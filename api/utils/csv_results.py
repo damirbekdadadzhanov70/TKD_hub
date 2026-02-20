@@ -501,11 +501,10 @@ def parse_csv(content: bytes) -> list[CsvRow]:
 async def check_retroactive_matches(session: AsyncSession, athlete: Athlete) -> int:
     """Find unmatched tournament results for a newly registered athlete.
 
-    Matches by normalized first two words of full_name and weight_category.
+    Matches by normalized first two words of full_name.
     Returns total points awarded.
     """
     norm_name = normalize_name(extract_match_name(athlete.full_name))
-    norm_weight = normalize_weight(athlete.weight_category)
 
     result = await session.execute(
         select(TournamentResult).where(
@@ -518,8 +517,7 @@ async def check_retroactive_matches(session: AsyncSession, athlete: Athlete) -> 
     total_points = 0
     for r in unmatched:
         r_match_name = normalize_name(extract_match_name(r.raw_full_name or ""))
-        r_weight = normalize_weight(r.raw_weight_category or r.weight_category)
-        if r_match_name == norm_name and r_weight == norm_weight:
+        if r_match_name == norm_name:
             r.athlete_id = athlete.id
             total_points += r.rating_points_earned
 
