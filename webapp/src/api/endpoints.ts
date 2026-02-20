@@ -296,8 +296,8 @@ export function searchCoaches(q: string): Promise<CoachSearchResult[]> {
   return apiRequest<CoachSearchResult[]>(`/coaches/search?q=${encodeURIComponent(q)}`);
 }
 
-export function getMyCoach(): Promise<MyCoachLink | null> {
-  return apiRequest<MyCoachLink | null>('/me/my-coach');
+export function getMyCoaches(): Promise<MyCoachLink[]> {
+  return apiRequest<MyCoachLink[]>('/me/my-coaches');
 }
 
 export function requestCoachLink(coachId: string): Promise<MyCoachLink> {
@@ -307,8 +307,8 @@ export function requestCoachLink(coachId: string): Promise<MyCoachLink> {
   });
 }
 
-export function unlinkCoach(): Promise<void> {
-  return apiRequest<void>('/me/my-coach', { method: 'DELETE' });
+export function unlinkCoach(linkId: string): Promise<void> {
+  return apiRequest<void>(`/me/my-coach/${linkId}`, { method: 'DELETE' });
 }
 
 export function getPendingAthletes(): Promise<PendingAthleteRequest[]> {

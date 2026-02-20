@@ -572,7 +572,21 @@ export const mockCoachSearchResults: CoachSearchResult[] = [
   { id: '00000000-0000-0000-0000-000000000082', full_name: 'Ким Виктор', city: 'Санкт-Петербург', club: 'Нева TKD', qualification: 'МС, 5 Dan', is_verified: true },
 ];
 
-export let mockMyCoach: MyCoachLink | null = load<MyCoachLink | null>('my_coach', null);
+// Migrate old single-coach key → array
+function loadMyCoaches(): MyCoachLink[] {
+  const arr = load<MyCoachLink[]>('my_coaches', []);
+  if (arr.length > 0) return arr;
+  // Migrate from old single-coach key
+  const old = load<MyCoachLink | null>('my_coach', null);
+  if (old) {
+    save('my_coaches', [old]);
+    localStorage.removeItem('tkd_my_coach');
+    return [old];
+  }
+  return [];
+}
+
+export let mockMyCoaches: MyCoachLink[] = loadMyCoaches();
 
 export function requestMockCoachLink(coachId: string): MyCoachLink {
   const coach = mockCoachSearchResults.find((c) => c.id === coachId);
@@ -586,14 +600,14 @@ export function requestMockCoachLink(coachId: string): MyCoachLink {
     is_verified: coach?.is_verified || false,
     status: 'pending',
   };
-  mockMyCoach = link;
-  save('my_coach', mockMyCoach);
+  mockMyCoaches = [...mockMyCoaches, link];
+  save('my_coaches', mockMyCoaches);
   return link;
 }
 
-export function unlinkMockCoach() {
-  mockMyCoach = null;
-  save('my_coach', null);
+export function unlinkMockCoach(linkId: string) {
+  mockMyCoaches = mockMyCoaches.filter((c) => c.link_id !== linkId);
+  save('my_coaches', mockMyCoaches);
 }
 
 export let mockPendingAthletes: PendingAthleteRequest[] = [

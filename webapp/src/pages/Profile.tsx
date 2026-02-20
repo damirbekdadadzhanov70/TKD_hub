@@ -15,7 +15,7 @@ import {
   getCoachAthletes,
   verifyCoach,
   getMe,
-  getMyCoach,
+  getMyCoaches,
   getNotifications,
   getPendingAthletes,
   getProfileStats,
@@ -44,7 +44,7 @@ import {
   mockCoachSearchResults,
   mockMarkNotificationsRead,
   mockMe,
-  mockMyCoach,
+  mockMyCoaches,
   mockPendingAthletes,
   mockProfileStats,
   mockRoleRequests,
@@ -817,27 +817,27 @@ function AthleteSection({
   const athlete = me.athlete!;
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showCoachSearch, setShowCoachSearch] = useState(false);
-  const { data: myCoach, mutate: mutateCoach } = useApi<MyCoachLink | null>(
-    getMyCoach,
-    mockMyCoach,
+  const { data: myCoaches, mutate: mutateCoaches } = useApi<MyCoachLink[]>(
+    getMyCoaches,
+    mockMyCoaches,
     [],
   );
-  const [unlinking, setUnlinking] = useState(false);
+  const [unlinking, setUnlinking] = useState<string | null>(null);
 
-  const handleUnlink = async () => {
+  const handleUnlink = async (linkId: string) => {
     if (!confirm(t('profile.unlinkCoachConfirm'))) return;
-    setUnlinking(true);
+    setUnlinking(linkId);
     try {
-      await unlinkCoach();
+      await unlinkCoach(linkId);
       hapticNotification('success');
-      unlinkMockCoach();
-      mutateCoach(null);
+      unlinkMockCoach(linkId);
+      mutateCoaches((myCoaches || []).filter((c) => c.link_id !== linkId));
       showToast(t('profile.coachUnlinked'));
     } catch {
       hapticNotification('error');
       showToast(t('common.error'), 'error');
     } finally {
-      setUnlinking(false);
+      setUnlinking(null);
     }
   };
 
@@ -870,42 +870,49 @@ function AthleteSection({
         <InfoRow label={t('profile.genderLabel')} value={athlete.gender === 'M' ? t('profile.male') : t('profile.female')} />
       </div>
 
-      {/* My Coach */}
+      {/* My Coaches */}
       <div className="px-4 mb-4">
-        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.myCoach')}</p>
-        {myCoach ? (
-          <div className={`p-3 rounded-xl ${myCoach.status === 'pending' ? 'bg-bg-secondary/60 border border-dashed border-border' : 'bg-bg-secondary'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${myCoach.status === 'pending' ? 'bg-bg-divider text-text-secondary' : 'bg-accent-light text-accent'}`}>
-                {myCoach.full_name.charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-[15px] font-medium text-text truncate">{myCoach.full_name}</p>
-                  {myCoach.status === 'pending' && (
-                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
-                      {t('profile.pendingCoach')}
-                    </span>
-                  )}
+        <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.myCoaches')}</p>
+        {(myCoaches || []).length > 0 && (
+          <div className="flex flex-col gap-2 mb-3">
+            {(myCoaches || []).map((coach) => (
+              <div key={coach.link_id} className={`p-3 rounded-xl ${coach.status === 'pending' ? 'bg-bg-secondary/60 border border-dashed border-border' : 'bg-bg-secondary'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${coach.status === 'pending' ? 'bg-bg-divider text-text-secondary' : 'bg-accent-light text-accent'}`}>
+                    {coach.full_name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[15px] font-medium text-text truncate">{coach.full_name}</p>
+                      {coach.status === 'pending' && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                          {t('profile.pendingCoach')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[13px] text-text-secondary">{coach.club} · {coach.city}</p>
+                  </div>
                 </div>
-                <p className="text-[13px] text-text-secondary">{myCoach.club} · {myCoach.city}</p>
+                <button
+                  onClick={() => handleUnlink(coach.link_id)}
+                  disabled={unlinking === coach.link_id}
+                  className="mt-2 text-sm text-text-disabled border-none bg-transparent cursor-pointer p-0 active:opacity-70 hover:text-text-secondary"
+                >
+                  {coach.status === 'pending' ? t('profile.cancelRequest') : t('profile.unlinkCoach')}
+                </button>
               </div>
-            </div>
-            <button
-              onClick={handleUnlink}
-              disabled={unlinking}
-              className="mt-2 text-sm text-text-disabled border-none bg-transparent cursor-pointer p-0 active:opacity-70 hover:text-text-secondary"
-            >
-              {myCoach.status === 'pending' ? t('profile.cancelRequest') : t('profile.unlinkCoach')}
-            </button>
+            ))}
           </div>
-        ) : (
+        )}
+        {(myCoaches || []).length < 3 ? (
           <button
             onClick={() => setShowCoachSearch(true)}
             className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer bg-transparent text-accent border border-accent hover:bg-accent-light active:bg-accent-light transition-colors"
           >
             {t('profile.findCoach')}
           </button>
+        ) : (
+          <p className="text-[13px] text-text-disabled text-center">{t('profile.coachLimitReached')}</p>
         )}
       </div>
 
@@ -914,7 +921,7 @@ function AthleteSection({
           onClose={() => setShowCoachSearch(false)}
           onLinked={(link) => {
             setShowCoachSearch(false);
-            mutateCoach(link);
+            mutateCoaches([...(myCoaches || []), link]);
             showToast(t('profile.requestSentToCoach'));
           }}
         />

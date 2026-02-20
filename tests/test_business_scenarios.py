@@ -2531,11 +2531,11 @@ async def test_search_coaches_min_query(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_my_coach_none(auth_client: AsyncClient):
-    """Returns null when athlete has no coach link."""
-    resp = await auth_client.get("/api/me/my-coach")
+async def test_get_my_coaches_empty(auth_client: AsyncClient):
+    """Returns empty list when athlete has no coach links."""
+    resp = await auth_client.get("/api/me/my-coaches")
     assert resp.status_code == 200
-    assert resp.json() is None
+    assert resp.json() == []
 
 
 @pytest.mark.asyncio
@@ -2561,8 +2561,8 @@ async def test_request_coach_link(auth_client: AsyncClient, coach_user: User, db
 
 
 @pytest.mark.asyncio
-async def test_request_coach_link_duplicate(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
-    """Cannot request a second coach link."""
+async def test_request_coach_link_duplicate_same_coach(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Cannot request a duplicate link with the same coach."""
     from sqlalchemy.orm import selectinload
 
     coach_result = await db_session.execute(
@@ -2577,17 +2577,18 @@ async def test_request_coach_link_duplicate(auth_client: AsyncClient, coach_user
     )
     assert resp.status_code == 200
 
-    # Second request → 400
+    # Same coach again → 400
     resp2 = await auth_client.post(
         "/api/me/coach-request",
         json={"coach_id": str(coach_u.coach.id)},
     )
     assert resp2.status_code == 400
+    assert "already have a link with this coach" in resp2.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_get_my_coach_pending(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
-    """Returns pending link after request."""
+async def test_get_my_coaches_pending(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Returns list with pending link after request."""
     from sqlalchemy.orm import selectinload
 
     coach_result = await db_session.execute(
@@ -2600,17 +2601,17 @@ async def test_get_my_coach_pending(auth_client: AsyncClient, coach_user: User, 
         json={"coach_id": str(coach_u.coach.id)},
     )
 
-    resp = await auth_client.get("/api/me/my-coach")
+    resp = await auth_client.get("/api/me/my-coaches")
     assert resp.status_code == 200
     data = resp.json()
-    assert data is not None
-    assert data["status"] == "pending"
-    assert data["coach_id"] == str(coach_u.coach.id)
+    assert len(data) == 1
+    assert data[0]["status"] == "pending"
+    assert data[0]["coach_id"] == str(coach_u.coach.id)
 
 
 @pytest.mark.asyncio
-async def test_unlink_coach(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
-    """Athlete can unlink from coach."""
+async def test_unlink_coach_by_link_id(auth_client: AsyncClient, coach_user: User, db_session: AsyncSession):
+    """Athlete can unlink from coach by link_id."""
     from sqlalchemy.orm import selectinload
 
     coach_result = await db_session.execute(
@@ -2618,17 +2619,64 @@ async def test_unlink_coach(auth_client: AsyncClient, coach_user: User, db_sessi
     )
     coach_u = coach_result.scalar_one()
 
-    await auth_client.post(
+    link_resp = await auth_client.post(
         "/api/me/coach-request",
         json={"coach_id": str(coach_u.coach.id)},
     )
+    link_id = link_resp.json()["link_id"]
 
-    resp = await auth_client.delete("/api/me/my-coach")
+    resp = await auth_client.delete(f"/api/me/my-coach/{link_id}")
     assert resp.status_code == 204
 
     # Verify it's gone
-    resp2 = await auth_client.get("/api/me/my-coach")
-    assert resp2.json() is None
+    resp2 = await auth_client.get("/api/me/my-coaches")
+    assert resp2.json() == []
+
+
+@pytest.mark.asyncio
+async def test_multiple_coaches_up_to_3(auth_client: AsyncClient, db_session: AsyncSession):
+    """Athlete can link up to 3 coaches; 4th is rejected."""
+    from datetime import date as d
+
+    coaches = []
+    for i in range(4):
+        coach_u = User(telegram_id=700000 + i, username=f"coach{i}", language="en")
+        db_session.add(coach_u)
+        await db_session.flush()
+        coach = Coach(
+            user_id=coach_u.id,
+            full_name=f"Coach {i}",
+            date_of_birth=d(1980, 1, 1),
+            gender="M",
+            country="Россия",
+            city="Москва",
+            club=f"Club {i}",
+            qualification="МС",
+        )
+        db_session.add(coach)
+        await db_session.flush()
+        coaches.append(coach)
+    await db_session.commit()
+
+    # Link 3 coaches — all should succeed
+    for i in range(3):
+        resp = await auth_client.post(
+            "/api/me/coach-request",
+            json={"coach_id": str(coaches[i].id)},
+        )
+        assert resp.status_code == 200, f"Coach {i} link failed: {resp.json()}"
+
+    # Verify all 3 are returned
+    resp = await auth_client.get("/api/me/my-coaches")
+    assert len(resp.json()) == 3
+
+    # 4th coach → 400
+    resp4 = await auth_client.post(
+        "/api/me/coach-request",
+        json={"coach_id": str(coaches[3].id)},
+    )
+    assert resp4.status_code == 400
+    assert "Maximum 3" in resp4.json()["detail"]
 
 
 @pytest.mark.asyncio

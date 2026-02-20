@@ -293,8 +293,8 @@ async def update_coach(
 # ── Coach Linking ────────────────────────────────────────────
 
 
-@router.get("/me/my-coach", response_model=MyCoachRead | None)
-async def get_my_coach(ctx: AuthContext = Depends(get_current_user)):
+@router.get("/me/my-coaches", response_model=list[MyCoachRead])
+async def get_my_coaches(ctx: AuthContext = Depends(get_current_user)):
     if not ctx.user.athlete:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -305,21 +305,23 @@ async def get_my_coach(ctx: AuthContext = Depends(get_current_user)):
         select(CoachAthlete)
         .where(CoachAthlete.athlete_id == ctx.user.athlete.id)
         .options(selectinload(CoachAthlete.coach))
+        .order_by(CoachAthlete.invited_at)
     )
-    link = result.scalar_one_or_none()
-    if not link:
-        return None
+    links = result.scalars().all()
 
-    return MyCoachRead(
-        link_id=link.id,
-        coach_id=link.coach.id,
-        full_name=link.coach.full_name,
-        city=link.coach.city,
-        club=link.coach.club,
-        qualification=link.coach.qualification,
-        is_verified=link.coach.is_verified,
-        status=link.status,
-    )
+    return [
+        MyCoachRead(
+            link_id=link.id,
+            coach_id=link.coach.id,
+            full_name=link.coach.full_name,
+            city=link.coach.city,
+            club=link.coach.club,
+            qualification=link.coach.qualification,
+            is_verified=link.coach.is_verified,
+            status=link.status,
+        )
+        for link in links
+    ]
 
 
 class CoachRequestPayload(BaseModel):
@@ -337,12 +339,15 @@ async def request_coach_link(
             detail="Only athletes can request a coach link",
         )
 
-    # Check no existing link
-    existing = await ctx.session.execute(select(CoachAthlete).where(CoachAthlete.athlete_id == ctx.user.athlete.id))
-    if existing.scalar_one_or_none():
+    # Check max 3 links (pending + accepted)
+    existing_result = await ctx.session.execute(
+        select(CoachAthlete).where(CoachAthlete.athlete_id == ctx.user.athlete.id)
+    )
+    existing_links = existing_result.scalars().all()
+    if len(existing_links) >= 3:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You already have a coach link (pending or accepted)",
+            detail="Maximum 3 coach links allowed",
         )
 
     # Validate coach exists
@@ -355,6 +360,13 @@ async def request_coach_link(
     coach = coach_result.scalar_one_or_none()
     if not coach:
         raise HTTPException(status_code=404, detail="Coach not found")
+
+    # Check no duplicate link with this coach
+    if any(link.coach_id == coach.id for link in existing_links):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You already have a link with this coach",
+        )
 
     link = CoachAthlete(
         coach_id=coach.id,
@@ -377,15 +389,25 @@ async def request_coach_link(
     )
 
 
-@router.delete("/me/my-coach", status_code=status.HTTP_204_NO_CONTENT)
-async def unlink_coach(ctx: AuthContext = Depends(get_current_user)):
+@router.delete("/me/my-coach/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unlink_coach(link_id: str, ctx: AuthContext = Depends(get_current_user)):
     if not ctx.user.athlete:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only athletes can access this endpoint",
         )
 
-    result = await ctx.session.execute(select(CoachAthlete).where(CoachAthlete.athlete_id == ctx.user.athlete.id))
+    try:
+        link_uuid = uuid_mod.UUID(link_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid link_id") from err
+
+    result = await ctx.session.execute(
+        select(CoachAthlete).where(
+            CoachAthlete.id == link_uuid,
+            CoachAthlete.athlete_id == ctx.user.athlete.id,
+        )
+    )
     link = result.scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="No coach link found")
