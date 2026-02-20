@@ -287,15 +287,6 @@ export async function getRatings(params?: {
   return res.items;
 }
 
-export async function getRatingCities(): Promise<string[]> {
-  return apiRequest<string[]>('/ratings/cities');
-}
-
-export async function getRatingWeights(gender?: string): Promise<string[]> {
-  const qs = gender ? `?gender=${gender}` : '';
-  return apiRequest<string[]>(`/ratings/weights${qs}`);
-}
-
 // --- Coach ---
 
 // --- Coach Linking ---

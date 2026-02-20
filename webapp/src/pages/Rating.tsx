@@ -5,7 +5,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useApi } from '../hooks/useApi';
 import { useI18n } from '../i18n/I18nProvider';
-import { getMe, getRatings, getRatingCities, getRatingWeights } from '../api/endpoints';
+import { getMe, getRatings } from '../api/endpoints';
 import { mockMe, mockRatings } from '../api/mock';
 import { CITIES } from '../constants/cities';
 import type { MeResponse, RatingEntry } from '../types';
@@ -296,21 +296,11 @@ export default function Rating() {
     { value: 'F', label: t('rating.genderFemale') },
   ];
 
+  const WEIGHT_ALL = [...WEIGHT_F, ...WEIGHT_M];
+  const weightOptions = gender === 'M' ? WEIGHT_M : gender === 'F' ? WEIGHT_F : WEIGHT_ALL;
+
   const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
-
-  // Load cities and weight categories from API (real data from DB)
-  const { data: apiCities, isDemo } = useApi<string[]>(getRatingCities, CITIES, []);
-  const defaultWeights = gender === 'M' ? WEIGHT_M : gender === 'F' ? WEIGHT_F : [...WEIGHT_F, ...WEIGHT_M];
-  const { data: apiWeights } = useApi<string[]>(
-    () => getRatingWeights(gender || undefined),
-    defaultWeights,
-    [gender],
-  );
-
-  const cityOptions = apiCities || CITIES;
-  const weightOptions = apiWeights || (gender === 'M' ? WEIGHT_M : gender === 'F' ? WEIGHT_F : [...WEIGHT_F, ...WEIGHT_M]);
-
-  const { data: ratings, loading, refetch } = useApi<RatingEntry[]>(
+  const { data: ratings, loading, isDemo, refetch } = useApi<RatingEntry[]>(
     () => getRatings({
       city: city || undefined,
       weight_category: weight || undefined,
@@ -374,7 +364,7 @@ export default function Rating() {
         <DropdownFilter
           label={t('rating.city')}
           value={city}
-          options={cityOptions.map((c) => ({ value: c, label: c }))}
+          options={CITIES.map((c) => ({ value: c, label: c }))}
           allLabel={t('common.all')}
           onChange={setCity}
         />
