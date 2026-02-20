@@ -730,7 +730,7 @@ function DocumentsSection({
   onChanged: (silent?: boolean) => void;
 }) {
   const { t } = useI18n();
-  const { hapticNotification, isTelegram } = useTelegram();
+  const { hapticNotification } = useTelegram();
   const { showToast } = useToast();
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [saving, setSaving] = useState(false);
