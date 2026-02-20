@@ -2040,23 +2040,27 @@ function EditProfileForm({
     city: athlete.city,
     club: athlete.club || '',
   });
+  const [weightInput, setWeightInput] = useState(String(athlete.current_weight ?? ''));
   const { hapticNotification } = useTelegram();
   const [saving, setSaving] = useState(false);
 
   const hasChanges =
     form.full_name !== athlete.full_name ||
     form.weight_category !== athlete.weight_category ||
-    form.current_weight !== athlete.current_weight ||
+    weightInput !== String(athlete.current_weight) ||
     form.sport_rank !== athlete.sport_rank ||
     form.city !== athlete.city ||
     form.club !== (athlete.club || '');
 
   const handleSubmit = async () => {
+    const parsed = parseFloat(weightInput);
+    if (!parsed || parsed <= 0) return;
     setSaving(true);
     try {
-      await updateMe(form);
+      const submitData = { ...form, current_weight: parsed };
+      await updateMe(submitData);
       hapticNotification('success');
-      onSaved(form);
+      onSaved(submitData);
     } catch (err) {
       hapticNotification('error');
       showToast(err instanceof Error ? err.message : t('common.error'), 'error');
@@ -2114,8 +2118,8 @@ function EditProfileForm({
           <input
             type="number"
             step="0.1"
-            value={form.current_weight ?? ''}
-            onChange={(e) => update('current_weight', parseFloat(e.target.value) || 0)}
+            value={weightInput}
+            onChange={(e) => setWeightInput(e.target.value)}
             className="w-full bg-transparent border-b border-border text-[15px] text-text py-2 outline-none focus:border-accent transition-colors"
           />
         </div>
