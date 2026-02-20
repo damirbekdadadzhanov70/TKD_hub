@@ -6,11 +6,11 @@
   --color-bg-secondary: #FFFFFF;
   --color-bg-divider: #D8DFE9;
 
-  /* Текст */
-  --color-text: #1E2D4D;
+  /* Текст — тёмно-синий из логотипа Победоносец */
+  --color-text: #253A5E;
   --color-text-heading: #1B2A4A;
-  --color-text-secondary: #6B7FA0;
-  --color-text-disabled: #9CAABE;
+  --color-text-secondary: #5A7199;
+  --color-text-disabled: #8FA4C0;
 
   /* Акцент — золото (из логотипа Победоносец) */
   --color-accent: #C5A44E;
