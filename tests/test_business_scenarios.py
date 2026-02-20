@@ -3572,11 +3572,7 @@ async def test_csv_upload_and_match(admin_client, admin_user, db_session):
     tournament = await create_tournament(db_session, admin_user, importance_level=2)
 
     # Admin user's athlete: full_name="Admin User", weight="80kg"
-    csv_content = (
-        "Фамилия;Имя;Весовая категория;Место\n"
-        "Admin;User;80kg;1\n"
-        "Unknown;Person;-58;3\n"
-    )
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;1\nUnknown;Person;-58;3\n"
     csv_bytes = csv_content.encode("utf-8")
 
     from unittest.mock import AsyncMock, patch
@@ -3600,9 +3596,7 @@ async def test_csv_upload_and_match(admin_client, admin_user, db_session):
 
     from sqlalchemy import select
 
-    athlete_result = await db_session.execute(
-        select(Athlete).where(Athlete.user_id == admin_user.id)
-    )
+    athlete_result = await db_session.execute(select(Athlete).where(Athlete.user_id == admin_user.id))
     athlete = athlete_result.scalar_one()
     await db_session.refresh(athlete)
     assert athlete.rating_points == 24
@@ -3669,9 +3663,7 @@ async def test_csv_unmatched_stored(admin_client, admin_user, db_session):
 
     from db.models import TournamentResult
 
-    result = await db_session.execute(
-        select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
-    )
+    result = await db_session.execute(select(TournamentResult).where(TournamentResult.tournament_id == tournament.id))
     tr = result.scalar_one()
     assert tr.athlete_id is None
     assert tr.raw_full_name == "Никто Незнакомый"
@@ -3741,9 +3733,7 @@ async def test_csv_idempotent(admin_client, admin_user, db_session):
 
     from db.models import TournamentResult
 
-    count_result = await db_session.execute(
-        select(func.count()).where(TournamentResult.tournament_id == tournament.id)
-    )
+    count_result = await db_session.execute(select(func.count()).where(TournamentResult.tournament_id == tournament.id))
     assert count_result.scalar() == 1
 
 
@@ -3798,9 +3788,7 @@ async def test_csv_retroactive_match(admin_client, admin_user, db_session):
 
     from db.models import TournamentResult
 
-    result = await db_session.execute(
-        select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
-    )
+    result = await db_session.execute(select(TournamentResult).where(TournamentResult.tournament_id == tournament.id))
     tr = result.scalar_one()
     assert tr.athlete_id == new_athlete.id
 
@@ -3811,11 +3799,7 @@ async def test_csv_retroactive_match_with_patronymic(admin_client, admin_user, d
     tournament = await create_tournament(db_session, admin_user, importance_level=1)
 
     # CSV with patronymic in section-header format
-    csv_content = (
-        "Мужчины 68 кг\n"
-        "№;Фамилия Имя Отчество;Занятое место\n"
-        "1;Новиков Дмитрий Александрович;1\n"
-    )
+    csv_content = "Мужчины 68 кг\n№;Фамилия Имя Отчество;Занятое место\n1;Новиков Дмитрий Александрович;1\n"
     csv_bytes = csv_content.encode("utf-8")
 
     from unittest.mock import AsyncMock, patch

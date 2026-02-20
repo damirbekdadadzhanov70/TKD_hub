@@ -162,7 +162,11 @@ def parse_csv(content: bytes) -> list[CsvRow]:
 
         # Check if this is a header row
         first_lower = cells[0].strip().lower()
-        if first_lower in _NUMBER_PATTERNS or first_lower in _NAME_SURNAME_PATTERNS or first_lower in _NAME_FULL_PATTERNS:
+        if (
+            first_lower in _NUMBER_PATTERNS
+            or first_lower in _NAME_SURNAME_PATTERNS
+            or first_lower in _NAME_FULL_PATTERNS
+        ):
             # Detect columns
             col_map = {}
             lc = [c.strip().lower() for c in cells]
@@ -246,13 +250,15 @@ def parse_csv(content: bytes) -> list[CsvRow]:
         match_name = extract_match_name(raw_full_name)
         gender = current_gender or ""
 
-        rows.append(CsvRow(
-            full_name=match_name,
-            raw_full_name=raw_full_name,
-            weight_category=weight,
-            gender=gender,
-            place=place,
-        ))
+        rows.append(
+            CsvRow(
+                full_name=match_name,
+                raw_full_name=raw_full_name,
+                weight_category=weight,
+                gender=gender,
+                place=place,
+            )
+        )
 
     return rows
 

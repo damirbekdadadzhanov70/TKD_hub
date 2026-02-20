@@ -1066,9 +1066,7 @@ async def upload_tournament_file(
         )
 
     # Verify tournament exists
-    t_result = await ctx.session.execute(
-        select(Tournament).where(Tournament.id == tournament_id)
-    )
+    t_result = await ctx.session.execute(select(Tournament).where(Tournament.id == tournament_id))
     tournament = t_result.scalar_one_or_none()
     if not tournament:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
@@ -1123,9 +1121,7 @@ async def upload_tournament_file(
     # Process CSV results if applicable
     csv_summary = None
     if is_csv and category == "protocol":
-        csv_summary = await _process_csv_results(
-            ctx.session, tournament_id, content, tournament.importance_level
-        )
+        csv_summary = await _process_csv_results(ctx.session, tournament_id, content, tournament.importance_level)
 
     await ctx.session.commit()
     await ctx.session.refresh(db_file)
