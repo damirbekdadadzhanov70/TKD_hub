@@ -730,7 +730,7 @@ function DocumentsSection({
   onChanged: (silent?: boolean) => void;
 }) {
   const { t } = useI18n();
-  const { hapticNotification } = useTelegram();
+  const { hapticNotification, isTelegram } = useTelegram();
   const { showToast } = useToast();
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [saving, setSaving] = useState(false);
@@ -925,7 +925,20 @@ function DocumentsSection({
                     {files.map((f) => (
                       <div key={f.id} className="flex items-center gap-2">
                         <button
-                          onClick={() => setViewingFile(f)}
+                          onClick={() => {
+                            const isCsv = f.filename.toLowerCase().endsWith('.csv');
+                            if (isCsv || isTelegram) {
+                              // CSV or Telegram: open directly (iframe blocked in TG)
+                              try {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                (window as any).Telegram?.WebApp?.openLink?.(f.blob_url);
+                              } catch {
+                                window.open(f.blob_url, '_blank');
+                              }
+                            } else {
+                              setViewingFile(f);
+                            }
+                          }}
                           className="flex-1 min-w-0 flex items-center gap-2 border-none bg-transparent cursor-pointer p-1.5 rounded-lg text-left hover:bg-bg-secondary active:opacity-80 transition-all"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
