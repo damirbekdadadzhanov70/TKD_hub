@@ -20,7 +20,6 @@ import type {
   TournamentCreate,
   TournamentDetail,
   TournamentEntry,
-  TournamentFile,
   TournamentFileUploadResponse,
   TournamentInterestResponse,
   TournamentListItem,
