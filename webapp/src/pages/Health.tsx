@@ -91,7 +91,7 @@ export default function Health() {
   }, [viewingOtherAthlete, selectedAthleteId]);
 
   const weightMock = useMemo(() => {
-    if (viewingOtherAthlete) return getMockCoachAthleteWeightEntries(selectedAthleteId);
+    if (viewingOtherAthlete) return getMockCoachAthleteWeightEntries();
     return mockWeightEntries;
   }, [viewingOtherAthlete, selectedAthleteId]);
 
@@ -101,7 +101,7 @@ export default function Health() {
   }, [viewingOtherAthlete, selectedAthleteId]);
 
   const sleepMock = useMemo(() => {
-    if (viewingOtherAthlete) return getMockCoachAthleteSleepEntries(selectedAthleteId);
+    if (viewingOtherAthlete) return getMockCoachAthleteSleepEntries();
     return mockSleepEntries;
   }, [viewingOtherAthlete, selectedAthleteId]);
 
