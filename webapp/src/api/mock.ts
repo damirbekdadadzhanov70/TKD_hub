@@ -943,10 +943,10 @@ export function deleteMockSleepEntry(id: string) {
 
 // --- Coach: Athlete Health Entries ---
 
-export function getMockCoachAthleteWeightEntries(_athleteId: string): WeightEntry[] {
+export function getMockCoachAthleteWeightEntries(): WeightEntry[] {
   return mockWeightEntries;
 }
 
-export function getMockCoachAthleteSleepEntries(_athleteId: string): SleepEntry[] {
+export function getMockCoachAthleteSleepEntries(): SleepEntry[] {
   return mockSleepEntries;
 }
