@@ -279,9 +279,9 @@ export default function Health() {
                   </span>
                   <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>&#8250;</button>
                 </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono">
                   {WEEKDAYS.map((d: string) => (
-                    <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
+                    <div key={d} className="py-1 font-medium font-body text-text-secondary">{d}</div>
                   ))}
                   {Array.from({ length: firstDayOfWeek }).map((_, i) => (
                     <div key={`empty-${i}`} />
@@ -317,7 +317,7 @@ export default function Health() {
                               <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white' : 'bg-accent'}`} />
                             )}
                             {hasSleep && (
-                              <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-blue-600'}`} />
+                              <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-sleep'}`} />
                             )}
                           </div>
                         )}
@@ -366,14 +366,14 @@ export default function Health() {
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-600/10">
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                                <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-sleep/10">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sleep">
                                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                                   </svg>
                                 </div>
                                 <span className="text-sm font-semibold text-text">{t('health.sleep')}</span>
                               </div>
-                              <span className="text-sm font-mono font-bold text-blue-600">{ss.sleep_hours} {t('health.hours')}</span>
+                              <span className="text-sm font-mono font-bold text-sleep">{ss.sleep_hours} {t('health.hours')}</span>
                             </div>
                           )}
                         </>
@@ -411,7 +411,7 @@ export default function Health() {
                       aria-label={t('health.sleep')}
                       onClick={() => setChartMode('sleep')}
                       className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-                        chartMode === 'sleep' ? 'text-blue-600 bg-blue-600/10' : 'text-text-secondary bg-transparent hover:text-text'
+                        chartMode === 'sleep' ? 'text-sleep bg-sleep/10' : 'text-text-secondary bg-transparent hover:text-text'
                       }`}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -471,7 +471,7 @@ export default function Health() {
                     onClick={() => handleChoicePick('sleep')}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-bg-secondary text-text cursor-pointer hover:bg-bg-secondary/80 active:opacity-80 transition-all"
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 shrink-0">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sleep shrink-0">
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                     </svg>
                     <span className="font-semibold text-sm">{t('health.sleep')}</span>
@@ -1063,7 +1063,7 @@ function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlig
             <polyline
               points={polyline}
               fill="none"
-              stroke="#2563eb"
+              stroke="#6BA3C7"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1072,15 +1072,15 @@ function SleepChart({ entries, highlightDate }: { entries: SleepEntry[]; highlig
               const isHl = p.entry.date === highlightDate;
               return (
                 <g key={p.entry.id}>
-                  {isHl && <circle cx={p.x} cy={p.y} r="8" fill="#2563eb" opacity="0.2" />}
-                  <circle cx={p.x} cy={p.y} r={isHl ? 5 : 4} fill="#2563eb" />
+                  {isHl && <circle cx={p.x} cy={p.y} r="8" fill="#6BA3C7" opacity="0.2" />}
+                  <circle cx={p.x} cy={p.y} r={isHl ? 5 : 4} fill="#6BA3C7" />
                   <circle cx={p.x} cy={p.y} r="2" fill="white" />
                   {(entries.length === 1 || isHl) && (
                     <text
                       x={p.x}
                       y={p.y - 10}
                       textAnchor="middle"
-                      fill="#2563eb"
+                      fill="#6BA3C7"
                       fontSize="11"
                       fontWeight="bold"
                       fontFamily="var(--font-mono)"

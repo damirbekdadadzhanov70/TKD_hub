@@ -76,7 +76,6 @@ function isValidName(v: string): boolean {
   return NAME_REGEX.test(v);
 }
 
-const WEIGHT_CATEGORIES = ['-54kg', '-58kg', '-63kg', '-68kg', '-74kg', '-80kg', '-87kg', '+87kg'];
 const WEIGHT_M = ['54kg', '58kg', '63kg', '68kg', '74kg', '80kg', '87kg', '+87kg'];
 const WEIGHT_F = ['46kg', '49kg', '53kg', '57kg', '62kg', '67kg', '73kg', '+73kg'];
 const RANKS = ['Без разряда', '3 разряд', '2 разряд', '1 разряд', 'КМС', 'МС', 'МСМК', 'ЗМС'];
@@ -866,7 +865,7 @@ function AthleteSection({
         <p className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-3">{t('profile.information')}</p>
         <InfoRow label={t('profile.club')} value={athlete.club || '—'} />
         <InfoRow label={t('profile.city')} value={athlete.city} />
-        <InfoRow label={t('profile.weightLabel')} value={`${athlete.current_weight} kg`} />
+        <InfoRow label={t('profile.weightLabel')} value={`${athlete.current_weight} kg`} mono />
         <InfoRow label={t('profile.genderLabel')} value={athlete.gender === 'M' ? t('profile.male') : t('profile.female')} />
       </div>
 
@@ -1328,11 +1327,11 @@ function CoachSearchSheet({
 
 /* ---- Info Row ---- */
 
-function InfoRow({ label, value, accent, green, yellow }: { label: string; value: string; accent?: boolean; green?: boolean; yellow?: boolean }) {
+function InfoRow({ label, value, accent, green, yellow, mono }: { label: string; value: string; accent?: boolean; green?: boolean; yellow?: boolean; mono?: boolean }) {
   return (
     <div className="flex justify-between items-center py-2">
       <span className="text-[11px] text-text-disabled">{label}</span>
-      <span className={`text-[15px] ${green ? 'text-emerald-500' : yellow ? 'text-amber-500' : accent ? 'text-accent' : 'text-text'}`}>{value}</span>
+      <span className={`text-[15px] ${mono ? 'font-mono' : ''} ${green ? 'text-emerald-500' : yellow ? 'text-amber-500' : accent ? 'text-accent' : 'text-text'}`}>{value}</span>
     </div>
   );
 }
@@ -1712,7 +1711,7 @@ function AdminRoleRequests() {
                   ) : null}
                   {d.current_weight ? (
                     <p className="text-[12px] text-text-secondary">
-                      <span className="text-text-disabled">{t('profile.roleRequestCurrentWeight')}:</span> {String(d.current_weight)} kg
+                      <span className="text-text-disabled">{t('profile.roleRequestCurrentWeight')}:</span> <span className="font-mono">{String(d.current_weight)} kg</span>
                     </p>
                   ) : null}
                   {d.sport_rank ? (
@@ -2097,7 +2096,7 @@ function EditProfileForm({
         <div>
           <span className="text-[11px] uppercase tracking-[1.5px] text-text-disabled mb-2 block">{t('profile.weightCategory')}</span>
           <div className="flex flex-wrap gap-1.5">
-            {WEIGHT_CATEGORIES.map((w) => (
+            {(athlete.gender === 'F' ? WEIGHT_F : WEIGHT_M).map((w) => (
               <button
                 key={w}
                 onClick={() => update('weight_category', w)}

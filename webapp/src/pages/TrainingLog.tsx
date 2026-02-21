@@ -322,9 +322,9 @@ export default function TrainingLogPage() {
                 </span>
                 <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>›</button>
               </div>
-              <div className="grid grid-cols-7 gap-1 text-center text-xs">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono">
                 {WEEKDAYS.map((d: string) => (
-                  <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
+                  <div key={d} className="py-1 font-medium font-body text-text-secondary">{d}</div>
                 ))}
                 {Array.from({ length: firstDayOfWeek }).map((_, i) => (
                   <div key={`empty-${i}`} />
@@ -402,11 +402,11 @@ export default function TrainingLogPage() {
                 <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">{t('training.monthSummary')}</h3>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-accent-light rounded-xl py-3">
-                    <p className="text-xl font-bold text-accent">{stats.total_sessions}</p>
+                    <p className="text-xl font-bold font-mono text-accent">{stats.total_sessions}</p>
                     <p className="text-[11px] text-text-secondary mt-0.5">{t('training.sessions')}</p>
                   </div>
                   <div className="bg-accent-light rounded-xl py-3">
-                    <p className="text-xl font-bold text-accent">{(stats.total_minutes / 60).toFixed(1)}</p>
+                    <p className="text-xl font-bold font-mono text-accent">{(stats.total_minutes / 60).toFixed(1)}</p>
                     <p className="text-[11px] text-text-secondary mt-0.5">{t('training.hours')}</p>
                   </div>
                   <div className="bg-accent-light rounded-xl py-3">
@@ -443,7 +443,7 @@ export default function TrainingLogPage() {
                       </div>
                     </div>
                     {log.weight && (
-                      <span className="text-xs font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-medium font-mono text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full">
                         {log.weight} kg
                       </span>
                     )}

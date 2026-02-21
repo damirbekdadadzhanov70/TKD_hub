@@ -317,7 +317,7 @@ export default function Tournaments() {
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                     <span className="text-[13px] text-accent font-medium">
-                      {t('tournaments.yourEntries')} · {myCount} {t('tournamentDetail.athletes')}
+                      {t('tournaments.yourEntries')} · <span className="font-mono">{myCount}</span> {t('tournamentDetail.athletes')}
                     </span>
                   </div>
                 )}
