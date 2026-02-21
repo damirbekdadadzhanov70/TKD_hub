@@ -8,9 +8,27 @@ import { useToast } from '../components/Toast';
 import { useApi } from '../hooks/useApi';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n/I18nProvider';
-import { getWeightEntries, createWeightEntry, deleteWeightEntry, getSleepEntries, createSleepEntry, deleteSleepEntry } from '../api/endpoints';
-import { mockWeightEntries, mockSleepEntries } from '../api/mock';
-import type { WeightEntry, SleepEntry } from '../types';
+import {
+  getWeightEntries,
+  createWeightEntry,
+  deleteWeightEntry,
+  getSleepEntries,
+  createSleepEntry,
+  deleteSleepEntry,
+  getCoachAthleteWeightEntries,
+  getCoachAthleteSleepEntries,
+  getCoachAthletes,
+  getMe,
+} from '../api/endpoints';
+import {
+  mockWeightEntries,
+  mockSleepEntries,
+  getMockCoachAthleteWeightEntries,
+  getMockCoachAthleteSleepEntries,
+  mockCoachAthletes,
+  mockMe,
+} from '../api/mock';
+import type { CoachAthlete, MeResponse, WeightEntry, SleepEntry } from '../types';
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month, 0).getDate();
@@ -35,17 +53,96 @@ export default function Health() {
   const [formType, setFormType] = useState<'weight' | 'sleep' | null>(null);
   const [chartMode, setChartMode] = useState<'weight' | 'sleep'>('weight');
 
-  const { data: weightEntries, loading: weightLoading, refetch: refetchWeight } = useApi<WeightEntry[]>(
-    getWeightEntries,
-    mockWeightEntries,
+  // Coach mode
+  const { data: me } = useApi<MeResponse>(getMe, mockMe, []);
+  const isCoach = me?.role === 'coach';
+
+  const { data: athletes } = useApi<CoachAthlete[]>(
+    getCoachAthletes,
+    mockCoachAthletes,
     [],
   );
 
-  const { data: sleepEntries, loading: sleepLoading, refetch: refetchSleep } = useApi<SleepEntry[]>(
-    getSleepEntries,
-    mockSleepEntries,
-    [],
+  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>('self');
+  const [showAthleteSelector, setShowAthleteSelector] = useState(false);
+  const [athleteSearch, setAthleteSearch] = useState('');
+
+  const isSelfLog = selectedAthleteId === 'self';
+
+  const selectedAthlete = useMemo(
+    () => (isSelfLog ? null : athletes?.find((a) => a.id === selectedAthleteId) ?? null),
+    [athletes, selectedAthleteId, isSelfLog],
   );
+
+  const filteredAthletes = useMemo(() => {
+    if (!athletes) return [];
+    if (!athleteSearch.trim()) return athletes;
+    const q = athleteSearch.toLowerCase();
+    return athletes.filter((a) => a.full_name.toLowerCase().includes(q));
+  }, [athletes, athleteSearch]);
+
+  const viewingOtherAthlete = isCoach && selectedAthleteId && !isSelfLog;
+  const readOnly = isCoach && !isSelfLog;
+
+  // Conditional data fetching
+  const weightFetcher = useCallback(() => {
+    if (viewingOtherAthlete) return getCoachAthleteWeightEntries(selectedAthleteId);
+    return getWeightEntries();
+  }, [viewingOtherAthlete, selectedAthleteId]);
+
+  const weightMock = useMemo(() => {
+    if (viewingOtherAthlete) return getMockCoachAthleteWeightEntries(selectedAthleteId);
+    return mockWeightEntries;
+  }, [viewingOtherAthlete, selectedAthleteId]);
+
+  const sleepFetcher = useCallback(() => {
+    if (viewingOtherAthlete) return getCoachAthleteSleepEntries(selectedAthleteId);
+    return getSleepEntries();
+  }, [viewingOtherAthlete, selectedAthleteId]);
+
+  const sleepMock = useMemo(() => {
+    if (viewingOtherAthlete) return getMockCoachAthleteSleepEntries(selectedAthleteId);
+    return mockSleepEntries;
+  }, [viewingOtherAthlete, selectedAthleteId]);
+
+  const shouldFetch = !isCoach || !!selectedAthleteId;
+
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[] | null>(null);
+  const [sleepEntries, setSleepEntries] = useState<SleepEntry[] | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!shouldFetch) {
+      setWeightEntries(null);
+      setSleepEntries(null);
+      return;
+    }
+    if (!silent) setDataLoading(true);
+    const hasApi = !!import.meta.env.VITE_API_URL;
+    const isTg = !!(window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData;
+    if (!isTg || !hasApi) {
+      await new Promise((r) => setTimeout(r, 300));
+      setWeightEntries(weightMock);
+      setSleepEntries(sleepMock);
+      setDataLoading(false);
+      return;
+    }
+    try {
+      const [w, s] = await Promise.all([weightFetcher(), sleepFetcher()]);
+      setWeightEntries(w);
+      setSleepEntries(s);
+    } catch (err) {
+      console.error('Health data fetch error:', err);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [shouldFetch, weightFetcher, sleepFetcher, weightMock, sleepMock]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const loading = dataLoading;
 
   const weightDates = useMemo(() => {
     const map = new Map<string, WeightEntry>();
@@ -72,8 +169,6 @@ export default function Health() {
     if (!sleepEntries) return [];
     return [...sleepEntries].sort((a, b) => a.date.localeCompare(b.date));
   }, [sleepEntries]);
-
-  const loading = weightLoading || sleepLoading;
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = getFirstDayOfWeek(year, month);
@@ -121,12 +216,11 @@ export default function Health() {
 
   const handleFormSaved = () => {
     setFormType(null);
-    refetchWeight(true);
-    refetchSleep(true);
+    fetchData(true);
   };
 
   const handleRefresh = async () => {
-    await Promise.all([refetchWeight(true), refetchSleep(true)]);
+    await fetchData(true);
   };
 
   return (
@@ -138,229 +232,338 @@ export default function Health() {
           </h1>
         </div>
 
-        {/* Calendar */}
-        <div className="px-4">
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <button aria-label={t('training.prevMonth')} onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">&#8249;</button>
-              <span className="font-semibold text-sm text-text">
-                {MONTH_NAMES[month - 1]} {year}
+        {/* Coach: Athlete Selector */}
+        {isCoach && (
+          <div className="px-4 mb-2">
+            <button
+              onClick={() => {
+                setAthleteSearch('');
+                setShowAthleteSelector(true);
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-bg-secondary text-sm cursor-pointer hover:border-accent active:opacity-80 transition-all"
+            >
+              <span className={selectedAthleteId ? 'text-text font-medium' : 'text-text-secondary'}>
+                {isSelfLog
+                  ? t('training.myLog')
+                  : selectedAthlete
+                    ? `${t('training.athleteLog')}: ${selectedAthlete.full_name}`
+                    : t('training.selectAthlete')}
               </span>
-              <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>&#8250;</button>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-xs">
-              {WEEKDAYS.map((d: string) => (
-                <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
-              ))}
-              {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                <div key={`empty-${i}`} />
-              ))}
-              {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day = i + 1;
-                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const hasWeight = weightDates.has(dateStr);
-                const hasSleep = sleepDates.has(dateStr);
-                const isToday = isCurrentMonth && day === today;
-                const isSelected = selectedDate === dateStr;
-                const isFuture = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1) || (isCurrentMonth && day > today);
-                return (
-                  <div
-                    key={day}
-                    onClick={() => handleDayClick(day)}
-                    className={`py-1.5 rounded-lg relative text-xs transition-colors ${
-                      isFuture
-                        ? 'text-text-disabled cursor-default'
-                        : isSelected && isToday
-                          ? 'bg-accent text-white font-bold cursor-pointer ring-2 ring-accent ring-offset-1'
-                          : isSelected
-                            ? 'bg-accent/15 text-accent font-bold cursor-pointer'
-                            : isToday
-                              ? 'bg-accent text-white font-bold cursor-pointer'
-                              : 'text-text cursor-pointer hover:bg-bg-secondary'
-                    }`}
-                  >
-                    {day}
-                    {(hasWeight || hasSleep) && (
-                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                        {hasWeight && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white' : 'bg-accent'}`} />
-                        )}
-                        {hasSleep && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-blue-600'}`} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary shrink-0">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Coach: no athlete selected state */}
+        {isCoach && !selectedAthleteId && (
+          <div className="px-4 pt-8">
+            <EmptyState
+              title={t('training.selectAthlete')}
+              description={t('training.noAthleteSelected')}
+            />
+          </div>
+        )}
+
+        {/* Main content */}
+        {(!isCoach || selectedAthleteId) && (
+          <>
+            {/* Calendar */}
+            <div className="px-4">
+              <Card>
+                <div className="flex items-center justify-between mb-3">
+                  <button aria-label={t('training.prevMonth')} onClick={prevMonth} className="text-lg border-none bg-transparent cursor-pointer px-2 text-accent">&#8249;</button>
+                  <span className="font-semibold text-sm text-text">
+                    {MONTH_NAMES[month - 1]} {year}
+                  </span>
+                  <button aria-label={t('training.nextMonth')} onClick={nextMonth} disabled={isFutureMonth} className={`text-lg border-none bg-transparent px-2 ${isFutureMonth ? 'text-text-disabled cursor-default' : 'text-accent cursor-pointer'}`}>&#8250;</button>
+                </div>
+                <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                  {WEEKDAYS.map((d: string) => (
+                    <div key={d} className="py-1 font-medium text-text-secondary">{d}</div>
+                  ))}
+                  {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const hasWeight = weightDates.has(dateStr);
+                    const hasSleep = sleepDates.has(dateStr);
+                    const isToday = isCurrentMonth && day === today;
+                    const isSelected = selectedDate === dateStr;
+                    const isFuture = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1) || (isCurrentMonth && day > today);
+                    return (
+                      <div
+                        key={day}
+                        onClick={() => handleDayClick(day)}
+                        className={`py-1.5 rounded-lg relative text-xs transition-colors ${
+                          isFuture
+                            ? 'text-text-disabled cursor-default'
+                            : isSelected && isToday
+                              ? 'bg-accent text-white font-bold cursor-pointer ring-2 ring-accent ring-offset-1'
+                              : isSelected
+                                ? 'bg-accent/15 text-accent font-bold cursor-pointer'
+                                : isToday
+                                  ? 'bg-accent text-white font-bold cursor-pointer'
+                                  : 'text-text cursor-pointer hover:bg-bg-secondary'
+                        }`}
+                      >
+                        {day}
+                        {(hasWeight || hasSleep) && (
+                          <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
+                            {hasWeight && (
+                              <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white' : 'bg-accent'}`} />
+                            )}
+                            {hasSleep && (
+                              <div className={`w-1.5 h-1.5 rounded-full ${isToday && !isSelected ? 'bg-white/70' : 'bg-blue-600'}`} />
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+
+                {/* Selected date data */}
+                {selectedDate && (() => {
+                  const sw = weightDates.get(selectedDate);
+                  const ss = sleepDates.get(selectedDate);
+                  const d = new Date(selectedDate + 'T00:00:00');
+                  return (
+                    <div className="mt-3 pt-3 border-t border-dashed border-border">
+                      <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
+                        {d.getDate()} {MONTH_NAMES[d.getMonth()]}
+                      </p>
+                      {sw || ss ? (
+                        <>
+                          {sw && (
+                            <div
+                              onClick={readOnly ? undefined : () => setFormType('weight')}
+                              className={`flex items-center justify-between py-2 -mx-2 px-2 rounded-lg transition-all ${
+                                readOnly ? '' : 'cursor-pointer hover:bg-bg-secondary/50 active:opacity-80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-accent/10">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                                    <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+                                    <path d="M12 6.5V4" />
+                                    <path d="M9 10h6" />
+                                  </svg>
+                                </div>
+                                <span className="text-sm font-semibold text-text">{t('health.weight')}</span>
+                              </div>
+                              <span className="text-sm font-mono font-bold text-accent">{sw.weight_kg} {t('health.kg')}</span>
+                            </div>
+                          )}
+                          {ss && (
+                            <div
+                              onClick={readOnly ? undefined : () => setFormType('sleep')}
+                              className={`flex items-center justify-between py-2 -mx-2 px-2 rounded-lg transition-all ${
+                                readOnly ? '' : 'cursor-pointer hover:bg-bg-secondary/50 active:opacity-80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-600/10">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                  </svg>
+                                </div>
+                                <span className="text-sm font-semibold text-text">{t('health.sleep')}</span>
+                              </div>
+                              <span className="text-sm font-mono font-bold text-blue-600">{ss.sleep_hours} {t('health.hours')}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-text-secondary py-2">{t('health.noDataThisDay')}</p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </Card>
             </div>
 
-            {/* Selected date data */}
-            {selectedDate && (() => {
-              const sw = weightDates.get(selectedDate);
-              const ss = sleepDates.get(selectedDate);
-              const d = new Date(selectedDate + 'T00:00:00');
-              return (
-                <div className="mt-3 pt-3 border-t border-dashed border-border">
-                  <p className="text-[11px] uppercase tracking-wider text-text-disabled mb-2">
-                    {d.getDate()} {MONTH_NAMES[d.getMonth()]}
-                  </p>
-                  {sw || ss ? (
-                    <>
-                      {sw && (
-                        <div
-                          onClick={() => setFormType('weight')}
-                          className="flex items-center justify-between py-2 cursor-pointer hover:bg-bg-secondary/50 -mx-2 px-2 rounded-lg active:opacity-80 transition-all"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-accent/10">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
-                                <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
-                                <path d="M12 6.5V4" />
-                                <path d="M9 10h6" />
-                              </svg>
-                            </div>
-                            <span className="text-sm font-semibold text-text">{t('health.weight')}</span>
-                          </div>
-                          <span className="text-sm font-mono font-bold text-accent">{sw.weight_kg} {t('health.kg')}</span>
-                        </div>
-                      )}
-                      {ss && (
-                        <div
-                          onClick={() => setFormType('sleep')}
-                          className="flex items-center justify-between py-2 cursor-pointer hover:bg-bg-secondary/50 -mx-2 px-2 rounded-lg active:opacity-80 transition-all"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-600/10">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                              </svg>
-                            </div>
-                            <span className="text-sm font-semibold text-text">{t('health.sleep')}</span>
-                          </div>
-                          <span className="text-sm font-mono font-bold text-blue-600">{ss.sleep_hours} {t('health.hours')}</span>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm text-text-secondary py-2">{t('health.noDataThisDay')}</p>
-                  )}
+            {/* Chart */}
+            <div className="px-4">
+              <Card>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+                    {chartMode === 'weight' ? t('health.weightChart') : t('health.sleepChart')}
+                  </h3>
+                  <div className="flex gap-1">
+                    <button
+                      aria-label={t('health.weight')}
+                      onClick={() => setChartMode('weight')}
+                      className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
+                        chartMode === 'weight' ? 'text-accent bg-accent/10' : 'text-text-secondary bg-transparent hover:text-text'
+                      }`}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+                        <path d="M12 6.5V4" />
+                        <path d="M9 10h6" />
+                      </svg>
+                    </button>
+                    <button
+                      aria-label={t('health.sleep')}
+                      onClick={() => setChartMode('sleep')}
+                      className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
+                        chartMode === 'sleep' ? 'text-blue-600 bg-blue-600/10' : 'text-text-secondary bg-transparent hover:text-text'
+                      }`}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              );
-            })()}
-          </Card>
-        </div>
+                {loading ? (
+                  <LoadingSpinner />
+                ) : chartMode === 'weight' ? (
+                  sortedWeightEntries.length === 0 ? (
+                    <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
+                  ) : (
+                    <WeightChart entries={sortedWeightEntries} highlightDate={selectedDate} />
+                  )
+                ) : (
+                  sortedSleepEntries.length === 0 ? (
+                    <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
+                  ) : (
+                    <SleepChart entries={sortedSleepEntries} highlightDate={selectedDate} />
+                  )
+                )}
+              </Card>
+            </div>
 
-        {/* Chart */}
-        <div className="px-4">
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                {chartMode === 'weight' ? t('health.weightChart') : t('health.sleepChart')}
-              </h3>
-              <div className="flex gap-1">
-                <button
-                  aria-label={t('health.weight')}
-                  onClick={() => setChartMode('weight')}
-                  className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-                    chartMode === 'weight' ? 'text-accent bg-accent/10' : 'text-text-secondary bg-transparent hover:text-text'
-                  }`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
-                    <path d="M12 6.5V4" />
-                    <path d="M9 10h6" />
-                  </svg>
-                </button>
-                <button
-                  aria-label={t('health.sleep')}
-                  onClick={() => setChartMode('sleep')}
-                  className={`p-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-                    chartMode === 'sleep' ? 'text-blue-600 bg-blue-600/10' : 'text-text-secondary bg-transparent hover:text-text'
-                  }`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                  </svg>
-                </button>
+            {/* FAB — only in editable mode */}
+            {!readOnly && (
+              <button
+                aria-label={t('health.chooseType')}
+                onClick={handleFabClick}
+                className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
+              >
+                +
+              </button>
+            )}
+
+            {/* Choice BottomSheet */}
+            {showChoice && selectedDate && !readOnly && (
+              <BottomSheet onClose={() => setShowChoice(false)}>
+                <div className="p-4 pb-2">
+                  <h2 className="text-lg font-bold text-text">{t('health.chooseType')}</h2>
+                </div>
+                <div className="px-4 pb-4 space-y-2" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                  <button
+                    onClick={() => handleChoicePick('weight')}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-bg-secondary text-text cursor-pointer hover:bg-bg-secondary/80 active:opacity-80 transition-all"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
+                      <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+                      <path d="M12 6.5V4" />
+                      <path d="M9 10h6" />
+                    </svg>
+                    <span className="font-semibold text-sm">{t('health.weight')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleChoicePick('sleep')}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-bg-secondary text-text cursor-pointer hover:bg-bg-secondary/80 active:opacity-80 transition-all"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 shrink-0">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                    <span className="font-semibold text-sm">{t('health.sleep')}</span>
+                  </button>
+                </div>
+              </BottomSheet>
+            )}
+
+            {/* Weight Form BottomSheet */}
+            {formType === 'weight' && selectedDate && !readOnly && (
+              <WeightForm
+                date={selectedDate}
+                existing={weightDates.get(selectedDate) || null}
+                onClose={handleFormClose}
+                onSaved={handleFormSaved}
+              />
+            )}
+
+            {/* Sleep Form BottomSheet */}
+            {formType === 'sleep' && selectedDate && !readOnly && (
+              <SleepForm
+                date={selectedDate}
+                existing={sleepDates.get(selectedDate) || null}
+                onClose={handleFormClose}
+                onSaved={handleFormSaved}
+              />
+            )}
+          </>
+        )}
+
+        {/* Athlete selector bottom sheet */}
+        {showAthleteSelector && (
+          <BottomSheet onClose={() => setShowAthleteSelector(false)}>
+            <div className="p-4 pt-5">
+              <h2 className="text-lg font-bold text-text mb-3">{t('training.selectAthlete')}</h2>
+              <input
+                type="text"
+                value={athleteSearch}
+                onChange={(e) => setAthleteSearch(e.target.value)}
+                placeholder={t('training.searchAthlete')}
+                className="w-full rounded-lg px-3 py-2.5 text-sm border border-border bg-bg-secondary text-text outline-none mb-3"
+                autoFocus
+              />
+              <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+                {/* Coach's own log — always available */}
+                {(!athleteSearch.trim() || t('training.myLog').toLowerCase().includes(athleteSearch.toLowerCase()) || (me?.athlete?.full_name && me.athlete.full_name.toLowerCase().includes(athleteSearch.toLowerCase()))) && (
+                  <button
+                    onClick={() => {
+                      setSelectedAthleteId('self');
+                      setSelectedDate(null);
+                      setShowAthleteSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-3 rounded-xl border-none cursor-pointer active:opacity-80 transition-all ${
+                      isSelfLog
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-transparent text-text hover:bg-bg-secondary'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{t('training.myLog')}</p>
+                    {me?.athlete && (
+                      <p className="text-[11px] text-text-secondary mt-0.5">
+                        {me.athlete.full_name} · {me.athlete.weight_category}
+                      </p>
+                    )}
+                  </button>
+                )}
+                {filteredAthletes.length === 0 && athleteSearch.trim() === '' && (
+                  <p className="text-sm text-text-secondary text-center py-4">{t('training.noAcceptedAthletes')}</p>
+                )}
+                {filteredAthletes.map((athlete) => (
+                  <button
+                    key={athlete.id}
+                    onClick={() => {
+                      setSelectedAthleteId(athlete.id);
+                      setSelectedDate(null);
+                      setShowAthleteSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-3 rounded-xl border-none cursor-pointer active:opacity-80 transition-all ${
+                      selectedAthleteId === athlete.id
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-transparent text-text hover:bg-bg-secondary'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{athlete.full_name}</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">
+                      {athlete.weight_category}{athlete.club ? ` · ${athlete.club}` : ''}
+                    </p>
+                  </button>
+                ))}
               </div>
             </div>
-            {loading ? (
-              <LoadingSpinner />
-            ) : chartMode === 'weight' ? (
-              sortedWeightEntries.length === 0 ? (
-                <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
-              ) : (
-                <WeightChart entries={sortedWeightEntries} highlightDate={selectedDate} />
-              )
-            ) : (
-              sortedSleepEntries.length === 0 ? (
-                <EmptyState title={t('health.noData')} description={t('health.noDataDesc')} />
-              ) : (
-                <SleepChart entries={sortedSleepEntries} highlightDate={selectedDate} />
-              )
-            )}
-          </Card>
-        </div>
-
-        {/* FAB */}
-        <button
-          aria-label={t('health.chooseType')}
-          onClick={handleFabClick}
-          className="fixed bottom-24 right-4 w-14 h-14 rounded-full flex items-center justify-center text-2xl border-none cursor-pointer bg-accent text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 active:scale-95 transition-all z-40"
-        >
-          +
-        </button>
-
-        {/* Choice BottomSheet */}
-        {showChoice && selectedDate && (
-          <BottomSheet onClose={() => setShowChoice(false)}>
-            <div className="p-4 pb-2">
-              <h2 className="text-lg font-bold text-text">{t('health.chooseType')}</h2>
-            </div>
-            <div className="px-4 pb-4 space-y-2" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-              <button
-                onClick={() => handleChoicePick('weight')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-bg-secondary text-text cursor-pointer hover:bg-bg-secondary/80 active:opacity-80 transition-all"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
-                  <path d="M6.5 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
-                  <path d="M12 6.5V4" />
-                  <path d="M9 10h6" />
-                </svg>
-                <span className="font-semibold text-sm">{t('health.weight')}</span>
-              </button>
-              <button
-                onClick={() => handleChoicePick('sleep')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-bg-secondary text-text cursor-pointer hover:bg-bg-secondary/80 active:opacity-80 transition-all"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 shrink-0">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-                <span className="font-semibold text-sm">{t('health.sleep')}</span>
-              </button>
-            </div>
           </BottomSheet>
-        )}
-
-        {/* Weight Form BottomSheet */}
-        {formType === 'weight' && selectedDate && (
-          <WeightForm
-            date={selectedDate}
-            existing={weightDates.get(selectedDate) || null}
-            onClose={handleFormClose}
-            onSaved={handleFormSaved}
-          />
-        )}
-
-        {/* Sleep Form BottomSheet */}
-        {formType === 'sleep' && selectedDate && (
-          <SleepForm
-            date={selectedDate}
-            existing={sleepDates.get(selectedDate) || null}
-            onClose={handleFormClose}
-            onSaved={handleFormSaved}
-          />
         )}
       </div>
     </PullToRefresh>
@@ -577,7 +780,7 @@ function InteractiveChart({
   const BASE_SPACING = 60;
   const Y_AXIS_W = 40;
   const PAD_L = 25;
-  const PAD_R = 15;
+  const PAD_R = 30;
 
   const [scale, setScale] = useState(1.0);
   const [scrollRatio, setScrollRatio] = useState(1);

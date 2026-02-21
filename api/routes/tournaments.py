@@ -206,8 +206,26 @@ async def update_tournament(
             detail="Tournament not found",
         )
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    old_importance = tournament.importance_level
+    new_importance = update_data.get("importance_level", old_importance)
+
+    for field, value in update_data.items():
         setattr(tournament, field, value)
+
+    # Recalculate rating points if importance_level changed
+    if new_importance != old_importance:
+        res = await ctx.session.execute(
+            select(TournamentResult)
+            .where(TournamentResult.tournament_id == tournament_id)
+            .options(selectinload(TournamentResult.athlete))
+        )
+        for r in res.scalars().all():
+            old_pts = r.rating_points_earned
+            new_pts = calculate_points(r.place, new_importance)
+            if r.athlete:
+                r.athlete.rating_points = max(0, r.athlete.rating_points - old_pts) + new_pts
+            r.rating_points_earned = new_pts
 
     await ctx.session.commit()
     await ctx.session.refresh(tournament)

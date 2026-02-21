@@ -4125,6 +4125,63 @@ async def test_csv_multiple_tournaments_accumulate(admin_client, admin_user, db_
     assert athlete.rating_points >= p1 + p2
 
 
+@pytest.mark.asyncio
+async def test_importance_level_change_recalculates_points(admin_client, admin_user, db_session):
+    """Changing tournament importance_level recalculates all result points."""
+    tournament = await create_tournament(db_session, admin_user, importance_level=1)
+
+    # Upload CSV: Admin User gets 1st place → 12 × 1 = 12 points
+    csv_content = "Фамилия;Имя;Весовая категория;Место\nAdmin;User;80kg;1\n"
+    csv_bytes = csv_content.encode("utf-8")
+
+    from unittest.mock import AsyncMock, patch
+
+    mock_upload = AsyncMock(return_value="https://blob.test/file.csv")
+    with patch("api.routes.tournaments._upload_to_vercel_blob", mock_upload):
+        resp = await admin_client.post(
+            f"/api/tournaments/{tournament.id}/files?category=protocol",
+            files={"file": ("results.csv", csv_bytes, "text/csv")},
+        )
+    assert resp.status_code == 201
+
+    from sqlalchemy import select as sa_select
+
+    athlete_result = await db_session.execute(sa_select(Athlete).where(Athlete.user_id == admin_user.id))
+    athlete = athlete_result.scalar_one()
+    await db_session.refresh(athlete)
+    assert athlete.rating_points == 12  # 12 × 1
+
+    # Now change importance_level to 3 → should recalculate: 12 × 3 = 36
+    resp = await admin_client.put(
+        f"/api/tournaments/{tournament.id}",
+        json={"importance_level": 3},
+    )
+    assert resp.status_code == 200
+
+    await db_session.refresh(athlete)
+    assert athlete.rating_points == 36  # 12 × 3
+
+    # Check that TournamentResult.rating_points_earned also updated
+    result = await db_session.execute(
+        sa_select(TournamentResult).where(TournamentResult.tournament_id == tournament.id)
+    )
+    results = result.scalars().all()
+    for r in results:
+        await db_session.refresh(r)
+        if r.place == 1:
+            assert r.rating_points_earned == 36
+
+    # Lower back to 2 → 12 × 2 = 24
+    resp = await admin_client.put(
+        f"/api/tournaments/{tournament.id}",
+        json={"importance_level": 2},
+    )
+    assert resp.status_code == 200
+
+    await db_session.refresh(athlete)
+    assert athlete.rating_points == 24  # 12 × 2
+
+
 # ═══════════════════════════════════════════════════════════════
 #  COACH TRAINING LOG VIEWER
 # ═══════════════════════════════════════════════════════════════
@@ -4248,3 +4305,127 @@ async def test_coach_cannot_view_pending_athlete_log(
 
     resp = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/training-log")
     assert resp.status_code == 403
+
+
+# ═══════════════════════════════════════════════════════════════
+#  20. API: Coach Health Viewer (Weight & Sleep Entries)
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_coach_view_athlete_weight_entries(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    coach_with_athlete: tuple,
+):
+    """Coach can view weight entries of an accepted athlete."""
+    coach_u, athlete_u = coach_with_athlete
+
+    from db.models.weight_entry import WeightEntry
+
+    entry = WeightEntry(
+        user_id=athlete_u.id,
+        athlete_id=athlete_u.athlete.id,
+        date=date(2026, 2, 10),
+        weight_kg=67.5,
+    )
+    db_session.add(entry)
+    await db_session.commit()
+
+    resp = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/weight-entries")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert float(data[0]["weight_kg"]) == 67.5
+    assert data[0]["date"] == "2026-02-10"
+
+
+@pytest.mark.asyncio
+async def test_coach_view_athlete_sleep_entries(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    coach_with_athlete: tuple,
+):
+    """Coach can view sleep entries of an accepted athlete."""
+    coach_u, athlete_u = coach_with_athlete
+
+    from db.models.sleep_entry import SleepEntry
+
+    entry = SleepEntry(
+        user_id=athlete_u.id,
+        athlete_id=athlete_u.athlete.id,
+        date=date(2026, 2, 10),
+        sleep_hours=7.5,
+    )
+    db_session.add(entry)
+    await db_session.commit()
+
+    resp = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/sleep-entries")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert float(data[0]["sleep_hours"]) == 7.5
+    assert data[0]["date"] == "2026-02-10"
+
+
+@pytest.mark.asyncio
+async def test_coach_cannot_view_unlinked_athlete_health(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    coach_user: User,
+):
+    """Coach gets 403 when trying to view health of an unlinked athlete."""
+    other_user = User(telegram_id=666666666, username="other_health", language="ru")
+    db_session.add(other_user)
+    await db_session.flush()
+    other_athlete = Athlete(
+        user_id=other_user.id,
+        full_name="Other Health Athlete",
+        date_of_birth=date(2000, 1, 1),
+        gender="M",
+        weight_category="-68kg",
+        current_weight=68,
+        sport_rank="1 разряд",
+        country="Россия",
+        city="Москва",
+    )
+    db_session.add(other_athlete)
+    await db_session.commit()
+
+    resp_w = await coach_client.get(f"/api/coach/athletes/{other_athlete.id}/weight-entries")
+    assert resp_w.status_code == 403
+
+    resp_s = await coach_client.get(f"/api/coach/athletes/{other_athlete.id}/sleep-entries")
+    assert resp_s.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_coach_cannot_view_pending_athlete_health(
+    coach_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    coach_user: User,
+):
+    """Coach gets 403 when athlete link is still pending."""
+    coach_result = await db_session.execute(
+        select(User).where(User.id == coach_user.id).options(selectinload(User.coach))
+    )
+    coach_u = coach_result.scalar_one()
+    athlete_result = await db_session.execute(
+        select(User).where(User.id == test_user.id).options(selectinload(User.athlete))
+    )
+    athlete_u = athlete_result.scalar_one()
+
+    link = CoachAthlete(
+        coach_id=coach_u.coach.id,
+        athlete_id=athlete_u.athlete.id,
+        status="pending",
+    )
+    db_session.add(link)
+    await db_session.commit()
+
+    resp_w = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/weight-entries")
+    assert resp_w.status_code == 403
+
+    resp_s = await coach_client.get(f"/api/coach/athletes/{athlete_u.athlete.id}/sleep-entries")
+    assert resp_s.status_code == 403

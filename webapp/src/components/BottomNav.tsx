@@ -81,7 +81,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 flex bg-bg-secondary border-t border-border"
+      className="fixed bottom-0 left-0 right-0 z-30 flex bg-bg-secondary border-t border-border"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       {tabs.map((tab) => {

@@ -430,3 +430,13 @@ export function deleteSleepEntry(id: string): Promise<void> {
     method: 'DELETE',
   });
 }
+
+// --- Coach: Athlete Health Entries ---
+
+export function getCoachAthleteWeightEntries(athleteId: string): Promise<WeightEntry[]> {
+  return apiRequest<WeightEntry[]>(`/coach/athletes/${athleteId}/weight-entries`);
+}
+
+export function getCoachAthleteSleepEntries(athleteId: string): Promise<SleepEntry[]> {
+  return apiRequest<SleepEntry[]>(`/coach/athletes/${athleteId}/sleep-entries`);
+}

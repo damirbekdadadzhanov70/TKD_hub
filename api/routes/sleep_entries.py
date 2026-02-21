@@ -14,14 +14,8 @@ router = APIRouter()
 async def list_sleep_entries(
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes have sleep entries",
-        )
-
     result = await ctx.session.execute(
-        select(SleepEntry).where(SleepEntry.athlete_id == ctx.user.athlete.id).order_by(SleepEntry.date.desc())
+        select(SleepEntry).where(SleepEntry.user_id == ctx.user.id).order_by(SleepEntry.date.desc())
     )
     entries = result.scalars().all()
     return [SleepEntryRead.model_validate(e) for e in entries]
@@ -32,16 +26,10 @@ async def create_sleep_entry(
     data: SleepEntryCreate,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can log sleep",
-        )
-
     # Upsert: update if entry exists for this date, else insert
     result = await ctx.session.execute(
         select(SleepEntry).where(
-            SleepEntry.athlete_id == ctx.user.athlete.id,
+            SleepEntry.user_id == ctx.user.id,
             SleepEntry.date == data.date,
         )
     )
@@ -51,7 +39,8 @@ async def create_sleep_entry(
         entry.sleep_hours = data.sleep_hours
     else:
         entry = SleepEntry(
-            athlete_id=ctx.user.athlete.id,
+            user_id=ctx.user.id,
+            athlete_id=ctx.user.athlete.id if ctx.user.athlete else None,
             date=data.date,
             sleep_hours=data.sleep_hours,
         )
@@ -67,16 +56,10 @@ async def delete_sleep_entry(
     entry_id: uuid.UUID,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can delete sleep entries",
-        )
-
     result = await ctx.session.execute(
         select(SleepEntry).where(
             SleepEntry.id == entry_id,
-            SleepEntry.athlete_id == ctx.user.athlete.id,
+            SleepEntry.user_id == ctx.user.id,
         )
     )
     entry = result.scalar_one_or_none()

@@ -940,3 +940,13 @@ export function deleteMockSleepEntry(id: string) {
   mockSleepEntries = mockSleepEntries.filter((e) => e.id !== id);
   saveSleepEntries();
 }
+
+// --- Coach: Athlete Health Entries ---
+
+export function getMockCoachAthleteWeightEntries(_athleteId: string): WeightEntry[] {
+  return mockWeightEntries;
+}
+
+export function getMockCoachAthleteSleepEntries(_athleteId: string): SleepEntry[] {
+  return mockSleepEntries;
+}

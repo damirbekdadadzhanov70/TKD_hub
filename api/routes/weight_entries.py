@@ -14,14 +14,8 @@ router = APIRouter()
 async def list_weight_entries(
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes have weight entries",
-        )
-
     result = await ctx.session.execute(
-        select(WeightEntry).where(WeightEntry.athlete_id == ctx.user.athlete.id).order_by(WeightEntry.date.desc())
+        select(WeightEntry).where(WeightEntry.user_id == ctx.user.id).order_by(WeightEntry.date.desc())
     )
     entries = result.scalars().all()
     return [WeightEntryRead.model_validate(e) for e in entries]
@@ -32,16 +26,10 @@ async def create_weight_entry(
     data: WeightEntryCreate,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can log weight",
-        )
-
     # Upsert: update if entry exists for this date, else insert
     result = await ctx.session.execute(
         select(WeightEntry).where(
-            WeightEntry.athlete_id == ctx.user.athlete.id,
+            WeightEntry.user_id == ctx.user.id,
             WeightEntry.date == data.date,
         )
     )
@@ -51,7 +39,8 @@ async def create_weight_entry(
         entry.weight_kg = data.weight_kg
     else:
         entry = WeightEntry(
-            athlete_id=ctx.user.athlete.id,
+            user_id=ctx.user.id,
+            athlete_id=ctx.user.athlete.id if ctx.user.athlete else None,
             date=data.date,
             weight_kg=data.weight_kg,
         )
@@ -67,16 +56,10 @@ async def delete_weight_entry(
     entry_id: uuid.UUID,
     ctx: AuthContext = Depends(get_current_user),
 ):
-    if not ctx.user.athlete:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only athletes can delete weight entries",
-        )
-
     result = await ctx.session.execute(
         select(WeightEntry).where(
             WeightEntry.id == entry_id,
-            WeightEntry.athlete_id == ctx.user.athlete.id,
+            WeightEntry.user_id == ctx.user.id,
         )
     )
     entry = result.scalar_one_or_none()

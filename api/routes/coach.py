@@ -8,9 +8,11 @@ from sqlalchemy.orm import selectinload
 from api.dependencies import AuthContext, get_current_user
 from api.schemas.coach import CoachAthleteRead, CoachEntryRead, CoachSearchResult, PendingAthleteRead
 from api.schemas.pagination import PaginatedResponse
+from api.schemas.sleep_entry import SleepEntryRead
 from api.schemas.training import TrainingLogRead, TrainingLogStats
+from api.schemas.weight_entry import WeightEntryRead
 from api.utils.pagination import paginate_query
-from db.models import CoachAthlete, TournamentEntry, TrainingLog
+from db.models import CoachAthlete, SleepEntry, TournamentEntry, TrainingLog, WeightEntry
 from db.models.coach import Coach
 
 router = APIRouter()
@@ -333,3 +335,37 @@ async def get_coach_athlete_training_stats(
         avg_intensity=avg_intensity,
         training_days=row.training_days,
     )
+
+
+@router.get(
+    "/coach/athletes/{athlete_id}/weight-entries",
+    response_model=list[WeightEntryRead],
+)
+async def get_coach_athlete_weight_entries(
+    athlete_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    aid = await _verify_coach_athlete_link(ctx, athlete_id)
+
+    result = await ctx.session.execute(
+        select(WeightEntry).where(WeightEntry.athlete_id == aid).order_by(WeightEntry.date.desc())
+    )
+    entries = result.scalars().all()
+    return [WeightEntryRead.model_validate(e) for e in entries]
+
+
+@router.get(
+    "/coach/athletes/{athlete_id}/sleep-entries",
+    response_model=list[SleepEntryRead],
+)
+async def get_coach_athlete_sleep_entries(
+    athlete_id: str,
+    ctx: AuthContext = Depends(get_current_user),
+):
+    aid = await _verify_coach_athlete_link(ctx, athlete_id)
+
+    result = await ctx.session.execute(
+        select(SleepEntry).where(SleepEntry.athlete_id == aid).order_by(SleepEntry.date.desc())
+    )
+    entries = result.scalars().all()
+    return [SleepEntryRead.model_validate(e) for e in entries]
